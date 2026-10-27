@@ -27,6 +27,7 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
+import androidx.media3.transformer.VideoEncoderSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -50,18 +51,27 @@ class MediaUnreadableException(cause: Throwable? = null) : IOException(cause)
 /** The video could not be converted for the cover screen. */
 class VideoConversionException(cause: Throwable? = null) : IOException(cause)
 
+/** What [MediaImport.transcodeVideo] made: whether the clip kept sound, and whether the source was longer than the cap. */
+internal data class TranscodedVideo(val hasAudio: Boolean, val clipped: Boolean)
+
 /**
  * Prepares picked media so the cover can show it at the lowest possible cost: photos are downscaled
- * once to [MAX_PHOTO_EDGE], videos are re-encoded to SDR H.264 at most [VIDEO_SHORT_SIDE]p / 30 fps
- * (audio kept as AAC when there is any), so playback is a light hardware decode instead of a
- * full-size 4K/HDR stream.
+ * once to [MAX_PHOTO_EDGE], videos are re-encoded to SDR H.264 at most [VIDEO_SHORT_SIDE]p / 30 fps and
+ * about [VIDEO_BITRATE] (audio kept as AAC when there is any), so playback is a light hardware decode
+ * instead of a full-size 4K/HDR stream, and a five-minute clip stays near 80 MB.
  */
 internal object MediaImport {
     const val MAX_ANIMATION_BYTES: Long = 30L * 1024 * 1024
     const val MAX_PHOTO_EDGE = 1440
     const val VIDEO_SHORT_SIDE = 720
     const val VIDEO_FPS = 30f
-    const val MAX_VIDEO_MS = 60_000L
+    const val MAX_VIDEO_MS = 300_000L
+    /** Plenty for 720p on a 3.4" cover: 5 minutes come to about 75 MB of video. */
+    const val VIDEO_BITRATE = 2_000_000
+    /** A low-bitrate source is re-encoded at its own rate (it cannot gain anything), but never below this. */
+    private const val MIN_VIDEO_BITRATE = 600_000
+    /** A source at most this much longer than [MAX_VIDEO_MS] is not worth telling the user about. */
+    private const val CLIP_TOLERANCE_MS = 1_000L
     private const val POSTER_EDGE = 480
     private const val AUDIO_BITRATE = 128_000
 
@@ -138,24 +148,47 @@ internal object MediaImport {
     /**
      * Re-encodes the first [MAX_VIDEO_MS] of [source] into [destination]; reports 0..1 progress. Keeps the
      * audio track when there is one; if that audio cannot be converted, the clip is imported silent
-     * rather than not at all. Returns whether [destination] has audio.
+     * rather than not at all.
      */
-    suspend fun transcodeVideo(context: Context, source: Uri, destination: File, onProgress: (Float) -> Unit): Boolean {
-        val (shortSide, sourceHasAudio) = withContext(Dispatchers.IO) { videoShortSide(context, source) to hasAudio { setDataSource(context, source) } }
-        if (sourceHasAudio) {
+    suspend fun transcodeVideo(context: Context, source: Uri, destination: File, onProgress: (Float) -> Unit): TranscodedVideo {
+        val probe = withContext(Dispatchers.IO) { probe(context, source) }
+        val clipped = probe.durationMs > MAX_VIDEO_MS + CLIP_TOLERANCE_MS
+        val bitrate = if (probe.bitrate in 1 until VIDEO_BITRATE) probe.bitrate.coerceAtLeast(MIN_VIDEO_BITRATE) else VIDEO_BITRATE
+        if (probe.hasAudio) {
             try {
-                export(context, source, destination, shortSide, keepAudio = true, onProgress)
-                return withContext(Dispatchers.IO) { hasAudio { setDataSource(destination.absolutePath) } }
+                export(context, source, destination, probe.shortSide, bitrate, keepAudio = true, onProgress)
+                return TranscodedVideo(hasAudio = withContext(Dispatchers.IO) { hasAudio { setDataSource(destination.absolutePath) } }, clipped)
             } catch (e: VideoConversionException) {
                 withContext(Dispatchers.IO) { destination.delete() }
             }
         }
-        export(context, source, destination, shortSide, keepAudio = false, onProgress)
-        return false
+        export(context, source, destination, probe.shortSide, bitrate, keepAudio = false, onProgress)
+        return TranscodedVideo(hasAudio = false, clipped)
+    }
+
+    /** Length of the video [file] in milliseconds, or 0 if it cannot be read. */
+    fun durationMs(file: File): Long {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(file.absolutePath)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()?.coerceAtLeast(0L) ?: 0L
+        } catch (e: RuntimeException) {
+            0L
+        } finally {
+            retriever.release()
+        }
     }
 
     @OptIn(UnstableApi::class)
-    private suspend fun export(context: Context, source: Uri, destination: File, shortSide: Int, keepAudio: Boolean, onProgress: (Float) -> Unit) {
+    private suspend fun export(
+        context: Context,
+        source: Uri,
+        destination: File,
+        shortSide: Int,
+        bitrate: Int,
+        keepAudio: Boolean,
+        onProgress: (Float) -> Unit,
+    ) {
         withContext(Dispatchers.Main) {
             coroutineScope {
                 val transformer = Transformer.Builder(context.applicationContext)
@@ -164,6 +197,8 @@ internal object MediaImport {
                     .setAudioMimeType(MimeTypes.AUDIO_AAC)
                     .setEncoderFactory(
                         DefaultEncoderFactory.Builder(context.applicationContext)
+                            // The encoder's own pick for 720p is far more than the cover needs, and long clips add up.
+                            .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(bitrate).build())
                             .setRequestedAudioEncoderSettings(
                                 AudioEncoderSettings.Builder()
                                     .setProfile(MediaCodecInfo.CodecProfileLevel.AACObjectLC)
@@ -234,16 +269,24 @@ internal object MediaImport {
         }
     }
 
-    /** Shorter edge of the video in pixels, or 0 if unknown. */
-    private fun videoShortSide(context: Context, uri: Uri): Int {
+    /** What the picked video is: shorter edge in pixels, audio, length and overall bitrate (0 / false if unknown). */
+    private data class Probe(val shortSide: Int, val hasAudio: Boolean, val durationMs: Long, val bitrate: Int)
+
+    private fun probe(context: Context, uri: Uri): Probe {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(context, uri)
-            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
-            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
-            if (width > 0 && height > 0) min(width, height) else 0
+            fun number(key: Int) = retriever.extractMetadata(key)?.toLongOrNull() ?: 0L
+            val width = number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH).toInt()
+            val height = number(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT).toInt()
+            Probe(
+                shortSide = if (width > 0 && height > 0) min(width, height) else 0,
+                hasAudio = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) == "yes",
+                durationMs = number(MediaMetadataRetriever.METADATA_KEY_DURATION),
+                bitrate = number(MediaMetadataRetriever.METADATA_KEY_BITRATE).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+            )
         } catch (e: RuntimeException) {
-            0
+            Probe(shortSide = 0, hasAudio = false, durationMs = 0L, bitrate = 0)
         } finally {
             retriever.release()
         }

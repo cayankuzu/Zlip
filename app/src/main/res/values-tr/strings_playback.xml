@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Otomatik ilerleme (Ayarlar, Ana sayfa) -->
+    <string name="advance_on">Açık</string>
+    <string name="advance_auto_desc">İçerikler kapakta sırayla kendiliğinden değişir.</string>
+    <string name="advance_photo_time_hint">Fotoğraf, çizim ve yazı gibi sabit içerikler bu kadar kalır.</string>
+
+    <!-- Otomatik ilerleme ve grup düzenleyici ortak -->
+    <string name="playback_photo_time">Fotoğraf süresi</string>
+    <string name="playback_videos">Videolar</string>
+    <string name="playback_videos_to_end">Sonuna kadar</string>
+    <string name="playback_videos_cut">Süre dolunca geç</string>
+    <string name="playback_videos_to_end_hint">Her video baştan sona bir kez oynar, sonra sıradakine geçilir.</string>
+    <string name="playback_videos_cut_hint">Videolar da fotoğraf süresi dolunca geçilir.</string>
+
+    <!-- Grup düzenleyici: oynatma seçenekleri -->
+    <string name="group_playback">Oynatma</string>
+    <string name="group_photo_time_hint">Fotoğraf, çizim ve yazı adımları bu kadar kalır.</string>
+    <string name="group_shuffle">Karışık sıra</string>
+    <string name="group_shuffle_desc">Her turda adımlar rastgele sırayla oynar.</string>
+    <string name="group_repeat">Tekrarla</string>
+    <string name="group_repeat_desc">Son adımdan sonra baştan başlar. Kapalıyken son adımda durur.</string>
+    <string name="group_crossfade">Yumuşak geçiş</string>
+    <string name="group_crossfade_desc">Fotoğraflar arasında yavaşça geçer. Videolar her zaman doğrudan başlar.</string>
+    <!-- Önizlemenin altında: "4 içerik · yaklaşık 2 dk 10 sn" / "2/4 · yaklaşık 2 dk 10 sn" -->
+    <string name="group_total_about">%1$s · yaklaşık %2$s</string>
+    <string name="group_total_at_least">%1$s · en az %2$s</string>
+    <!-- Adım satırı: "GIF · en az 5 sn", "Video · 0:42 · sonuna kadar" -->
+    <string name="group_at_least">en az %1$s</string>
+    <string name="group_clip_to_end">%1$s · sonuna kadar</string>
+
+    <!-- Süreler -->
+    <string name="duration_minutes_seconds">%1$d dk %2$d sn</string>
+    <string name="duration_hours">%1$d sa</string>
+    <string name="duration_hours_minutes">%1$d sa %2$d dk</string>
+
+    <!-- İçe aktarma sonrası: sınırdan uzun video -->
+    <plurals name="import_video_clipped">
+        <item quantity="one">Video %2$d dakikadan uzundu, ilk %2$d dakikası eklendi.</item>
+        <item quantity="other">%1$d video %2$d dakikadan uzundu, ilk %2$d dakikaları eklendi.</item>
+    </plurals>
+</resources>

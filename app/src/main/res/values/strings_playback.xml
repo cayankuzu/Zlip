@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Auto-advance (Settings, Home) -->
+    <string name="advance_on">On</string>
+    <string name="advance_auto_desc">The cover moves through your items on its own.</string>
+    <string name="advance_photo_time_hint">How long photos, drawings and other still items stay.</string>
+
+    <!-- Shared by auto-advance and the sequence editor -->
+    <string name="playback_photo_time">Photo time</string>
+    <string name="playback_videos">Videos</string>
+    <string name="playback_videos_to_end">To the end</string>
+    <string name="playback_videos_cut">Cut at photo time</string>
+    <string name="playback_videos_to_end_hint">Each video plays once from start to end, then the next item comes.</string>
+    <string name="playback_videos_cut_hint">Videos also move on when the photo time is up.</string>
+
+    <!-- Sequence editor: playback options -->
+    <string name="group_playback">Playback</string>
+    <string name="group_photo_time_hint">How long photo, drawing and text steps stay.</string>
+    <string name="group_shuffle">Shuffle</string>
+    <string name="group_shuffle_desc">Steps play in a random order every round.</string>
+    <string name="group_repeat">Repeat</string>
+    <string name="group_repeat_desc">Starts over after the last step. When off, it stops on the last step.</string>
+    <string name="group_crossfade">Soft transitions</string>
+    <string name="group_crossfade_desc">Fades between photos. Videos always start directly.</string>
+    <!-- Under the preview: "4 items · about 2 min 10 s" / "2/4 · about 2 min 10 s" -->
+    <string name="group_total_about">%1$s · about %2$s</string>
+    <string name="group_total_at_least">%1$s · at least %2$s</string>
+    <!-- A step row: "GIF · at least 5 s", "Video · 0:42 · to the end" -->
+    <string name="group_at_least">at least %1$s</string>
+    <string name="group_clip_to_end">%1$s · to the end</string>
+
+    <!-- Running times -->
+    <string name="duration_minutes_seconds">%1$d min %2$d s</string>
+    <string name="duration_hours">%1$d h</string>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
+
+    <!-- After an import: a video longer than the cap -->
+    <plurals name="import_video_clipped">
+        <item quantity="one">That video is longer than %2$d minutes, so its first %2$d minutes were added.</item>
+        <item quantity="other">%1$d videos were longer than %2$d minutes, so only their first %2$d minutes were added.</item>
+    </plurals>
+</resources>

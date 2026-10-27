@@ -107,6 +107,7 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
         keepStoreFile = loaded.keepFile
         // Write the first-launch sample items right away so their ids are stable from now on.
         if (loaded.isNew) persist()
+        if (!loaded.keepFile) scope.launch { fillVideoDurations() }
     }
 
     val items: StateFlow<List<CoverItem>> = state.map { it.items }
@@ -308,10 +309,16 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
      * Imports a picked photo, GIF/animated WebP or video and adds it to the library. With [select] it also
      * goes on the cover (and into a custom playlist); several files picked at once, or files added to a
      * group, only join the library. Videos are converted for the cover first; [onProgress] reports 0..1
-     * during that step. Fails with [MediaTooLargeException], [MediaUnreadableException] or
+     * during that step, and [onClipped] hears when only the first [MediaImport.MAX_VIDEO_MS] of a longer
+     * video were kept. Fails with [MediaTooLargeException], [MediaUnreadableException] or
      * [VideoConversionException]; never leaves partial files behind.
      */
-    suspend fun importMedia(uri: Uri, select: Boolean = true, onProgress: (Float) -> Unit = {}): Result<CoverItem.Media> {
+    suspend fun importMedia(
+        uri: Uri,
+        select: Boolean = true,
+        onClipped: () -> Unit = {},
+        onProgress: (Float) -> Unit = {},
+    ): Result<CoverItem.Media> {
         loadJob.join()
         val resolver = appContext.contentResolver
         val mime = resolver.getType(uri).orEmpty()
@@ -319,6 +326,8 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
         val created = mutableListOf<File>()
 
         fun newFile(name: String) = MediaStorage.file(appContext, name).also { created += it }
+
+        var clipped = false
 
         val item = try {
             withContext(Dispatchers.IO) {
@@ -332,10 +341,12 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
                     mime.startsWith("video/") -> {
                         val video = newFile("$baseName.mp4")
                         val partial = newFile("$baseName.mp4$PARTIAL_SUFFIX")
-                        val hasAudio = MediaImport.transcodeVideo(appContext, uri, partial, onProgress)
+                        val transcoded = MediaImport.transcodeVideo(appContext, uri, partial, onProgress)
+                        val hasAudio = transcoded.hasAudio
                         if (!partial.renameTo(video)) throw IOException("Could not move ${partial.name}")
                         val poster = newFile("$baseName.jpg")
                         val hasPoster = MediaImport.writePoster(video, poster)
+                        if (transcoded.clipped) clipped = true
                         CoverItem.Media(
                             id = newId(),
                             name = name,
@@ -344,6 +355,7 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
                             fit = MediaFit.FILL,
                             crisp = false,
                             posterFileName = if (hasPoster) poster.name else null,
+                            durationMs = MediaImport.durationMs(video),
                             hasAudio = hasAudio,
                             sound = hasAudio && state.value.settings.videoSoundDefault,
                         )
@@ -413,7 +425,23 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
         }
         keepStoreFile = false
         persist()
+        if (clipped) onClipped()
         return Result.success(item)
+    }
+
+    /**
+     * Measures videos imported before their length was kept, once, in the background, and saves the lengths
+     * into every copy (collage cells and group steps share the file). Auto-advance and groups then wait for
+     * a clip's real end instead of a generous guess.
+     */
+    private suspend fun fillVideoDurations() {
+        val missing = state.value.items.flatMapTo(LinkedHashSet()) { it.videosWithoutDuration() }
+        if (missing.isEmpty()) return
+        val durations = withContext(Dispatchers.IO) {
+            missing.associateWith { MediaImport.durationMs(MediaStorage.file(appContext, it)) }.filterValues { it > 0 }
+        }
+        if (durations.isEmpty()) return
+        mutate { s -> s.copy(items = s.items.map { it.withVideoDurations(durations) }) }
     }
 
     /**

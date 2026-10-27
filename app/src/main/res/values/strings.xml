@@ -41,7 +41,7 @@
     <!-- Import -->
     <string name="import_title">Preparing…</string>
     <string name="import_body">Adding it to your library.</string>
-    <string name="import_video_body">Optimizing the video for the cover screen (720p, up to 60 seconds) so it plays smoothly and saves battery.</string>
+    <string name="import_video_body">Optimizing the video for the cover screen (720p, up to 5 minutes) so it plays smoothly and saves battery.</string>
     <string name="import_failed">Could not import the file.</string>
     <string name="import_too_large">The file is larger than %1$d MB.</string>
     <string name="import_video_failed">This video could not be converted. Try a shorter or different clip.</string>
@@ -196,13 +196,6 @@
     <string name="action_move_later">Move later</string>
     <string name="advance_title">Auto-advance</string>
     <string name="advance_off">Off</string>
-    <string name="advance_smart">Smart</string>
-    <string name="advance_timer">Timer</string>
-    <string name="advance_off_desc">The chosen item stays on the cover.</string>
-    <string name="advance_smart_desc">Photos and drawings change when the time is up; videos, GIFs, scrolling text and sequences finish first.</string>
-    <string name="advance_timer_desc">Every item shows for the same time; sequences play to the end.</string>
-    <string name="advance_min_time">At least this long per item</string>
-    <string name="advance_time">Time per item</string>
     <string name="advance_shuffle">Shuffle</string>
     <string name="advance_shuffle_desc">Random order, no repeats until all have played</string>
     <string name="advance_repeat">Loop</string>

@@ -293,6 +293,7 @@ class CoverPlayback(
         }
     }
 
+    /** One item's turn: [mode] SMART plays videos to their end; [minMs] is the photo time. */
     private data class Plan(val item: CoverItem, val mode: AdvanceMode, val minMs: Long, val shuffle: Boolean, val repeat: Boolean)
 
     private suspend fun runPlan(plan: Plan) {
@@ -314,12 +315,32 @@ class CoverPlayback(
     /** Waits until [plan]'s item has had its time, less the [seenMs] it was already on screen before. */
     private suspend fun awaitTurnEnd(plan: Plan, seenMs: Long): Unit = coroutineScope {
         val id = plan.item.id
+        val video = (plan.item as? CoverItem.Media)?.takeIf { it.kind == MediaKind.VIDEO }
         if (plan.item is CoverItem.Group && id !in failedItems.value) {
             // A group is a sequence the user built: it plays to its end in SMART and TIMER alike (the timer
             // would cut it mid-way), and moves on early only when none of its steps can play.
             withTimeoutOrNull(AdvanceWait.passCapMs(GroupTiming.maxPassMs(plan.item), seenMs)) { passOrFailure(id).first() }
+        } else if (plan.mode == AdvanceMode.SMART && video != null && id !in failedItems.value) {
+            // Videos to the end: the photo time does not apply, the clip plays one full pass from its start.
+            // Listening starts first, so a short clip's first pass is not missed.
+            val firstPass = async { passOrFailure(id).first() }
+            withTimeoutOrNull(AdvanceWait.videoCapMs(video, seenMs)) {
+                delay(AdvanceWait.MIN_AFTER_START_MS)
+                val wait = AdvanceWait.videoWait(
+                    failed = id in failedItems.value,
+                    passSeen = firstPass.isCompleted,
+                    holdsLastFrame = !video.loop && (firstPass.isCompleted || endedItem.value == id),
+                )
+                when (wait) {
+                    AdvanceWait.VideoWait.DONE -> Unit
+                    AdvanceWait.VideoWait.FIRST_PASS -> firstPass.await()
+                    AdvanceWait.VideoWait.CURRENT_PASS -> passOrFailure(id).first()
+                }
+            }
+            firstPass.cancel()
         } else {
-            // Start listening before waiting, so a short video's first pass is not missed.
+            // Stills get the photo time; with videos to the end, GIFs, animations and marquees then finish the
+            // pass they are in. Listening starts first, so a short GIF's first pass is not missed.
             val firstCycle = async { cycles.first { it == id } }
             val minimumMs = AdvanceWait.minimumMs(plan.minMs, seenMs)
             delay(minimumMs)
@@ -327,7 +348,7 @@ class CoverPlayback(
                 val holdsLastFrame = plan.item is CoverItem.Media && !plan.item.loop &&
                     (firstCycle.isCompleted || endedItem.value == id)
                 if (!holdsLastFrame) {
-                    // Let the video, GIF or marquee finish its current pass (at most one more), or give up if it fails.
+                    // Let the GIF, animation or marquee finish its current pass (at most one more), or give up if it fails.
                     val capMs = AdvanceWait.passCapMs(plan.minMs + GroupTiming.extraWaitMs(plan.item), seenMs)
                     withTimeoutOrNull(capMs - minimumMs) { passOrFailure(id).first() }
                 }
@@ -364,6 +385,30 @@ internal object AdvanceWait {
      * group), whose pass takes at most [maxPassMs]: once that much was seen it moves on soon after a wake.
      */
     fun passCapMs(maxPassMs: Long, seenMs: Long): Long = maxOf(maxPassMs - seenMs, MIN_AFTER_START_MS)
+
+    /**
+     * The longest wait for [video] playing to its end: its length (the import cap when unknown) plus room.
+     * The room also covers a clip shorter than [MIN_AFTER_START_MS], which finishes its second pass.
+     */
+    fun videoCapMs(video: CoverItem.Media, seenMs: Long): Long = passCapMs(GroupTiming.videoPassMs(video), seenMs)
+
+    /** What a video playing to its end still waits for once [MIN_AFTER_START_MS] are over. */
+    enum class VideoWait {
+        /** Moves on now: it failed, or a play-once clip already ended and holds its last frame. */
+        DONE,
+
+        /** The end of its first pass, still playing. */
+        FIRST_PASS,
+
+        /** A looping clip shorter than the minimum: the end of the pass it is in now. */
+        CURRENT_PASS,
+    }
+
+    fun videoWait(failed: Boolean, passSeen: Boolean, holdsLastFrame: Boolean): VideoWait = when {
+        failed || holdsLastFrame -> VideoWait.DONE
+        !passSeen -> VideoWait.FIRST_PASS
+        else -> VideoWait.CURRENT_PASS
+    }
 }
 
 /**

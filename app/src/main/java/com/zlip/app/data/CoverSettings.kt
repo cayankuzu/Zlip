@@ -9,18 +9,21 @@ enum class PowerMode(val fps: Int) {
     SMOOTH(60),
 }
 
-/** How the cover moves through the playlist on its own. */
+/**
+ * How the cover moves through the playlist on its own, as one value for code that only needs the gist.
+ * Derived from [CoverSettings.autoAdvance] and [CoverSettings.videosToEnd]; never stored.
+ */
 enum class AdvanceMode {
     /** Stays on the chosen item. */
     OFF,
 
     /**
-     * Stills show for [CoverSettings.advanceSeconds]; videos and scrolling text finish what they are
-     * playing first (a long video plays to its end, a short one loops until the time is up).
+     * Stills show for [CoverSettings.advanceSeconds]; every video plays once from start to end, and GIFs,
+     * animations and scrolling text finish the pass they are in once that time is up.
      */
     SMART,
 
-    /** Every [CoverSettings.advanceSeconds], whatever is showing. */
+    /** Every [CoverSettings.advanceSeconds], whatever is showing (groups still play their whole pass). */
     TIMER,
 }
 
@@ -44,9 +47,15 @@ data class CoverSettings(
      */
     val brightness: Float = 0.7f,
     val powerMode: PowerMode = PowerMode.BALANCED,
-    val advanceMode: AdvanceMode = AdvanceMode.OFF,
-    /** Time per item for [AdvanceMode.TIMER], and the minimum time per item for [AdvanceMode.SMART]. */
+    /** The cover moves through the playlist on its own. */
+    val autoAdvance: Boolean = false,
+    /**
+     * Photo time: how long still content stays (photos, still drawings and text, countdowns, QR codes), and
+     * the minimum for GIFs, animations and scrolling text. Videos too when [videosToEnd] is off.
+     */
     val advanceSeconds: Int = 10,
+    /** Every video plays once from start to end before the cover moves on; off cuts videos at [advanceSeconds]. */
+    val videosToEnd: Boolean = true,
     /** Pick the next item at random instead of in order. */
     val shuffle: Boolean = false,
     /** Start over after the last item; when off, auto-advance stops on the last one. */
@@ -94,13 +103,22 @@ data class CoverSettings(
     /** The user closed Home's "add the cover widget" tip; it stays away even while no widget is placed. */
     val widgetTipDismissed: Boolean = false,
 ) {
+    /** The auto-advance settings as one value (see [AdvanceMode]). */
+    val advanceMode: AdvanceMode
+        get() = when {
+            !autoAdvance -> AdvanceMode.OFF
+            videosToEnd -> AdvanceMode.SMART
+            else -> AdvanceMode.TIMER
+        }
+
     internal fun toJson(): JSONObject = JSONObject().apply {
         put("rotation", rotation)
         put("autoStart", autoStart)
         put("brightness", brightness.toDouble())
         put("powerMode", powerMode.name)
-        put("advanceMode", advanceMode.name)
+        put("autoAdvance", autoAdvance)
         put("advanceSeconds", advanceSeconds)
+        put("videosToEnd", videosToEnd)
         put("shuffle", shuffle)
         put("repeat", repeat)
         put("standbySeconds", standbySeconds)
@@ -138,8 +156,11 @@ data class CoverSettings(
             // Version 1 stored a plain slideshow interval; carry it over as a timer.
             val legacySlideshow = json.optInt("slideshowSeconds", 0)
             val advanceSeconds = json.optInt("advanceSeconds", if (legacySlideshow > 0) legacySlideshow else defaults.advanceSeconds)
-            val advanceMode = AdvanceMode.entries.firstOrNull { it.name == json.optString("advanceMode") }
+            // Before the switch and the videos choice, one mode said both: Smart let videos finish, Timer cut them.
+            val legacyMode = AdvanceMode.entries.firstOrNull { it.name == json.optString("advanceMode") }
                 ?: if (legacySlideshow > 0) AdvanceMode.TIMER else AdvanceMode.OFF
+            val autoAdvance = if (json.has("autoAdvance")) json.optBoolean("autoAdvance") else legacyMode != AdvanceMode.OFF
+            val videosToEnd = if (json.has("videosToEnd")) json.optBoolean("videosToEnd", true) else legacyMode != AdvanceMode.TIMER
             // The earlier "close the live view after N minutes" setting becomes how long the cover stays lit.
             val legacyTimeout = json.optInt("liveTimeoutMinutes", -2)
             val stayOn = json.optInt(
@@ -157,8 +178,9 @@ data class CoverSettings(
                 autoStart = json.optBoolean("autoStart", true),
                 brightness = json.optDouble("brightness", defaults.brightness.toDouble()).toFloat().coerceIn(MIN_BRIGHTNESS, 1f),
                 powerMode = PowerMode.entries.firstOrNull { it.name == json.optString("powerMode") } ?: PowerMode.BALANCED,
-                advanceMode = advanceMode,
+                autoAdvance = autoAdvance,
                 advanceSeconds = if (advanceSeconds in ADVANCE_SECONDS_OPTIONS) advanceSeconds else defaults.advanceSeconds,
+                videosToEnd = videosToEnd,
                 shuffle = json.optBoolean("shuffle", false),
                 repeat = json.optBoolean("repeat", true),
                 standbySeconds = if (standby in STANDBY_OPTIONS) standby else defaults.standbySeconds,

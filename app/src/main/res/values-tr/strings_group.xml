@@ -16,8 +16,6 @@
         <item quantity="one">Bir grupta en fazla %1$d içerik olabilir.</item>
         <item quantity="other">Bir grupta en fazla %1$d içerik olabilir.</item>
     </plurals>
-    <string name="group_step">Her fotoğraf ekranda kalır</string>
-    <string name="group_step_hint">Videolar, GIF\'ler, kayan yazılar ve animasyonlar sonuna kadar oynar.</string>
     <string name="group_until_end">sonuna kadar</string>
     <string name="group_item_timing">%1$s · %2$s</string>
     <string name="group_pick_title">Grup içeriği</string>

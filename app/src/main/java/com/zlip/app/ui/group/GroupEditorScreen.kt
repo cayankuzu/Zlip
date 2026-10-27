@@ -20,7 +20,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Gradient
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -53,6 +56,7 @@ import com.zlip.app.R
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.GroupTiming
+import com.zlip.app.data.MediaKind
 import com.zlip.app.render.CoverContent
 import com.zlip.app.render.Playback
 import com.zlip.app.render.PlaybackEvents
@@ -60,16 +64,21 @@ import com.zlip.app.ui.components.ChoiceChips
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DragHandle
+import com.zlip.app.ui.components.FieldLabel
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.ItemPickerSheet
 import com.zlip.app.ui.components.MoveButtons
 import com.zlip.app.ui.components.ReorderableList
 import com.zlip.app.ui.components.ReorderableRowScope
 import com.zlip.app.ui.components.SectionCard
+import com.zlip.app.ui.components.SwitchRow
+import com.zlip.app.ui.components.VideosToEndChoice
 import com.zlip.app.ui.components.badgeLabel
+import com.zlip.app.ui.components.clipLengthLabel
 import com.zlip.app.ui.components.durationLabel
+import com.zlip.app.ui.components.totalDurationLabel
 
-/** The same rhythm choices as a collage's interval. */
+/** Photo time choices: the same rhythm as a collage's interval. */
 private val STEP_OPTIONS = listOf(3, 5, 10, 15, 30, 60)
 
 /** A group needs at least this many steps to be worth saving (one item is simply that item). */
@@ -120,7 +129,13 @@ fun GroupEditorScreen(
     var itemIds by rememberSaveable(stateSaver = ItemIdsSaver) {
         mutableStateOf((initial?.items?.map { it.id } ?: prefill).take(CoverItem.Group.MAX_ITEMS))
     }
-    var stepSeconds by rememberSaveable { mutableIntStateOf(initial?.stepSeconds ?: CoverItem.Group.DEFAULT_STEP_SECONDS) }
+    // A new group starts from the defaults (photos 5 s, videos to the end, in order, repeating, soft fades).
+    val start = initial ?: CoverItem.Group(id = id, name = "")
+    var stepSeconds by rememberSaveable { mutableIntStateOf(start.stepSeconds) }
+    var videosToEnd by rememberSaveable { mutableStateOf(start.videosToEnd) }
+    var shuffle by rememberSaveable { mutableStateOf(start.shuffle) }
+    var repeat by rememberSaveable { mutableStateOf(start.repeat) }
+    var crossfade by rememberSaveable { mutableStateOf(start.crossfade) }
     var picking by rememberSaveable { mutableStateOf(false) }
     // The group's own copies win, like a collage's: the baseline stays exact, and items deleted from the
     // library since stay in the group. Saved edits of library items reach these copies anyway.
@@ -130,13 +145,18 @@ fun GroupEditorScreen(
     val choices = remember(library) { library.filter { it !is CoverItem.Group && it !is CoverItem.Toy } }
     val fallbackName = stringResource(R.string.type_group)
 
-    fun group(name: String, items: List<CoverItem>, stepSeconds: Int) =
-        CoverItem.Group(id = id, name = name.ifBlank { fallbackName }, items = items, stepSeconds = stepSeconds)
-
-    val item = group(name, items, stepSeconds)
-    val baseline = remember {
-        group(initial?.name.orEmpty(), initial?.items.orEmpty(), initial?.stepSeconds ?: CoverItem.Group.DEFAULT_STEP_SECONDS)
-    }
+    val item = CoverItem.Group(
+        id = id,
+        name = name.ifBlank { fallbackName },
+        items = items,
+        stepSeconds = stepSeconds,
+        videosToEnd = videosToEnd,
+        shuffle = shuffle,
+        repeat = repeat,
+        crossfade = crossfade,
+    )
+    // Every option counts: changing only how the group plays still asks before it is thrown away.
+    val baseline = remember { start.copy(id = id, name = start.name.ifBlank { fallbackName }) }
     val canSave = canSaveSteps(items.size)
     LaunchedEffect(item) {
         onDraftChange(item)
@@ -171,6 +191,8 @@ fun GroupEditorScreen(
     val removeLabel = stringResource(R.string.group_remove)
     val untilEnd = stringResource(R.string.group_until_end)
     val stepLabel = durationLabel(stepSeconds)
+    val atLeastStep = stringResource(R.string.group_at_least, stepLabel)
+    val estimate = GroupTiming.estimate(item)
 
     Scaffold(
         topBar = {
@@ -205,11 +227,21 @@ fun GroupEditorScreen(
             ) {
                 CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback, events = previewEvents) }
             }
+            val count = if (previewPlayback == Playback.LIVE && items.size > 1 && shownStep >= 0) {
+                "${shownStep + 1}/${items.size}"
+            } else {
+                pluralStringResource(R.plurals.group_items, items.size, items.size)
+            }
             Text(
-                text = if (previewPlayback == Playback.LIVE && items.size > 1 && shownStep >= 0) {
-                    "${shownStep + 1}/${items.size}"
+                // How long one round takes: "4 items · about 2 min 10 s", or "at least" while a length is unknown.
+                text = if (items.isEmpty()) {
+                    count
                 } else {
-                    pluralStringResource(R.plurals.group_items, items.size, items.size)
+                    stringResource(
+                        if (estimate.atLeast) R.string.group_total_at_least else R.string.group_total_about,
+                        count,
+                        totalDurationLabel(estimate.ms),
+                    )
                 },
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -231,9 +263,19 @@ fun GroupEditorScreen(
                         scrollState = scrollState,
                         actions = { step -> listOf(CustomAccessibilityAction(removeLabel) { itemIds = itemIds - step.id; true }) },
                     ) { step ->
+                        val video = step is CoverItem.Media && step.kind == MediaKind.VIDEO
                         StepRow(
                             step = step,
-                            timing = if (GroupTiming.isCycleBased(step)) untilEnd else stepLabel,
+                            timing = when {
+                                // A video playing to its end stays its own length; cut, it stays the photo time.
+                                video && videosToEnd -> (step as CoverItem.Media).durationMs.takeIf { it > 0 }
+                                    ?.let { stringResource(R.string.group_clip_to_end, clipLengthLabel(it)) }
+                                    ?: untilEnd
+                                video -> stepLabel
+                                // GIFs, marquees, animations and collages finish their pass after the photo time.
+                                GroupTiming.isCycleBased(step) -> atLeastStep
+                                else -> stepLabel
+                            },
                             onRemove = { itemIds = itemIds - step.id },
                         )
                     }
@@ -260,14 +302,38 @@ fun GroupEditorScreen(
             }
 
             SectionCard {
-                Text(
-                    text = stringResource(R.string.group_step),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
+                Text(stringResource(R.string.group_playback), style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(12.dp))
+                FieldLabel(stringResource(R.string.playback_photo_time))
+                Spacer(Modifier.height(6.dp))
                 ChoiceChips(options = STEP_OPTIONS, selected = stepSeconds, label = { durationLabel(it) }, onSelect = { stepSeconds = it })
-                HintText(stringResource(R.string.group_step_hint))
+                HintText(stringResource(R.string.group_photo_time_hint))
+                Spacer(Modifier.height(12.dp))
+                FieldLabel(stringResource(R.string.playback_videos))
+                Spacer(Modifier.height(6.dp))
+                VideosToEndChoice(toEnd = videosToEnd, onChange = { videosToEnd = it })
+                Spacer(Modifier.height(8.dp))
+                SwitchRow(
+                    title = stringResource(R.string.group_shuffle),
+                    description = stringResource(R.string.group_shuffle_desc),
+                    checked = shuffle,
+                    onCheckedChange = { shuffle = it },
+                    icon = Icons.Filled.Shuffle,
+                )
+                SwitchRow(
+                    title = stringResource(R.string.group_repeat),
+                    description = stringResource(R.string.group_repeat_desc),
+                    checked = repeat,
+                    onCheckedChange = { repeat = it },
+                    icon = Icons.Filled.Repeat,
+                )
+                SwitchRow(
+                    title = stringResource(R.string.group_crossfade),
+                    description = stringResource(R.string.group_crossfade_desc),
+                    checked = crossfade,
+                    onCheckedChange = { crossfade = it },
+                    icon = Icons.Filled.Gradient,
+                )
             }
 
             OutlinedTextField(

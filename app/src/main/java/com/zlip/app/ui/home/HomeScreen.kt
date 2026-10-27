@@ -135,7 +135,6 @@ import com.zlip.app.cover.CoverError
 import com.zlip.app.cover.CoverStatus
 import com.zlip.app.cover.coverHoverSupported
 import com.zlip.app.cover.mirror.MirrorState
-import com.zlip.app.data.AdvanceMode
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
 import com.zlip.app.data.MediaKind
@@ -160,7 +159,6 @@ import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SectionTitle
 import com.zlip.app.ui.components.StatusPill
 import com.zlip.app.ui.components.badgeLabel
-import com.zlip.app.ui.components.label
 import com.zlip.app.ui.components.miniCoverSupported
 import com.zlip.app.ui.components.wakesStandby
 import com.zlip.app.ui.theme.BrandBlue
@@ -808,7 +806,7 @@ private fun ControlsCard(
         Spacer(Modifier.height(8.dp))
         BrightnessRow(settings, onSettingsChange)
         Spacer(Modifier.height(8.dp))
-        // Quick auto-advance: mode chips plus shuffle/repeat toggles; details live in Settings.
+        // Quick auto-advance: off/on chips plus shuffle/repeat toggles; photo time and videos live in Settings.
         Text(
             text = stringResource(R.string.advance_title),
             style = MaterialTheme.typography.labelLarge,
@@ -821,14 +819,14 @@ private fun ControlsCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
-            AdvanceMode.entries.forEach { mode ->
+            listOf(false, true).forEach { on ->
                 FilterChip(
-                    selected = settings.advanceMode == mode,
-                    onClick = { onSettingsChange(settings.copy(advanceMode = mode)) },
-                    label = { Text(stringResource(mode.label())) },
+                    selected = settings.autoAdvance == on,
+                    onClick = { onSettingsChange(settings.copy(autoAdvance = on)) },
+                    label = { Text(stringResource(if (on) R.string.advance_on else R.string.advance_off)) },
                 )
             }
-            if (settings.advanceMode != AdvanceMode.OFF) {
+            if (settings.autoAdvance) {
                 IconToggleButton(
                     checked = settings.shuffle,
                     onCheckedChange = { onSettingsChange(settings.copy(shuffle = it)) },

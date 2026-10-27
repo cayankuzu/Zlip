@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
@@ -18,11 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zlip.app.R
-import com.zlip.app.data.AdvanceMode
 import com.zlip.app.data.CoverSettings
+import java.util.Locale
 
-/** Auto-advance mode, time per item, shuffle and repeat. Used on the home screen and in Settings. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Auto-advance: on/off, the photo time, whether videos play to their end, shuffle and repeat. Used in
+ * Settings; Home has a quick on/off of its own.
+ */
 @Composable
 fun AutoAdvanceControls(
     settings: CoverSettings,
@@ -30,33 +33,30 @@ fun AutoAdvanceControls(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
-        Text(stringResource(R.string.advance_title), style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(8.dp))
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            AdvanceMode.entries.forEachIndexed { index, mode ->
-                // No checkmark: the fill marks the choice, and "Zamanlayıcı" needs the room.
-                SegmentedButton(
-                    selected = settings.advanceMode == mode,
-                    onClick = { onSettingsChange(settings.copy(advanceMode = mode)) },
-                    shape = SegmentedButtonDefaults.itemShape(index, AdvanceMode.entries.size),
-                    icon = {},
-                ) { SegmentLabel(stringResource(mode.label())) }
-            }
-        }
-        HintText(stringResource(settings.advanceMode.description()))
-        if (settings.advanceMode != AdvanceMode.OFF) {
+        SwitchRow(
+            title = stringResource(R.string.advance_title),
+            description = stringResource(R.string.advance_auto_desc),
+            checked = settings.autoAdvance,
+            onCheckedChange = { onSettingsChange(settings.copy(autoAdvance = it)) },
+            icon = Icons.Filled.Slideshow,
+        )
+        if (settings.autoAdvance) {
             Spacer(Modifier.height(12.dp))
-            Text(
-                text = stringResource(if (settings.advanceMode == AdvanceMode.SMART) R.string.advance_min_time else R.string.advance_time),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            FieldLabel(stringResource(R.string.playback_photo_time))
             Spacer(Modifier.height(6.dp))
             ChoiceChips(
                 options = CoverSettings.ADVANCE_SECONDS_OPTIONS,
                 selected = settings.advanceSeconds,
                 label = { durationLabel(it) },
                 onSelect = { onSettingsChange(settings.copy(advanceSeconds = it)) },
+            )
+            HintText(stringResource(R.string.advance_photo_time_hint))
+            Spacer(Modifier.height(12.dp))
+            FieldLabel(stringResource(R.string.playback_videos))
+            Spacer(Modifier.height(6.dp))
+            VideosToEndChoice(
+                toEnd = settings.videosToEnd,
+                onChange = { onSettingsChange(settings.copy(videosToEnd = it)) },
             )
             Spacer(Modifier.height(8.dp))
             SwitchRow(
@@ -77,6 +77,40 @@ fun AutoAdvanceControls(
     }
 }
 
+/**
+ * Videos play once to their end, or are cut when the photo time is up; with a hint saying what the choice
+ * does. Shared by auto-advance and the group editor, so both read the same.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VideosToEndChoice(toEnd: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            listOf(true, false).forEachIndexed { index, choice ->
+                // No checkmark: the fill marks the choice, and "Süre dolunca geç" needs the room.
+                SegmentedButton(
+                    selected = toEnd == choice,
+                    onClick = { onChange(choice) },
+                    shape = SegmentedButtonDefaults.itemShape(index, 2),
+                    icon = {},
+                ) { SegmentLabel(stringResource(if (choice) R.string.playback_videos_to_end else R.string.playback_videos_cut)) }
+            }
+        }
+        HintText(stringResource(if (toEnd) R.string.playback_videos_to_end_hint else R.string.playback_videos_cut_hint))
+    }
+}
+
+/** A small label above a setting's choices ("Photo time", "Videos"). */
+@Composable
+fun FieldLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier,
+    )
+}
+
 /** "Off", "15 s", "5 min"… */
 @Composable
 fun durationLabel(seconds: Int): String = when {
@@ -85,14 +119,24 @@ fun durationLabel(seconds: Int): String = when {
     else -> stringResource(R.string.duration_minutes, seconds / 60)
 }
 
-fun AdvanceMode.label(): Int = when (this) {
-    AdvanceMode.OFF -> R.string.advance_off
-    AdvanceMode.SMART -> R.string.advance_smart
-    AdvanceMode.TIMER -> R.string.advance_timer
+/** "45 s", "2 min 10 s", "1 h 5 min": a running time, rounded to the second. */
+@Composable
+fun totalDurationLabel(ms: Long): String {
+    val seconds = ((ms + 500) / 1_000).coerceAtLeast(0)
+    val hours = (seconds / 3_600).toInt()
+    val minutes = ((seconds % 3_600) / 60).toInt()
+    val rest = (seconds % 60).toInt()
+    return when {
+        hours > 0 && minutes > 0 -> stringResource(R.string.duration_hours_minutes, hours, minutes)
+        hours > 0 -> stringResource(R.string.duration_hours, hours)
+        minutes > 0 && rest > 0 -> stringResource(R.string.duration_minutes_seconds, minutes, rest)
+        minutes > 0 -> stringResource(R.string.duration_minutes, minutes)
+        else -> stringResource(R.string.duration_seconds, rest)
+    }
 }
 
-private fun AdvanceMode.description(): Int = when (this) {
-    AdvanceMode.OFF -> R.string.advance_off_desc
-    AdvanceMode.SMART -> R.string.advance_smart_desc
-    AdvanceMode.TIMER -> R.string.advance_timer_desc
+/** "0:42", "4:05": a clip's length. */
+fun clipLengthLabel(ms: Long): String {
+    val seconds = ((ms + 500) / 1_000).coerceAtLeast(0)
+    return "%d:%02d".format(Locale.ROOT, seconds / 60, seconds % 60)
 }

@@ -64,6 +64,7 @@ import com.zlip.app.cover.CoverStatus
 import com.zlip.app.cover.coverHoverSupported
 import com.zlip.app.cover.mirror.MirrorState
 import com.zlip.app.data.CoverItem
+import com.zlip.app.data.MediaImport
 import com.zlip.app.data.MediaKind
 import com.zlip.app.data.MediaTooLargeException
 import com.zlip.app.data.VideoConversionException
@@ -358,13 +359,21 @@ fun ZlipRoot(
 
     fun isCurrentImport(running: CoroutineScope) = importJob === running.coroutineContext[Job]
 
+    /** Some videos were longer than the import cap: only their beginning came in. */
+    fun showClipped(count: Int) {
+        if (count <= 0) return
+        val minutes = (MediaImport.MAX_VIDEO_MS / 60_000L).toInt()
+        val message = resources.getQuantityString(R.plurals.import_video_clipped, count, count, minutes)
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+    }
+
     fun importUri(uri: Uri) {
         startImport {
             // The user waits without touching anything: an import is activity, so the idle cutoff waits too.
             currentOnWake()
             importProgress = -1f
             try {
-                repository.importMedia(uri) { importProgress = it }
+                repository.importMedia(uri, onClipped = { showClipped(1) }) { importProgress = it }
                     .onSuccess { item ->
                         // Never replace an editor the user opened meanwhile; the item is in the library either way.
                         if (screen == Screen.Home) {
@@ -396,13 +405,14 @@ fun ZlipRoot(
         startImport {
             val added = mutableListOf<String>()
             var failed = 0
+            var clipped = 0
             try {
                 uris.forEachIndexed { index, uri ->
                     // Each file counts as activity (a batch of videos outlasts the idle cutoff); one file is short.
                     currentOnWake()
                     importCount = index + 1 to uris.size
                     importProgress = -1f
-                    repository.importMedia(uri, select = false) { importProgress = it }
+                    repository.importMedia(uri, select = false, onClipped = { clipped++ }) { importProgress = it }
                         .onSuccess { added += it.id }
                         .onFailure { failed++ }
                 }
@@ -413,6 +423,7 @@ fun ZlipRoot(
                     importJob = null
                 }
                 // After Cancel too: whatever came in so far is in the library.
+                showClipped(clipped)
                 onDone(added, failed)
             }
         }

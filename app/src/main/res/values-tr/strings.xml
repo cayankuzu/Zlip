@@ -39,7 +39,7 @@
     <!-- Import -->
     <string name="import_title">Hazırlanıyor…</string>
     <string name="import_body">Kitaplığına ekleniyor.</string>
-    <string name="import_video_body">Video kapak ekranı için optimize ediliyor (720p, en fazla 60 saniye). Böylece akıcı oynar ve pil tasarrufu sağlar.</string>
+    <string name="import_video_body">Video kapak ekranı için optimize ediliyor (720p, en fazla 5 dakika). Böylece akıcı oynar ve pil tasarrufu sağlar.</string>
     <string name="import_failed">Dosya içe aktarılamadı.</string>
     <string name="import_too_large">Dosya %1$d MB sınırından büyük.</string>
     <string name="import_video_failed">Bu video dönüştürülemedi. Daha kısa ya da farklı bir video dene.</string>
@@ -194,13 +194,6 @@
     <string name="action_move_later">Geriye al</string>
     <string name="advance_title">Otomatik ilerleme</string>
     <string name="advance_off">Kapalı</string>
-    <string name="advance_smart">Akıllı</string>
-    <string name="advance_timer">Zamanlayıcı</string>
-    <string name="advance_off_desc">Seçtiğin öğe kapakta kalır.</string>
-    <string name="advance_smart_desc">Fotoğraf ve çizimler süre dolunca değişir; videolar, GIF\'ler, kayan yazılar ve gruplar önce biter.</string>
-    <string name="advance_timer_desc">Her öğe aynı süre gösterilir; gruplar sonuna kadar oynar.</string>
-    <string name="advance_min_time">Öğe başına en az</string>
-    <string name="advance_time">Öğe başına süre</string>
     <string name="advance_shuffle">Karıştır</string>
     <string name="advance_shuffle_desc">Rastgele sıra, hepsi oynayana kadar tekrar yok</string>
     <string name="advance_repeat">Döngü</string>

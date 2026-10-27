@@ -16,8 +16,6 @@
         <item quantity="one">A sequence holds up to %1$d item.</item>
         <item quantity="other">A sequence holds up to %1$d items.</item>
     </plurals>
-    <string name="group_step">Each photo stays for</string>
-    <string name="group_step_hint">Videos, GIFs, scrolling text and animations play to the end.</string>
     <string name="group_until_end">to the end</string>
     <string name="group_item_timing">%1$s · %2$s</string>
     <string name="group_pick_title">Sequence items</string>

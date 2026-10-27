@@ -60,6 +60,8 @@ sealed interface CoverItem {
         val loop: Boolean = true,
         /** Videos: a still frame used for thumbnails, so the library never decodes video. */
         val posterFileName: String? = null,
+        /** Videos: the clip's length in milliseconds; 0 = not known yet (older imports get it in the background). */
+        val durationMs: Long = 0L,
         /** Videos: the file kept its audio track (older imports and silent clips have none). */
         val hasAudio: Boolean = false,
         /** Videos with audio: play with sound on the cover. Off by default; never on inner-screen previews. */
@@ -109,15 +111,24 @@ sealed interface CoverItem {
 
     /**
      * Items shown one after another, each full screen (unlike a [Collage], which splits the screen).
-     * Stills stay [stepSeconds]; videos, scrolling text, animations and collages finish their pass first
-     * (see [GroupTiming]). One trip through [items] is one pass for auto-advance; with auto-advance off it
-     * loops. Holds copies of library items, like a collage, but never another group.
+     * Stills stay [stepSeconds]; videos play to their end ([videosToEnd]); scrolling text, animations and
+     * collages finish their pass after [stepSeconds] (see [GroupTiming]). One trip through [items] is one pass
+     * for auto-advance. Holds copies of library items, like a collage, but never another group.
      */
     data class Group(
         override val id: String,
         override val name: String,
         val items: List<CoverItem> = emptyList(),
+        /** Photo time: how long still steps stay, and the minimum for GIFs, animations and scrolling text. */
         val stepSeconds: Int = DEFAULT_STEP_SECONDS,
+        /** Video steps play once from start to end; off cuts them at [stepSeconds]. */
+        val videosToEnd: Boolean = true,
+        /** The steps play in a new random order every pass, none twice in one pass. */
+        val shuffle: Boolean = false,
+        /** After the last step the group starts over; off, it stops on its last step. */
+        val repeat: Boolean = true,
+        /** Still steps fade into each other; off they cut. Video steps always cut. */
+        val crossfade: Boolean = true,
     ) : CoverItem {
         companion object {
             const val DEFAULT_STEP_SECONDS = 5
@@ -214,6 +225,31 @@ fun CoverItem.replacingCopies(edited: CoverItem): CoverItem = when (this) {
     else -> this
 }
 
+/** File names of the videos in [this] item (collage cells and group steps too) whose length is not known yet. */
+fun CoverItem.videosWithoutDuration(): Set<String> =
+    leaves().filter { it is CoverItem.Media && it.kind == MediaKind.VIDEO && it.durationMs <= 0 }
+        .mapTo(LinkedHashSet()) { (it as CoverItem.Media).fileName }
+
+/**
+ * [this] with the lengths in [durations] (by file name) filled into every video that has none, copies inside
+ * collages and groups included. Returns [this] itself when nothing changed.
+ */
+fun CoverItem.withVideoDurations(durations: Map<String, Long>): CoverItem = when (this) {
+    is CoverItem.Media -> {
+        val known = durations[fileName] ?: 0L
+        if (kind == MediaKind.VIDEO && durationMs <= 0 && known > 0) copy(durationMs = known) else this
+    }
+    is CoverItem.Collage -> {
+        val updated = cells.map { cell -> cell.map { it.withVideoDurations(durations) } }
+        if (updated == cells) this else copy(cells = updated)
+    }
+    is CoverItem.Group -> {
+        val updated = items.map { it.withVideoDurations(durations) }
+        if (updated == items) this else copy(items = updated)
+    }
+    else -> this
+}
+
 /**
  * Collage cell rectangles as fractions of the screen (left, top, right, bottom). Shared by the live
  * renderer and the widget's still frames so both draw the same layout.
@@ -269,6 +305,7 @@ internal object CoverItemJson {
                 put("background", item.background)
                 put("loop", item.loop)
                 if (item.posterFileName != null) put("poster", item.posterFileName)
+                if (item.durationMs > 0) put("durationMs", item.durationMs)
                 put("hasAudio", item.hasAudio)
                 put("sound", item.sound)
                 // Only when framed off the centre: an untouched item keeps its old JSON, so the widget's frames
@@ -326,6 +363,10 @@ internal object CoverItemJson {
                 put("type", "group")
                 put("items", JSONArray().apply { item.items.forEach { put(encode(it)) } })
                 put("step", item.stepSeconds)
+                put("videosToEnd", item.videosToEnd)
+                put("shuffle", item.shuffle)
+                put("repeat", item.repeat)
+                put("crossfade", item.crossfade)
             }
         }
     }
@@ -365,6 +406,7 @@ internal object CoverItemJson {
                 background = json.optInt("background", CoverItem.BLACK),
                 loop = json.optBoolean("loop", true),
                 posterFileName = json.optString("poster").ifEmpty { null },
+                durationMs = json.optLong("durationMs", 0L).coerceAtLeast(0L),
                 hasAudio = json.optBoolean("hasAudio", false),
                 sound = json.optBoolean("sound", false),
                 focusX = MediaFocus.clamp(json.optDouble("focusX", 0.0).toFloat()),
@@ -447,6 +489,10 @@ internal object CoverItemJson {
                         .filter { it !is CoverItem.Group }
                         .take(CoverItem.Group.MAX_ITEMS),
                     stepSeconds = json.optInt("step", CoverItem.Group.DEFAULT_STEP_SECONDS).coerceIn(1, 3600),
+                    videosToEnd = json.optBoolean("videosToEnd", true),
+                    shuffle = json.optBoolean("shuffle", false),
+                    repeat = json.optBoolean("repeat", true),
+                    crossfade = json.optBoolean("crossfade", true),
                 )
             }
             else -> null

@@ -35,19 +35,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.random.Random
 
-/** Crossfade between two still steps; video steps cut instead. */
+/** Crossfade between two still steps (when the group has soft transitions); video steps cut instead. */
 private const val CROSSFADE_MS = 500
 
 /**
- * A group: its items one after another, each full screen. Stills stay for the group's step time; videos,
- * GIFs, scrolling text, animations and collages first finish the pass they are in (see [GroupTiming]).
+ * A group: its items one after another, each full screen. Stills stay for the group's photo time; videos
+ * play once to their end (or are cut at the photo time); GIFs, scrolling text, animations and collages first
+ * finish the pass they are in (see [GroupTiming]). With shuffle the steps play in a new order every pass;
+ * with repeat off the group stops on its last step.
  *
- * Exactly one step is composed at a time, as a new composition per pass and index: a video always starts
+ * Exactly one step is composed at a time, as a new composition per pass and position: a video always starts
  * at 0 and only one decoder is alive. A step's own events end it and never reach [events], so a video's
  * loop is not mistaken for the group's pass; the group reports one [PlaybackEvents.onCycle] per trip
- * through all items, or [PlaybackEvents.onFailed] when none of them can play. Unlike a collage, steps
- * are full screen, so videos keep the cover's hardware overlay and their own sound setting.
+ * through all items (repeat on or off), or [PlaybackEvents.onFailed] when none of them can play. Unlike a
+ * collage, steps are full screen, so videos keep the cover's hardware overlay and their own sound setting.
  */
 @Composable
 internal fun GroupCover(item: CoverItem.Group, modifier: Modifier, playback: Playback, events: PlaybackEvents?) {
@@ -60,8 +63,11 @@ internal fun GroupCover(item: CoverItem.Group, modifier: Modifier, playback: Pla
     }
 }
 
-/** One step on screen: which pass and position, and what it shows. */
-private data class Step(val pass: Int, val index: Int, val childId: String, val video: Boolean)
+/**
+ * One step on screen: which pass and position in that pass's order, which item ([itemIndex] in the group's
+ * list) and what it shows.
+ */
+private data class Step(val pass: Int, val position: Int, val itemIndex: Int, val childId: String, val video: Boolean)
 
 /**
  * What the step on screen reported. A fresh one per step, so a late event of the previous step (a video
@@ -89,24 +95,35 @@ private class StepSignals : PlaybackEvents {
 private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playback, events: PlaybackEvents?) {
     val items = item.items
     var pass by remember { mutableIntStateOf(0) }
+    // The position in this pass's order (the list order, or the shuffled one).
     var index by remember { mutableIntStateOf(0) }
+    // A new random order each time the group comes on screen; stable while it stays (recomposition, edits).
+    val seed = remember { Random.nextLong() }
+    val order = remember(items.size, item.shuffle, pass) { GroupTiming.playOrder(items.size, item.shuffle, seed, pass) }
     // Live edits can shorten the group under the current position; start over then.
-    val shownIndex = if (index in items.indices) index else 0
-    val child = items[shownIndex]
-    val step = Step(pass, shownIndex, child.id, video = child.isVideo())
+    val position = if (index in order.indices) index else 0
+    val itemIndex = order[position]
+    val child = items[itemIndex]
+    val step = Step(pass, position, itemIndex, child.id, video = child.isVideo())
     val signals = remember(step) { StepSignals() }
     // Positions that failed during this pass; another set of items starts with a clean slate.
     val failedSteps = remember(items) { mutableSetOf<Int>() }
     var stuck by remember(items) { mutableStateOf(false) }
+    // Repeat off: the step the group stopped on at the end of its pass. Any other step (next, previous,
+    // repeat turned back on in the editor) plays on.
+    var stoppedAt by remember { mutableStateOf<Step?>(null) }
+    val stopped = !item.repeat && stoppedAt == step
     // Whether the playlist was told that nothing here can play (so it hears when something can again).
     var failureReported by remember { mutableStateOf(false) }
     val currentEvents by rememberUpdatedState(events)
     val currentSize by rememberUpdatedState(items.size)
+    val currentRepeat by rememberUpdatedState(item.repeat)
     // Nothing advances while paused or while the cover is dark; coming back restarts the step's minimum time.
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val running = playback == Playback.LIVE && lifecycleState.isAtLeast(Lifecycle.State.STARTED)
 
-    // Next/previous (cover swipes and buttons, notification, inner-screen controls) move through the steps first.
+    // Next/previous (cover swipes and buttons, notification, inner-screen controls) move through the steps
+    // first, in the order they play (shuffled too).
     val stepper = remember {
         object : GroupStepper {
             override fun next(wrap: Boolean): Boolean {
@@ -144,12 +161,17 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
 
     LaunchedEffect(step) { currentEvents?.onStep(child) }
 
-    LaunchedEffect(step, running, item.stepSeconds, stuck) {
-        if (!running || stuck) return@LaunchedEffect
-        val failed = playStep(child, GroupTiming.stepMs(item), signals)
-        if (failed) failedSteps += shownIndex else failedSteps -= shownIndex
+    LaunchedEffect(step, running, item.stepSeconds, item.videosToEnd, stuck, stopped) {
+        if (!running || stuck || stopped) return@LaunchedEffect
+        val failed = playStep(
+            minMs = GroupTiming.stepMinMs(item, child),
+            waitsForPass = GroupTiming.stepWaitsForPass(item, child),
+            extraMs = GroupTiming.extraWaitMs(child),
+            signals = signals,
+        )
+        if (failed) failedSteps += position else failedSteps -= position
         // The current size: a live edit may have changed the group while this step played.
-        val next = GroupTiming.next(shownIndex, currentSize)
+        val next = GroupTiming.next(position, currentSize)
         if (!next.wrapped) {
             index = next.index
             return@LaunchedEffect
@@ -166,7 +188,13 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
             failureReported = false
             currentEvents?.onFailed(false)
         }
+        // One pass either way: with auto-advance on the playlist moves on now.
         currentEvents?.onCycle()
+        if (!currentRepeat) {
+            // Stays on its last step: a video or GIF holds its last frame, a photo stays.
+            stoppedAt = step
+            return@LaunchedEffect
+        }
         // Hold the last step a moment: the playlist usually moves on now, and step one would only flash.
         delay(GroupTiming.WRAP_GRACE_MS)
         pass++
@@ -177,7 +205,7 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
         targetState = step,
         transitionSpec = {
             // A video's surface cannot fade reliably, and a crossfade would keep two decoders alive: cut instead.
-            val transition = if (initialState.video || targetState.video) {
+            val transition = if (!item.crossfade || initialState.video || targetState.video) {
                 EnterTransition.None togetherWith ExitTransition.None
             } else {
                 fadeIn(tween(CROSSFADE_MS)) togetherWith fadeOut(tween(CROSSFADE_MS))
@@ -188,9 +216,9 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
         label = "group-step",
     ) { shown ->
         // A step on its way out may already be gone from an edited group: it simply disappears.
-        val shownChild = items.getOrNull(shown.index)?.takeIf { it.id == shown.childId } ?: return@AnimatedContent
+        val shownChild = items.getOrNull(shown.itemIndex)?.takeIf { it.id == shown.childId } ?: return@AnimatedContent
         CoverContent(
-            item = shownChild,
+            item = shownChild.asStep(item, stopped = shown == step && stopped),
             modifier = Modifier.fillMaxSize(),
             playback = playback,
             // Only the current step may end the step; one fading out says nothing any more.
@@ -200,16 +228,17 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
 }
 
 /**
- * Plays one step: its minimum time, then, for a video, GIF, marquee, animation or collage, the end of the
- * pass it is in (bounded). Returns true when the step failed; it then stays a moment before it is skipped.
+ * Plays one step: its minimum time ([minMs]), then, when it [waitsForPass] (a video playing to its end, a
+ * GIF, marquee, animation or collage), the end of the pass it is in, bounded by [extraMs]. Returns true when
+ * the step failed; it then stays a moment before it is skipped.
  */
-private suspend fun playStep(child: CoverItem, minMs: Long, signals: StepSignals): Boolean {
+private suspend fun playStep(minMs: Long, waitsForPass: Boolean, extraMs: Long, signals: StepSignals): Boolean {
     val failedEarly = withTimeoutOrNull(minMs) { signals.failed.first { it } } != null
     // A play-once clip that already ended moves on at the minimum.
     val failed = when {
         failedEarly -> true
-        !GroupTiming.isCycleBased(child) || signals.ended.value -> false
-        else -> withTimeoutOrNull(GroupTiming.extraWaitMs(child)) {
+        !waitsForPass || signals.ended.value -> false
+        else -> withTimeoutOrNull(extraMs) {
             merge(
                 signals.cycles.map { false },
                 signals.ended.filter { it }.map { false },
@@ -219,6 +248,16 @@ private suspend fun playStep(child: CoverItem, minMs: Long, signals: StepSignals
     }
     if (failed) delay(GroupTiming.FAILED_STEP_MS)
     return failed
+}
+
+/**
+ * [this] step as the group plays it. A video that plays to its end plays exactly once (it ends, and the step
+ * moves on); a group that [stopped] on its last step lets a video or GIF finish and hold its last frame.
+ */
+private fun CoverItem.asStep(group: CoverItem.Group, stopped: Boolean): CoverItem = when {
+    this !is CoverItem.Media || kind == MediaKind.IMAGE || !loop -> this
+    stopped || GroupTiming.playsToEnd(group, this) -> copy(loop = false)
+    else -> this
 }
 
 private fun CoverItem.isVideo(): Boolean = this is CoverItem.Media && kind == MediaKind.VIDEO
