@@ -22,6 +22,7 @@ import com.zlip.app.data.CountdownMath
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
 import com.zlip.app.data.leaves
+import com.zlip.app.data.showsQr
 import com.zlip.app.render.CountdownView
 import com.zlip.app.render.LedStyle
 import kotlinx.coroutines.CancellationException
@@ -222,13 +223,17 @@ internal object CoverWidgets {
             val frame = RemoteViews(context.packageName, R.layout.widget_frame).apply {
                 setImageViewUri(R.id.widget_image, CoverImageProvider.uri(context, file))
                 setContentDescription(R.id.widget_image, item.name)
+                // Each frame carries its own clock, left off a QR code (alone or in a collage cell): no corner of
+                // the code is free, and the live cover hides its clock there too.
+                setViewVisibility(R.id.widget_frame_clock, if (config.clock && !item.showsQr()) View.VISIBLE else View.GONE)
             }
             // Position-based ids: unique by construction.
             items.addItem(index.toLong(), frame)
         }
         views.setRemoteAdapter(R.id.widget_flipper, items.build())
         views.setEmptyView(R.id.widget_flipper, R.id.widget_empty)
-        views.setViewVisibility(R.id.widget_clock, if (config.clock) View.VISIBLE else View.GONE)
+        // The widget's own clock is only for the empty library (the brand tile); frames bring theirs.
+        views.setViewVisibility(R.id.widget_clock, if (config.clock && frames.isEmpty()) View.VISIBLE else View.GONE)
 
         // Tap anywhere = the screen saver on the cover display itself. One click target on the whole widget,
         // as Samsung's Flex Window guide does: its cover host never delivers per-frame collection clicks.

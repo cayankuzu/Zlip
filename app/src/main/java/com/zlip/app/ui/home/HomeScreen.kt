@@ -6,6 +6,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -101,7 +103,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -111,10 +115,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -158,6 +166,7 @@ import com.zlip.app.ui.components.ReorderableList
 import com.zlip.app.ui.components.ReorderableRowScope
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SectionTitle
+import com.zlip.app.ui.components.SegmentLabel
 import com.zlip.app.ui.components.StatusPill
 import com.zlip.app.ui.components.badgeLabel
 import com.zlip.app.ui.components.label
@@ -173,6 +182,9 @@ import androidx.compose.ui.graphics.Brush as GradientBrush
  * 32 dp gap, so scrolled to the end no control (the brightness slider's end included) is left under the button.
  */
 private val FAB_CLEARANCE = 56.dp + 16.dp + 32.dp
+
+/** How close the brightness slider may come to the "Add" button before the button steps aside. */
+private val FAB_SLIDER_MARGIN = 8.dp
 
 /** What the add sheet offers; [GALLERY] picks one or several photos and videos. */
 enum class AddKind { GALLERY, PIXEL, TEXT, COLLAGE, GROUP, COUNTDOWN, QR, TOY }
@@ -284,6 +296,18 @@ fun HomeScreen(
         checked = if (id in checked) checked - id else checked + id
     }
 
+    // The "Add" button floats over the list. Wide at the top, where it introduces itself; a round "+" once
+    // the list is scrolled, so it covers less of the cards. And while the brightness slider passes under it,
+    // it steps aside entirely: dragging to full brightness would otherwise end on the button.
+    val fabExpanded by remember { derivedStateOf { gridState.firstVisibleItemIndex == 0 } }
+    var sliderBounds by remember { mutableStateOf<Rect?>(null) }
+    // Kept while the button is hidden (it has no bounds then), so hiding it cannot by itself bring it back.
+    var fabBounds by remember { mutableStateOf<Rect?>(null) }
+    val fabMargin = with(LocalDensity.current) { FAB_SLIDER_MARGIN.toPx() }
+    val fabOverSlider = fabCoversSlider(fabBounds, sliderBounds, fabMargin)
+    val reportSlider: (Rect) -> Unit = remember { { bounds -> sliderBounds = bounds } }
+    val addLabel = stringResource(R.string.home_add)
+
     Scaffold(
         topBar = {
             if (selecting) {
@@ -324,14 +348,27 @@ fun HomeScreen(
             }
         },
         floatingActionButton = {
-            if (!selecting) {
-                ExtendedFloatingActionButton(
-                    onClick = { showAddSheet = true },
-                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                    text = { Text(stringResource(R.string.home_add)) },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                )
+            // Measured outside the animation: scaling it away must not change where the button is said to be.
+            Box(
+                Modifier.onGloballyPositioned { coordinates ->
+                    coordinates.boundsInRoot().takeUnless { it.isEmpty }?.let { fabBounds = it }
+                },
+            ) {
+                AnimatedVisibility(
+                    visible = !selecting && !fabOverSlider,
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut(),
+                ) {
+                    ExtendedFloatingActionButton(
+                        onClick = { showAddSheet = true },
+                        expanded = fabExpanded,
+                        // Collapsed there is no text left, so the icon carries the label for TalkBack.
+                        icon = { Icon(Icons.Filled.Add, contentDescription = if (fabExpanded) null else addLabel) },
+                        text = { Text(addLabel) },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
             }
         },
     ) { padding ->
@@ -378,9 +415,11 @@ fun HomeScreen(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
+                    // Scrolled out of the list or closed with the cover: no slider for the "Add" button to avoid.
+                    DisposableEffect(Unit) { onDispose { sliderBounds = null } }
                     // While mirroring there is no playlist to steer, only how the screen fills the cover.
                     if (mirror == MirrorState.ON) {
-                        MirrorControlsCard(settings, onSettingsChange)
+                        MirrorControlsCard(settings, onSettingsChange, onBrightnessBounds = reportSlider)
                     } else {
                         ControlsCard(
                             settings = settings,
@@ -390,6 +429,7 @@ fun HomeScreen(
                             onNext = onNext,
                             onPrevious = onPrevious,
                             onSettingsChange = onSettingsChange,
+                            onBrightnessBounds = reportSlider,
                         )
                     }
                 }
@@ -587,6 +627,19 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Whether the "Add" button, at [fab], comes within [margin] px of the brightness slider at [slider] (both in root
+ * coordinates). A slider scrolled out of view is clipped to an empty rectangle, and never counts.
+ */
+internal fun fabCoversSlider(fab: Rect?, slider: Rect?, margin: Float): Boolean {
+    if (fab == null || slider == null || slider.isEmpty) return false
+    return fab.inflate(margin).overlaps(slider)
+}
+
+/** Tells [onBounds] (if any) where this element is, in root coordinates, whenever that may have changed. */
+private fun Modifier.reportBounds(onBounds: ((Rect) -> Unit)?): Modifier =
+    if (onBounds == null) this else onGloballyPositioned { onBounds(it.boundsInRoot()) }
+
 /** "2 / 5" for the item on the cover within what auto-advance moves through, or null if not useful. */
 private fun positionLabel(items: List<CoverItem>, playlist: List<String>, current: CoverItem?): String? {
     val sequence = if (playlist.isEmpty()) items.map { it.id } else playlist
@@ -726,16 +779,19 @@ private fun HeroSection(
         if (coverHoverSupported && (status == CoverStatus.AVAILABLE || active)) {
             Spacer(Modifier.height(14.dp))
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth(0.8f)) {
+                // No checkmark, one shrinking line: "Ekranı yansıt" broke onto two lines at larger font sizes.
                 SegmentedButton(
                     selected = mirror == MirrorState.OFF,
                     onClick = { onMirrorChange(false) },
                     shape = SegmentedButtonDefaults.itemShape(0, 2),
-                ) { Text(stringResource(R.string.mirror_mode_content)) }
+                    icon = {},
+                ) { SegmentLabel(stringResource(R.string.mirror_mode_content)) }
                 SegmentedButton(
                     selected = mirror != MirrorState.OFF,
                     onClick = { onMirrorChange(true) },
                     shape = SegmentedButtonDefaults.itemShape(1, 2),
-                ) { Text(stringResource(R.string.mirror_mode_screen)) }
+                    icon = {},
+                ) { SegmentLabel(stringResource(R.string.mirror_mode_screen)) }
             }
             if (mirror != MirrorState.ON) {
                 Text(
@@ -752,7 +808,11 @@ private fun HeroSection(
 
 /** The controls card while mirroring: which part of the screen the cover shows, and the cover's brightness. */
 @Composable
-private fun MirrorControlsCard(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit) {
+private fun MirrorControlsCard(
+    settings: CoverSettings,
+    onSettingsChange: (CoverSettings) -> Unit,
+    onBrightnessBounds: ((Rect) -> Unit)? = null,
+) {
     SectionCard {
         Text(
             text = stringResource(R.string.mirror_fit_title),
@@ -763,7 +823,7 @@ private fun MirrorControlsCard(settings: CoverSettings, onSettingsChange: (Cover
         MirrorViewControls()
         HintText(stringResource(R.string.mirror_cover_gestures))
         Spacer(Modifier.height(8.dp))
-        BrightnessRow(settings, onSettingsChange)
+        BrightnessRow(settings, onSettingsChange, Modifier.reportBounds(onBrightnessBounds))
     }
 }
 
@@ -776,6 +836,7 @@ private fun ControlsCard(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onSettingsChange: (CoverSettings) -> Unit,
+    onBrightnessBounds: ((Rect) -> Unit)? = null,
 ) {
     SectionCard {
         Row(
@@ -806,7 +867,7 @@ private fun ControlsCard(
             )
         }
         Spacer(Modifier.height(8.dp))
-        BrightnessRow(settings, onSettingsChange)
+        BrightnessRow(settings, onSettingsChange, Modifier.reportBounds(onBrightnessBounds))
         Spacer(Modifier.height(8.dp))
         // Quick auto-advance: mode chips plus shuffle/repeat toggles; details live in Settings.
         Text(
@@ -856,10 +917,10 @@ private fun ControlsCard(
 
 /** Cover brightness: dragging updates the cover live; the file is saved once after the drag (debounced). */
 @Composable
-fun BrightnessRow(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit) {
+fun BrightnessRow(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit, modifier: Modifier = Modifier) {
     var value by remember(settings.brightness) { mutableFloatStateOf(settings.brightness) }
     val label = stringResource(R.string.settings_brightness)
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Filled.BrightnessLow, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Slider(
             value = value,
