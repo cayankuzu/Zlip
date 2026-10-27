@@ -64,8 +64,11 @@ sealed interface CoverItem {
         val durationMs: Long = 0L,
         /** Videos: the file kept its audio track (older imports and silent clips have none). */
         val hasAudio: Boolean = false,
-        /** Videos with audio: play with sound on the cover. Off by default; never on inner-screen previews. */
-        val sound: Boolean = false,
+        /**
+         * Videos with audio: always silent, whatever the cover's sound says. Off by default: a clip with audio
+         * is heard on the cover whenever its sound is on there (see [CoverSettings.startWithSound]).
+         */
+        val muted: Boolean = false,
         /**
          * [MediaFit.FILL] only: which part of the cropped picture stays in view, -1 (left / top edge) .. 1
          * (right / bottom edge), 0 = centre. See [MediaFocus].
@@ -73,7 +76,8 @@ sealed interface CoverItem {
         val focusX: Float = 0f,
         val focusY: Float = 0f,
     ) : CoverItem {
-        val playsSound: Boolean get() = kind == MediaKind.VIDEO && hasAudio && sound
+        /** A clip the cover may play with sound: a video that kept its audio and is not [muted]. */
+        val playsSound: Boolean get() = kind == MediaKind.VIDEO && hasAudio && !muted
     }
 
     data class Text(
@@ -307,7 +311,8 @@ internal object CoverItemJson {
                 if (item.posterFileName != null) put("poster", item.posterFileName)
                 if (item.durationMs > 0) put("durationMs", item.durationMs)
                 put("hasAudio", item.hasAudio)
-                put("sound", item.sound)
+                // Only when set: an untouched clip keeps its JSON (the widget keys its frames by it).
+                if (item.muted) put("muted", true)
                 // Only when framed off the centre: an untouched item keeps its old JSON, so the widget's frames
                 // (keyed by it) are not all redrawn after an update. Clamped: JSON cannot hold NaN.
                 MediaFocus.clamp(item.focusX).let { if (it != 0f) put("focusX", it.toDouble()) }
@@ -408,7 +413,8 @@ internal object CoverItemJson {
                 posterFileName = json.optString("poster").ifEmpty { null },
                 durationMs = json.optLong("durationMs", 0L).coerceAtLeast(0L),
                 hasAudio = json.optBoolean("hasAudio", false),
-                sound = json.optBoolean("sound", false),
+                // The old "sound" key is ignored: it was mostly the import default, not a choice.
+                muted = json.optBoolean("muted", false),
                 focusX = MediaFocus.clamp(json.optDouble("focusX", 0.0).toFloat()),
                 focusY = MediaFocus.clamp(json.optDouble("focusY", 0.0).toFloat()),
             )

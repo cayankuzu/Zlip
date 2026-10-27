@@ -18,11 +18,11 @@ import com.zlip.app.R
 import com.zlip.app.cover.CoverDisplayController
 import com.zlip.app.cover.CoverPlayback
 import com.zlip.app.cover.CoverStatus
+import com.zlip.app.cover.hasSoundToSwitch
 import com.zlip.app.cover.mirror.MirrorController
 import com.zlip.app.cover.mirror.MirrorState
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
-import com.zlip.app.data.MediaKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,19 +54,19 @@ class CoverNotifier(
             val position: String?,
             val paused: Boolean,
             val editing: Boolean,
-            /** The shown video's sound (null: nothing to switch). */
+            /** The cover's sound for now (null: the item has no sound to switch). */
             val sound: Boolean?,
             /** A group on the cover: the step it shows (from 1) and how many it has. */
             val groupStep: Pair<Int, Int>?,
         ) : Model
     }
 
-    /** The item on the cover and where it is, plus the clips whose sound volume up turned on for now. */
+    /** The item on the cover and where it is, plus the cover's sound for now. */
     private data class Shown(
         val selected: CoverItem?,
         val sequence: List<CoverItem>,
         val step: Pair<String, String>?,
-        val soundOn: Set<String>,
+        val soundOn: Boolean,
     )
 
     private val manager = NotificationManagerCompat.from(context)
@@ -184,7 +184,7 @@ class CoverNotifier(
             context.getString(if (model.paused) R.string.action_resume else R.string.action_pause),
             action(ACTION_TOGGLE),
         )
-        // Three buttons fit: a clip with sound gets its mute switch in place of "next" (a swipe on the cover
+        // Three buttons fit: a clip with sound (or a group with one) gets the sound switch in place of "next" (a swipe on the cover
         // still skips). "Next" would change a hidden selection while an editor shows its draft on the cover.
         when {
             model.sound != null && !model.editing -> addAction(
@@ -244,11 +244,10 @@ class CoverNotifier(
 }
 
 /**
- * The sound the notification shows for [selected] (null: not a clip with sound, nothing to switch): its saved
- * setting, or on for now because volume up turned it on ([soundOn]), as the cover's own controls show it.
+ * The sound the notification shows for [selected]: the cover's sound for now ([soundOn]), exactly as the
+ * cover's own controls show it; null when [selected] has no sound to switch (see [hasSoundToSwitch]).
  */
-internal fun notifiedSound(selected: CoverItem?, soundOn: Set<String>): Boolean? =
-    (selected as? CoverItem.Media)?.takeIf { it.kind == MediaKind.VIDEO && it.hasAudio }?.let { it.sound || it.id in soundOn }
+internal fun notifiedSound(selected: CoverItem?, soundOn: Boolean): Boolean? = soundOn.takeIf { hasSoundToSwitch(selected) }
 
 /**
  * Handles the buttons of the cover-controls and mirroring notifications and of Zlip's small window. Not
@@ -263,10 +262,8 @@ class CoverActionReceiver : BroadcastReceiver() {
             CoverNotifier.ACTION_PLAYING_DISMISSED -> app.notifier.dismissPlaying()
             CoverNotifier.ACTION_MIRROR_STOP -> app.mirror.stop()
             CoverNotifier.ACTION_MIRROR_VIEW -> app.mirror.toggleView()
-            // The same switch as the cover's own button, so sound volume up turned on for now goes off as well.
-            CoverNotifier.ACTION_SOUND -> (app.repository.selectedItem.value as? CoverItem.Media)?.let { shown ->
-                if (shown.kind == MediaKind.VIDEO && shown.hasAudio) app.playback.toggleSound(shown)
-            }
+            // The same switch as the cover's own button: the cover's sound, until it next starts over.
+            CoverNotifier.ACTION_SOUND -> if (hasSoundToSwitch(app.repository.selectedItem.value)) app.playback.toggleSound()
             CoverNotifier.ACTION_STOP -> {
                 if (app.cover.status.value == CoverStatus.ACTIVE) app.stopCover()
                 app.playback.requestCloseLiveView()

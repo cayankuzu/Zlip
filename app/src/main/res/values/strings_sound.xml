@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings: how the cover's sound starts each time it turns on -->
+    <string name="settings_cover_sound">Sound when the cover turns on</string>
+    <string name="settings_cover_sound_on">Start on</string>
+    <string name="settings_cover_sound_off">Start off</string>
+    <string name="settings_cover_sound_desc">Videos start like this every time the cover turns on. The cover\'s sound button or volume key changes it only for that time.</string>
+</resources>

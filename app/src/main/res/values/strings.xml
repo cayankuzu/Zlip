@@ -256,7 +256,7 @@
         <item quantity="other">%d items</item>
     </plurals>
     <string name="media_sound">Play with sound</string>
-    <string name="media_sound_desc">Only on the cover screen. Turn it off any time from the cover or the notification.</string>
+    <string name="media_sound_desc">When off, this video always plays silent.</string>
     <string name="media_sound_none">This clip has no sound (or it was added before sound was supported).</string>
     <string name="action_sound_on">Sound on</string>
     <string name="action_sound_off">Mute</string>
@@ -300,8 +300,6 @@
     <string name="led_color_green">Green</string>
     <string name="led_color_blue">Ice</string>
     <string name="led_color_white">White</string>
-    <string name="settings_video_sound">New videos start with sound</string>
-    <string name="settings_video_sound_desc">You can still mute each one, on the cover or in its settings.</string>
     <string name="add_section_media">From your gallery</string>
     <string name="add_section_create">Make your own</string>
     <string name="add_section_smart">Smart cards</string>

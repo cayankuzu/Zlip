@@ -357,7 +357,6 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
                             posterFileName = if (hasPoster) poster.name else null,
                             durationMs = MediaImport.durationMs(video),
                             hasAudio = hasAudio,
-                            sound = hasAudio && state.value.settings.videoSoundDefault,
                         )
                     }
                     else -> {

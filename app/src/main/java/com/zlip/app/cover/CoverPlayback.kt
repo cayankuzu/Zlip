@@ -54,10 +54,14 @@ class CoverPlayback(
      */
     val session: StateFlow<Int> = _session.asStateFlow()
 
-    private val _soundOn = MutableStateFlow<Set<String>>(emptySet())
+    private val _soundOn = MutableStateFlow(repository.settings.value.startWithSound)
 
-    /** Clips whose sound volume up turned on for this session only; their saved setting stays as it is. */
-    val soundOn: StateFlow<Set<String>> = _soundOn.asStateFlow()
+    /**
+     * The cover's sound for this session: clips with audio (not muted) are heard while it is on. Every
+     * [startOver] sets it back to [com.zlip.app.data.CoverSettings.startWithSound]; the sound button, the
+     * notification and volume up change it until then ([toggleSound], [soundOnForNow]).
+     */
+    val soundOn: StateFlow<Boolean> = _soundOn.asStateFlow()
 
     /** Folded live views on screen (a count, so a finishing instance cannot hide a new one). */
     private val liveViews = MutableStateFlow(0)
@@ -143,6 +147,10 @@ class CoverPlayback(
                     credit.clear()
                 }
         }
+        // The setting changed on the phone: the cover follows it now, not only from its next start.
+        scope.launch {
+            repository.settings.map { it.startWithSound }.distinctUntilChanged().drop(1).collect { _soundOn.value = it }
+        }
     }
 
     fun togglePause() {
@@ -155,30 +163,41 @@ class CoverPlayback(
 
     /**
      * Plays everything from its beginning (the phone was folded or opened, the folded cover woke): a new
-     * [session], no pause, and another try for media that failed or held its last frame. The selected item,
-     * toy results and settings stay; so does the time the item was already seen, so auto-advance still
-     * moves on although every glance restarts it.
+     * [session], no pause, the sound as the user set it to start, and another try for media that failed or
+     * held its last frame (or lost its sound to a call or music). The selected item, toy results and settings
+     * stay; so does the time the item was already seen, so auto-advance still moves on although every glance
+     * restarts it.
      */
     fun startOver() {
         _paused.value = false
         endedItem.value = null
         failedItems.value = emptySet()
-        _soundOn.value = emptySet()
+        _soundOn.value = repository.settings.value.startWithSound
         stepShown.value = null
         _session.update { it + 1 }
         Log.i(TAG, "Starting over, session ${_session.value}")
     }
 
-    /** Volume up on a muted clip that has sound: it plays with sound until the next [startOver]. */
-    fun soundOnForNow(clip: CoverItem.Media) {
-        if (clip.kind == MediaKind.VIDEO && clip.hasAudio && !clip.sound) _soundOn.update { it + clip.id }
+    /**
+     * Volume up on the folded cover: when what it shows has sound to play ([hasSoundToSwitch]) the sound comes
+     * on, like most video apps, until the next [startOver]. A press meant for something else changes nothing.
+     */
+    fun soundOnForNow() {
+        if (hasSoundToSwitch(repository.currentSelected)) _soundOn.value = true
     }
 
-    /** The sound button: switches [clip]'s saved sound setting; sound turned on only for now goes off as well. */
-    fun toggleSound(clip: CoverItem.Media) {
-        val on = clip.sound || clip.id in _soundOn.value
-        _soundOn.update { it - clip.id }
-        if (!on) repository.upsert(clip.copy(sound = true)) else if (clip.sound) repository.upsert(clip.copy(sound = false))
+    /** The sound button (cover controls, cover menu, notification): on or off until the next [startOver]. */
+    fun toggleSound() {
+        _soundOn.update { !it }
+    }
+
+    /**
+     * A clip on the cover lost its sound for good: another app took the audio (music, a video) or headphones
+     * were unplugged. The cover stays silent, and its sound button says so, until the user turns sound on
+     * again or the cover starts over.
+     */
+    fun soundLost() {
+        _soundOn.value = false
     }
 
     /** Next step of the group on the cover (stories-style), then the next item after its last step. */
@@ -409,6 +428,18 @@ internal object AdvanceWait {
         !passSeen -> VideoWait.FIRST_PASS
         else -> VideoWait.CURRENT_PASS
     }
+}
+
+/**
+ * Whether the cover's sound switch means anything for [item]: a clip that may play with sound
+ * ([CoverItem.Media.playsSound]), or a group with such a clip among its steps. A group offers it on every step,
+ * so the controls do not jump around as photos and clips take turns, and its sound can be set before the clip
+ * comes. Collage cells always play silent, so a collage has none. Pure, so it is unit-tested.
+ */
+internal fun hasSoundToSwitch(item: CoverItem?): Boolean = when (item) {
+    is CoverItem.Media -> item.playsSound
+    is CoverItem.Group -> item.items.any { it is CoverItem.Media && it.playsSound }
+    else -> false
 }
 
 /**

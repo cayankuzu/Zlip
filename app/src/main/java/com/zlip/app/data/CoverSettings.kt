@@ -91,8 +91,11 @@ data class CoverSettings(
      * Needs "Appear on top" and a quiet background service; off by default.
      */
     val autoShowOnCover: Boolean = false,
-    /** New videos start with sound (when they have any); each video can still be changed. */
-    val videoSoundDefault: Boolean = false,
+    /**
+     * Videos with audio play with sound each time the cover turns on (a fold, an unfold, a cover wake).
+     * The cover's sound button, the notification and volume up change it only until the cover starts over.
+     */
+    val startWithSound: Boolean = true,
     /** LED matrix look: the cover is drawn as glowing dots, like an LED sign. */
     val ledMatrix: Boolean = false,
     /** Dots across the cover in LED mode. */
@@ -130,7 +133,7 @@ data class CoverSettings(
         put("stayOnSeconds", stayOnSeconds)
         put("alwaysOnWhileCharging", alwaysOnWhileCharging)
         put("autoShowOnCover", autoShowOnCover)
-        put("videoSoundDefault", videoSoundDefault)
+        put("startWithSound", startWithSound)
         put("ledMatrix", ledMatrix)
         put("ledDensity", ledDensity)
         put("ledTint", ledTint)
@@ -192,7 +195,8 @@ data class CoverSettings(
                 stayOnSeconds = if (stayOn in STAY_ON_OPTIONS) stayOn else defaults.stayOnSeconds,
                 alwaysOnWhileCharging = json.optBoolean("alwaysOnWhileCharging", true),
                 autoShowOnCover = json.optBoolean("autoShowOnCover", false),
-                videoSoundDefault = json.optBoolean("videoSoundDefault", false),
+                // The old "videoSoundDefault" only seeded new imports; the cover now starts with sound unless set.
+                startWithSound = json.optBoolean("startWithSound", true),
                 ledMatrix = json.optBoolean("ledMatrix", false),
                 ledDensity = if (ledDensity in LED_DENSITY_OPTIONS) ledDensity else defaults.ledDensity,
                 ledTint = json.optInt("ledTint", 0),

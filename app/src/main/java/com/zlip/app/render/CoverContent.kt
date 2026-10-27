@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -121,10 +122,18 @@ val LocalAnimationFps = staticCompositionLocalOf { 30 }
 val LocalVideoOverlay = staticCompositionLocalOf { false }
 
 /**
- * True only on the cover itself (open-phone presentation and folded live view): videos whose item has
- * sound on may play it there. Inner-screen previews, thumbnails and collage cells stay silent.
+ * True where clips with audio ([CoverItem.Media.playsSound]) may be heard: only on the cover itself (open-phone
+ * presentation and folded live view), while its sound is on and the screen saver is not resting. Inner-screen
+ * previews, thumbnails and collage cells stay silent. Not static: the cover's sound button flips it, and only
+ * the players need to hear about that.
  */
-val LocalAllowSound = staticCompositionLocalOf { false }
+val LocalAllowSound = compositionLocalOf { false }
+
+/**
+ * Told when a clip that was heard lost its sound for good (another app took the audio, headphones were
+ * unplugged), so the cover's sound goes off and its button says so. Null where nobody keeps that state.
+ */
+val LocalOnSoundLost = staticCompositionLocalOf<(() -> Unit)?> { null }
 
 /**
  * Where a clip reports that it is heard: the events of the outermost item, so a group's steps (whose own
@@ -538,15 +547,20 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
     var failed by remember { mutableStateOf(false) }
     // The poster covers the codec's start-up (black) until the first real frame is on screen.
     var firstFrame by remember { mutableStateOf(false) }
-    // Another app took the audio (a call, music) or headphones were unplugged: keep looping, silently,
-    // until the user turns sound on again.
-    // One state for the player's lifetime (the listener below holds on to it); switching sound on resets it.
+    // Another app took the audio (music, a video) or headphones were unplugged: keep looping, silently,
+    // until the user turns sound on again. On the cover that turns its sound off ([LocalOnSoundLost]), so its
+    // button offers to turn it back on, and the next clip does not take the audio back either.
+    // One state for the player's lifetime (the listener below holds on to it); sound allowed again, or the
+    // clip's own switch turned back on, resets it.
     var audioLost by remember { mutableStateOf(false) }
-    LaunchedEffect(item.sound) { audioLost = false }
+    val allowSound = LocalAllowSound.current
+    LaunchedEffect(allowSound, item.muted) { if (allowSound && !item.muted) audioLost = false }
+    val currentOnSoundLost by rememberUpdatedState(LocalOnSoundLost.current)
+    LaunchedEffect(audioLost) { if (audioLost) currentOnSoundLost?.invoke() }
     // Only while on screen: a stopped screen saver (the cover went dark) gives the audio back, so the
     // user's music resumes.
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
-    val wantsSound = item.playsSound && LocalAllowSound.current && playing && !audioLost && lifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    val wantsSound = item.playsSound && allowSound && playing && !audioLost && lifecycleState.isAtLeast(Lifecycle.State.STARTED)
     var focusGranted by remember { mutableStateOf(false) }
     val withSound = wantsSound && focusGranted
     // What the player really does (not ended, failed, buffering or paused), for what the cover reports as heard.

@@ -8,31 +8,32 @@ import org.junit.Test
 
 class NotifiedSoundTest {
 
-    private fun clip(sound: Boolean = false, hasAudio: Boolean = true, kind: MediaKind = MediaKind.VIDEO) =
-        CoverItem.Media(id = "clip", name = "Clip", fileName = "clip.mp4", kind = kind, hasAudio = hasAudio, sound = sound)
+    private fun clip(muted: Boolean = false, hasAudio: Boolean = true, kind: MediaKind = MediaKind.VIDEO) =
+        CoverItem.Media(id = "clip", name = "Clip", fileName = "clip.mp4", kind = kind, hasAudio = hasAudio, muted = muted)
 
     @Test
-    fun showsTheSavedSound() {
-        assertEquals(false, notifiedSound(clip(sound = false), emptySet()))
-        assertEquals(true, notifiedSound(clip(sound = true), emptySet()))
+    fun showsTheCoversSoundForNow() {
+        // The same as the cover's own button: on for this session (volume up included) or off.
+        assertEquals(true, notifiedSound(clip(), soundOn = true))
+        assertEquals(false, notifiedSound(clip(), soundOn = false))
     }
 
     @Test
-    fun soundTurnedOnForNowCountsAsOn() {
-        // Volume up on the cover: the notification must offer "Sound off", like the cover's own button.
-        assertEquals(true, notifiedSound(clip(sound = false), setOf("clip")))
-    }
-
-    @Test
-    fun soundOnForAnotherClipDoesNotCount() {
-        assertEquals(false, notifiedSound(clip(sound = false), setOf("other")))
+    fun aGroupWithAClipWithSoundOffersTheSwitch() {
+        val photo = CoverItem.Media(id = "photo", name = "Photo", fileName = "photo.webp")
+        val group = CoverItem.Group(id = "group", name = "Group", items = listOf(photo, clip()))
+        assertEquals(true, notifiedSound(group, soundOn = true))
+        assertNull(notifiedSound(group.copy(items = listOf(photo, clip(muted = true))), soundOn = true))
     }
 
     @Test
     fun nothingToSwitchWithoutAClipWithSound() {
-        assertNull(notifiedSound(null, emptySet()))
-        assertNull(notifiedSound(clip(hasAudio = false), setOf("clip")))
-        assertNull(notifiedSound(clip(kind = MediaKind.ANIMATION), setOf("clip")))
-        assertNull(notifiedSound(CoverItem.Text(id = "t", name = "Text", text = "Hi"), emptySet()))
+        assertNull(notifiedSound(null, soundOn = true))
+        assertNull(notifiedSound(clip(hasAudio = false), soundOn = true))
+        assertNull(notifiedSound(clip(muted = true), soundOn = true))
+        assertNull(notifiedSound(clip(kind = MediaKind.ANIMATION), soundOn = true))
+        assertNull(notifiedSound(CoverItem.Text(id = "t", name = "Text", text = "Hi"), soundOn = true))
+        // Collage cells always play silent.
+        assertNull(notifiedSound(CoverItem.Collage(id = "c", name = "Mix", cells = listOf(listOf(clip()))), soundOn = true))
     }
 }

@@ -83,7 +83,6 @@ import com.zlip.app.R
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
-import com.zlip.app.data.MediaKind
 import com.zlip.app.render.CoverContent
 import com.zlip.app.render.Playback
 import com.zlip.app.system.CoverGuard
@@ -181,14 +180,14 @@ internal fun CoverMenu(
             .windowInsetsPadding(WindowInsets.displayCutout),
     ) {
         val index = sequence.indexOfFirst { it.id == item?.id }
-        val clip = (item as? CoverItem.Media)?.takeIf { it.kind == MediaKind.VIDEO && it.hasAudio }
+        val canSwitchSound = hasSoundToSwitch(item)
         MenuHeader(
             title = item?.name.orEmpty(),
             position = if (index >= 0 && sequence.size > 1) "${index + 1}/${sequence.size}" else null,
-            soundOn = clip?.let { it.sound || it.id in soundOn },
+            soundOn = soundOn.takeIf { canSwitchSound },
             onToggleSound = {
                 onUserActivity()
-                clip?.let(playback::toggleSound)
+                playback.toggleSound()
             },
             onClose = onClose,
             onDismiss = onDismiss,
