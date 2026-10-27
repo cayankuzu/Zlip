@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- One frame of the cover widget; the image's content description is the item's name, set per frame from
-     CoverWidgets. The clock belongs to the frame rather than to the widget, so a frame showing a QR code can leave
-     it out: drawn over the code it hid part of it, and the code no longer scanned. -->
+     CoverWidgets. When the frames include a QR code the clock belongs to the frame rather than to the widget, so a
+     frame showing the code can leave it out: drawn over the code it hid part of it, and the code no longer scanned.
+     Otherwise the widget's own steady clock is used, which does not dim as frames crossfade. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"

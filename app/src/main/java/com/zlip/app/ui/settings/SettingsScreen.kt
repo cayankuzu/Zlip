@@ -62,6 +62,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.zlip.app.R
 import com.zlip.app.cover.coverHoverSupported
+import com.zlip.app.data.AdvanceMode
 import com.zlip.app.data.CoverSettings
 import com.zlip.app.data.PowerMode
 import com.zlip.app.ui.components.AutoAdvanceControls
@@ -137,7 +138,8 @@ fun SettingsScreen(
                 Spacer(Modifier.height(16.dp))
 
                 AutoAdvanceControls(settings, onSettingsChange)
-                HintText(stringResource(R.string.advance_playlist_hint))
+                // What rotates only matters while something does.
+                if (settings.advanceMode != AdvanceMode.OFF) HintText(stringResource(R.string.advance_playlist_hint))
 
                 if (coverHoverSupported) {
                     Spacer(Modifier.height(16.dp))

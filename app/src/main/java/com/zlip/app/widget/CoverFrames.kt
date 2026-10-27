@@ -126,8 +126,14 @@ internal object CoverFrames {
         }
     }
 
-    /** JSON keys of [CoverItemJson] that do not affect the drawn still. */
-    private val NON_VISUAL_KEYS = listOf("id", "name", "sound", "hasAudio", "loop", "speedDps", "scroll", "fps", "interval", "step")
+    /**
+     * JSON keys of [CoverItemJson] that do not affect the drawn still ("sound" only in older libraries). Not "repeat": a
+     * countdown draws it. Not "zoom" or the focus: they frame the picture.
+     */
+    private val NON_VISUAL_KEYS = listOf(
+        "id", "name", "sound", "muted", "durationMs", "hasAudio", "loop", "speedDps", "scroll", "fps", "interval", "step",
+        "videosToEnd", "shuffle", "crossfade",
+    )
 
     private fun countdownKey(item: CoverItem): String? {
         val now = System.currentTimeMillis()

@@ -117,6 +117,9 @@ class CoverDisplayController(
             startingState.value = value
         }
     private var closeRequested = false
+
+    /** The last session ended because Zlip closed it (turned off from Home, the notification, Mini kapak, idle). */
+    private var endedOnRequest = false
     private var sessionStartedAt = 0L
     private var topResumed = false
     private var lostTopSinceStart = false
@@ -286,8 +289,11 @@ class CoverDisplayController(
                 return
             }
             // An unfold whose display event is still on its way starts the content over before it shows. A
-            // session that merely restarts (the shade can do that) keeps its pause.
-            sessions.check()
+            // session that merely restarts (the shade can do that) keeps its pause and sound; a cover the user
+            // turned off and on again starts with the sound as set, like every other new start.
+            val startedOver = sessions.check()
+            if (!startedOver && endedOnRequest) playback.resetSound()
+            endedOnRequest = false
             val owner = ComposeHostOwner().also { viewOwner = it }
             val view = owner.composeView(session.context) {
                 ZlipTheme {
@@ -312,6 +318,7 @@ class CoverDisplayController(
 
         override fun onSessionEnded(t: Throwable?) {
             val wasStarted = session != null
+            endedOnRequest = closeRequested
             val lived = SystemClock.uptimeMillis() - sessionStartedAt
             starting = false
             session = null

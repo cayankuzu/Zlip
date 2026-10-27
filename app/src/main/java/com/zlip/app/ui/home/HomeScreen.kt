@@ -181,8 +181,11 @@ import androidx.compose.ui.graphics.Brush as GradientBrush
  */
 private val FAB_CLEARANCE = 56.dp + 16.dp + 32.dp
 
-/** How close the brightness slider may come to the "Add" button before the button steps aside. */
+/** How close the brightness slider may come to the "Add" button before the button shrinks to its "+". */
 private val FAB_SLIDER_MARGIN = 8.dp
+
+/** Room the brightness slider leaves at its end while the round "+" floats over its row: the button and a margin. */
+private val SLIDER_FAB_ROOM = 56.dp + 16.dp
 
 /** What the add sheet offers; [GALLERY] picks one or several photos and videos. */
 enum class AddKind { GALLERY, PIXEL, TEXT, COLLAGE, GROUP, COUNTDOWN, QR, TOY }
@@ -295,8 +298,8 @@ fun HomeScreen(
     }
 
     // The "Add" button floats over the list. Wide at the top, where it introduces itself; a round "+" once
-    // the list is scrolled, so it covers less of the cards. And while the brightness slider passes under it,
-    // it steps aside entirely: dragging to full brightness would otherwise end on the button.
+    // the list is scrolled, so it covers less of the cards. While the brightness slider passes under it, it stays
+    // a round "+" and the slider ends before it, so dragging to full brightness never ends on the button.
     val fabExpanded by remember { derivedStateOf { gridState.firstVisibleItemIndex == 0 } }
     var sliderBounds by remember { mutableStateOf<Rect?>(null) }
     // Kept while the button is hidden (it has no bounds then), so hiding it cannot by itself bring it back.
@@ -353,15 +356,15 @@ fun HomeScreen(
                 },
             ) {
                 AnimatedVisibility(
-                    visible = !selecting && !fabOverSlider,
+                    visible = !selecting,
                     enter = scaleIn() + fadeIn(),
                     exit = scaleOut() + fadeOut(),
                 ) {
                     ExtendedFloatingActionButton(
                         onClick = { showAddSheet = true },
-                        expanded = fabExpanded,
+                        expanded = fabExpanded && !fabOverSlider,
                         // Collapsed there is no text left, so the icon carries the label for TalkBack.
-                        icon = { Icon(Icons.Filled.Add, contentDescription = if (fabExpanded) null else addLabel) },
+                        icon = { Icon(Icons.Filled.Add, contentDescription = if (fabExpanded && !fabOverSlider) null else addLabel) },
                         text = { Text(addLabel) },
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -417,7 +420,7 @@ fun HomeScreen(
                     DisposableEffect(Unit) { onDispose { sliderBounds = null } }
                     // While mirroring there is no playlist to steer, only how the screen fills the cover.
                     if (mirror == MirrorState.ON) {
-                        MirrorControlsCard(settings, onSettingsChange, onBrightnessBounds = reportSlider)
+                        MirrorControlsCard(settings, onSettingsChange, onBrightnessBounds = reportSlider, sliderEndRoom = fabOverSlider)
                     } else {
                         ControlsCard(
                             settings = settings,
@@ -428,6 +431,7 @@ fun HomeScreen(
                             onPrevious = onPrevious,
                             onSettingsChange = onSettingsChange,
                             onBrightnessBounds = reportSlider,
+                            sliderEndRoom = fabOverSlider,
                         )
                     }
                 }
@@ -810,6 +814,7 @@ private fun MirrorControlsCard(
     settings: CoverSettings,
     onSettingsChange: (CoverSettings) -> Unit,
     onBrightnessBounds: ((Rect) -> Unit)? = null,
+    sliderEndRoom: Boolean = false,
 ) {
     SectionCard {
         Text(
@@ -821,7 +826,7 @@ private fun MirrorControlsCard(
         MirrorViewControls()
         HintText(stringResource(R.string.mirror_cover_gestures))
         Spacer(Modifier.height(8.dp))
-        BrightnessRow(settings, onSettingsChange, Modifier.reportBounds(onBrightnessBounds))
+        BrightnessRow(settings, onSettingsChange, Modifier.reportBounds(onBrightnessBounds), endRoom = sliderEndRoom)
     }
 }
 
@@ -835,6 +840,7 @@ private fun ControlsCard(
     onPrevious: () -> Unit,
     onSettingsChange: (CoverSettings) -> Unit,
     onBrightnessBounds: ((Rect) -> Unit)? = null,
+    sliderEndRoom: Boolean = false,
 ) {
     SectionCard {
         Row(
@@ -865,7 +871,7 @@ private fun ControlsCard(
             )
         }
         Spacer(Modifier.height(8.dp))
-        BrightnessRow(settings, onSettingsChange, Modifier.reportBounds(onBrightnessBounds))
+        BrightnessRow(settings, onSettingsChange, Modifier.reportBounds(onBrightnessBounds), endRoom = sliderEndRoom)
         Spacer(Modifier.height(8.dp))
         // Quick auto-advance: off/on chips plus shuffle/repeat toggles; photo time and videos live in Settings.
         Text(
@@ -913,9 +919,18 @@ private fun ControlsCard(
     }
 }
 
-/** Cover brightness: dragging updates the cover live; the file is saved once after the drag (debounced). */
+/**
+ * Cover brightness: dragging updates the cover live; the file is saved once after the drag (debounced). [endRoom]: the
+ * "Add" button floats over the row's end, so the slider and its icon end before it (inside the row, whose bounds the
+ * button's placement is judged by, so this cannot feed back into it).
+ */
 @Composable
-fun BrightnessRow(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit, modifier: Modifier = Modifier) {
+fun BrightnessRow(
+    settings: CoverSettings,
+    onSettingsChange: (CoverSettings) -> Unit,
+    modifier: Modifier = Modifier,
+    endRoom: Boolean = false,
+) {
     var value by remember(settings.brightness) { mutableFloatStateOf(settings.brightness) }
     val label = stringResource(R.string.settings_brightness)
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -933,6 +948,7 @@ fun BrightnessRow(settings: CoverSettings, onSettingsChange: (CoverSettings) -> 
                 .semantics { contentDescription = label },
         )
         Icon(Icons.Filled.BrightnessHigh, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (endRoom) Spacer(Modifier.width(SLIDER_FAB_ROOM))
     }
 }
 

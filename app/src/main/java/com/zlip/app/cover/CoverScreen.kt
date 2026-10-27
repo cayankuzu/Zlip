@@ -232,10 +232,16 @@ fun CoverScreen(
     // Auto-advance and a group's step wait while fingers frame the picture.
     LaunchedEffect(framing.moving) { playback.setFraming(framing.moving) }
     // Saved once the fingers have let go for a moment, so a few quick gestures make one write; whatever is left when
-    // the cover closes is saved then.
+    // the cover closes is saved then. A zoom that is no zoom (a slip of two fingers) snaps back to 1x first.
     LaunchedEffect(framing) {
         snapshotFlow { framing.edit != null && !framing.moving }.collectLatest { due ->
             if (due) {
+                val shown = currentFramable?.takeIf { it.id == framing.edit?.id }
+                if (shown != null) {
+                    val before = framing.framingOf(shown)
+                    val after = MediaFocus.snapped(before, currentAspect, coverSize.width.toFloat(), coverSize.height.toFloat())
+                    if (after != before) framing.show(shown, after)
+                }
                 delay(FRAMING_SAVE_MS)
                 framing.save()
             }
@@ -247,6 +253,9 @@ fun CoverScreen(
             playback.setFraming(false)
         }
     }
+
+    // A pinch lets one finger move the picture only for this showing of this item.
+    LaunchedEffect(media?.id, session) { framing.forgetPinch() }
 
     // The first zoom of each session says how a zoomed-in picture moves.
     var zoomHint by remember { mutableStateOf(false) }
@@ -406,8 +415,9 @@ fun CoverScreen(
                     }
                     // A photo or video the fingers can frame, now that the cover listens to touches.
                     val framed = currentFramable?.takeIf { lock.isActive }
-                    if (framed != null && framing.framingOf(framed).zoom > MediaFocus.MIN_ZOOM) {
-                        // Zoomed in: the fingers move the picture around, and it stays the item on screen.
+                    if (framed != null && framing.pansWithOneFinger(framed)) {
+                        // Zoomed in by a pinch in this showing: the fingers move the picture around, and it stays the
+                        // item on screen. A zoom saved earlier only frames it; swipes stay swipes until a new pinch.
                         val gesture = frameMedia(down, lock, pinching = false, framing, glideScope, moveMedia)
                         if (gesture.tapped) {
                             if (lockTouches) playback.togglePause() else controlsShown = !controlsShown
@@ -443,7 +453,8 @@ fun CoverScreen(
                             }
                             lock.onMove(change.uptimeMillis)
                         }
-                        if (pinched) {
+                        if (pinched && framed != null) {
+                            framing.pinched(framed)
                             lastTouch = frameMedia(down, lock, pinching = true, framing, glideScope, moveMedia).upTime
                             return@awaitEachGesture
                         }
@@ -498,6 +509,9 @@ fun CoverScreen(
         val judged = if (item is CoverItem.Group) groupStep else item
         val showsQr = mirroring == null && judged?.showsQr() == true
         val led = LedStyle.of(settings).takeUnless { showsQr }
+        // Not over what fills the corner: a QR code's finder pattern and quiet zone (no corner is free, so
+        // hidden rather than moved), or a toy's result band while it is played.
+        val clockShown = showClock && !showsQr && !(judged is CoverItem.Toy && !ambient)
         // A mirror takes the content's place: the inner screen, composed by the display hardware (no decoding).
         if (mirroring != null) MirrorSurface(mirroring, Modifier.fillMaxSize()) else Box(
             modifier = Modifier
@@ -542,10 +556,7 @@ fun CoverScreen(
                     }
                 }
             }
-            // Not over what fills the corner: a QR code's finder pattern and quiet zone (no corner is free, so
-            // hidden rather than moved), or a toy's result band while it is played.
-            val clockFits = !showsQr && !(judged is CoverItem.Toy && !ambient)
-            if (showClock && clockFits) {
+            if (clockShown) {
                 CoverClock(
                     Modifier
                         .align(Alignment.BottomStart)
@@ -612,11 +623,11 @@ fun CoverScreen(
             visible = zoomHint && look != null,
             enter = fadeIn(),
             exit = fadeOut(),
-            // Above the controls' bottom row while they show.
+            // Above the controls' bottom row while they show, and above the clock in the bottom-left corner.
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.displayCutout)
-                .padding(bottom = if (controlsVisible) 76.dp else 18.dp),
+                .padding(bottom = if (controlsVisible || clockShown) 96.dp else 18.dp),
         ) {
             ZoomHint()
         }
@@ -784,7 +795,7 @@ private const val FRAMING_SAVE_MS = 600L
 /** What the controls, TalkBack and the hint show of a picture's framing; coarse, so moving fingers rarely change it. */
 private data class FramingLook(val fit: MediaFit, val zoomedIn: Boolean, val closest: Boolean) {
     companion object {
-        fun of(framing: MediaFraming) = FramingLook(framing.fit, framing.zoom > MediaFocus.MIN_ZOOM, framing.zoom >= MediaFocus.MAX_ZOOM)
+        fun of(framing: MediaFraming) = FramingLook(framing.fit, framing.zoom >= MediaFocus.SNAP_ZOOM, framing.zoom >= MediaFocus.MAX_ZOOM)
     }
 }
 

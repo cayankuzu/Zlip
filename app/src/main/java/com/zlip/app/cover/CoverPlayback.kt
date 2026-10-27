@@ -194,6 +194,11 @@ class CoverPlayback(
         if (hasSoundToSwitch(repository.currentSelected)) _soundOn.value = true
     }
 
+    /** The cover was turned off and on again: its sound starts as set, without starting anything else over. */
+    fun resetSound() {
+        _soundOn.value = repository.settings.value.startWithSound
+    }
+
     /** The sound button (cover controls, cover menu, notification): on or off until the next [startOver]. */
     fun toggleSound() {
         _soundOn.update { !it }
@@ -367,7 +372,14 @@ class CoverPlayback(
         if (plan.item is CoverItem.Group && id !in failedItems.value) {
             // A group is a sequence the user built: it plays to its end in SMART and TIMER alike (the timer
             // would cut it mid-way), and moves on early only when none of its steps can play.
-            withTimeoutOrNull(AdvanceWait.passCapMs(GroupTiming.maxPassMs(plan.item), seenMs)) { passOrFailure(id).first() }
+            if (endedItem.value == id) {
+                // With repeat off it already played its pass and holds its last step, like a play-once clip.
+                delay(AdvanceWait.MIN_AFTER_START_MS)
+            } else {
+                withTimeoutOrNull(AdvanceWait.passCapMs(GroupTiming.maxPassMs(plan.item), seenMs)) {
+                    merge(passOrFailure(id), endedItem.filter { it == id }.map { }).first()
+                }
+            }
         } else if (plan.mode == AdvanceMode.SMART && video != null && id !in failedItems.value) {
             // Videos to the end: the photo time does not apply, the clip plays one full pass from its start.
             // Listening starts first, so a short clip's first pass is not missed.
@@ -378,6 +390,8 @@ class CoverPlayback(
                     failed = id in failedItems.value,
                     passSeen = firstPass.isCompleted,
                     holdsLastFrame = !video.loop && (firstPass.isCompleted || endedItem.value == id),
+                    // Unknown length (0) counts as short: it may be.
+                    shortClip = video.durationMs <= AdvanceWait.MIN_AFTER_START_MS,
                 )
                 when (wait) {
                     AdvanceWait.VideoWait.DONE -> Unit
@@ -452,10 +466,15 @@ internal object AdvanceWait {
         CURRENT_PASS,
     }
 
-    fun videoWait(failed: Boolean, passSeen: Boolean, holdsLastFrame: Boolean): VideoWait = when {
+    /**
+     * [shortClip]: the clip is (or may be) shorter than [MIN_AFTER_START_MS]. For a longer one an end seen during the
+     * minimum ends the pass that was running when the plan started again (after a pause near its end, say): done.
+     */
+    fun videoWait(failed: Boolean, passSeen: Boolean, holdsLastFrame: Boolean, shortClip: Boolean): VideoWait = when {
         failed || holdsLastFrame -> VideoWait.DONE
         !passSeen -> VideoWait.FIRST_PASS
-        else -> VideoWait.CURRENT_PASS
+        shortClip -> VideoWait.CURRENT_PASS
+        else -> VideoWait.DONE
     }
 }
 

@@ -57,7 +57,9 @@ val LocalHoldGroupStep = compositionLocalOf { false }
  * at 0 and only one decoder is alive. A step's own events end it and never reach [events], so a video's
  * loop is not mistaken for the group's pass; the group reports one [PlaybackEvents.onCycle] per trip
  * through all items (repeat on or off), or [PlaybackEvents.onFailed] when none of them can play. Unlike a
- * collage, steps are full screen, so videos keep the cover's hardware overlay and their own sound setting.
+ * collage, steps are full screen, so videos keep the cover's hardware overlay and are heard with the cover's
+ * session sound (unless muted), as on their own. A group that stopped on its last step (repeat off) reports
+ * [PlaybackEvents.onEnded] while it holds it.
  */
 @Composable
 internal fun GroupCover(item: CoverItem.Group, modifier: Modifier, playback: Playback, events: PlaybackEvents?) {
@@ -164,10 +166,15 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
             events?.detachStepper(stepper)
             // A failure belongs to this showing: next time the group comes round it gets a fresh chance.
             if (failureReported) events?.onFailed(false)
+            events?.onEnded(false)
         }
     }
 
     LaunchedEffect(step) { currentEvents?.onStep(child) }
+
+    // Repeat off: holding the last step is the group's end, like a play-once clip's last frame, so a plan that starts
+    // after it stopped moves on instead of waiting for a pass that never comes.
+    LaunchedEffect(stopped) { currentEvents?.onEnded(stopped) }
 
     LaunchedEffect(step, running, item.stepSeconds, item.videosToEnd, stuck, stopped) {
         if (!running || stuck || stopped) return@LaunchedEffect

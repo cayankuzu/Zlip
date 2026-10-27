@@ -21,6 +21,7 @@ import com.zlip.app.data.AdvanceMode
 import com.zlip.app.data.CountdownMath
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
+import com.zlip.app.data.GroupTiming
 import com.zlip.app.data.leaves
 import com.zlip.app.data.showsQr
 import com.zlip.app.render.CountdownView
@@ -97,6 +98,12 @@ internal data class WidgetConfig(
     }
 }
 
+/**
+ * With auto-advance off a chosen group still plays its steps: at about its own [stepSeconds], stopping on the last one
+ * when it does not [repeat]. [shuffle] is part of what was pushed, so switching it in the editor pushes again.
+ */
+internal data class GroupPace(val stepSeconds: Int, val repeat: Boolean, val shuffle: Boolean)
+
 internal object CoverWidgets {
 
     /** One update at a time: frames are rendered and pruned in the same directory. */
@@ -167,18 +174,19 @@ internal object CoverWidgets {
             else -> sequence
         }
         // With auto-advance off a chosen group still plays its steps, at its own pace.
-        val groupStepSeconds = (selected as? CoverItem.Group)?.takeIf { config.advanceMode == AdvanceMode.OFF }?.stepSeconds
+        val groupPace = (selected as? CoverItem.Group)?.takeIf { config.advanceMode == AdvanceMode.OFF }
+            ?.let { GroupPace(it.stepSeconds, it.repeat, it.shuffle) }
         val frames = withContext(Dispatchers.IO) {
-            // A group's steps become frames of their own, in order: the host's flipper plays them one by one.
-            order.flatMap { if (it is CoverItem.Group) it.items else listOf(it) }.take(MAX_FRAMES).mapNotNull { item ->
+            // A group's steps become frames of their own, in its order: the host's flipper plays them one by one.
+            order.flatMap { if (it is CoverItem.Group) it.widgetSteps() else listOf(it) }.take(MAX_FRAMES).mapNotNull { item ->
                 ensureActive()
                 CoverFrames.frameFor(context, item, config.led)?.let { item to it }
             }
         }
-        val push = listOf(ids.toList(), config, groupStepSeconds, frames.map { (item, file) -> Triple(item.id, item.name, file.name) })
+        val push = listOf(ids.toList(), config, groupPace, frames.map { (item, file) -> Triple(item.id, item.name, file.name) })
         if (force || push != lastPush) {
             for (id in ids) {
-                manager.updateAppWidget(id, buildViews(context, id, frames, config, groupStepSeconds))
+                manager.updateAppWidget(id, buildViews(context, id, frames, config, groupPace))
             }
             lastPush = push
         }
@@ -213,9 +221,11 @@ internal object CoverWidgets {
         widgetId: Int,
         frames: List<Pair<CoverItem, File>>,
         config: WidgetConfig,
-        groupStepSeconds: Int?,
+        groupPace: GroupPace?,
     ): RemoteViews {
-        val views = RemoteViews(context.packageName, layoutFor(config, frames.size, groupStepSeconds))
+        val views = RemoteViews(context.packageName, layoutFor(config, frames.size, groupPace))
+        // A clock on each frame flips with it and dims as two frames crossfade; only needed to leave a QR code clear.
+        val clockPerFrame = frames.any { (item, _) -> item.showsQr() }
         val items = RemoteViews.RemoteCollectionItems.Builder()
             .setHasStableIds(true)
             .setViewTypeCount(1)
@@ -223,17 +233,18 @@ internal object CoverWidgets {
             val frame = RemoteViews(context.packageName, R.layout.widget_frame).apply {
                 setImageViewUri(R.id.widget_image, CoverImageProvider.uri(context, file))
                 setContentDescription(R.id.widget_image, item.name)
-                // Each frame carries its own clock, left off a QR code (alone or in a collage cell): no corner of
-                // the code is free, and the live cover hides its clock there too.
-                setViewVisibility(R.id.widget_frame_clock, if (config.clock && !item.showsQr()) View.VISIBLE else View.GONE)
+                // Among QR codes each frame carries its own clock, left off a code (alone or in a collage cell): no
+                // corner of the code is free, and the live cover hides its clock there too.
+                val frameClock = config.clock && clockPerFrame && !item.showsQr()
+                setViewVisibility(R.id.widget_frame_clock, if (frameClock) View.VISIBLE else View.GONE)
             }
             // Position-based ids: unique by construction.
             items.addItem(index.toLong(), frame)
         }
         views.setRemoteAdapter(R.id.widget_flipper, items.build())
         views.setEmptyView(R.id.widget_flipper, R.id.widget_empty)
-        // The widget's own clock is only for the empty library (the brand tile); frames bring theirs.
-        views.setViewVisibility(R.id.widget_clock, if (config.clock && frames.isEmpty()) View.VISIBLE else View.GONE)
+        // The widget's own clock stays steady over the flipping frames (and the empty library's brand tile).
+        views.setViewVisibility(R.id.widget_clock, if (config.clock && !clockPerFrame) View.VISIBLE else View.GONE)
 
         // Tap anywhere = the screen saver on the cover display itself. One click target on the whole widget,
         // as Samsung's Flex Window guide does: its cover host never delivers per-frame collection clicks.
@@ -268,14 +279,14 @@ internal object CoverWidgets {
 
     /**
      * AdapterViewFlipper's autoStart and flipInterval are not callable through RemoteViews, so the
-     * interval is chosen by layout. Same view ids in all of them. [groupStepSeconds]: auto-advance is off
-     * and the chosen item is a group, whose steps loop at (about) its own pace.
+     * interval is chosen by layout. Same view ids in all of them. [groupPace]: auto-advance is off and the
+     * chosen item is a group, whose steps play at (about) its own pace, and go round only if it repeats.
      */
-    private fun layoutFor(config: WidgetConfig, frameCount: Int, groupStepSeconds: Int?): Int {
+    private fun layoutFor(config: WidgetConfig, frameCount: Int, groupPace: GroupPace?): Int {
         if (frameCount < 2) return R.layout.widget_cover_paused
         if (config.advanceMode == AdvanceMode.OFF) {
-            if (groupStepSeconds == null) return R.layout.widget_cover_paused
-            return flippingLayout(FLIP_SECONDS.minBy { abs(it - groupStepSeconds) }, repeat = true)
+            if (groupPace == null) return R.layout.widget_cover_paused
+            return flippingLayout(FLIP_SECONDS.minBy { abs(it - groupPace.stepSeconds) }, repeat = groupPace.repeat)
         }
         return flippingLayout(config.advanceSeconds, config.repeat)
     }
@@ -289,6 +300,13 @@ internal object CoverWidgets {
         60 -> if (repeat) R.layout.widget_cover_60s else R.layout.widget_cover_60s_once
         else -> if (repeat) R.layout.widget_cover_300s else R.layout.widget_cover_300s_once
     }
+
+    /**
+     * A group's steps in the order the widget shows them: as listed, or shuffled once with a seed of the group's own,
+     * so an unrelated push does not reorder them (the host's flipper cannot reshuffle every pass).
+     */
+    private fun CoverItem.Group.widgetSteps(): List<CoverItem> =
+        GroupTiming.playOrder(items.size, shuffle, id.hashCode().toLong(), pass = 0).map { items[it] }
 
     /** The flip intervals there are layouts for. */
     private val FLIP_SECONDS = listOf(5, 10, 15, 30, 60, 300)

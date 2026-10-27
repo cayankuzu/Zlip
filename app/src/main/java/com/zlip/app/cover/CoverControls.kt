@@ -64,7 +64,7 @@ import java.util.Date
  * On-cover controls, shown after a tap (folded) or the unlocking double tap (open phone). Big targets
  * for a small screen: previous / play-pause / next in the middle, sound and close at the edges, Fit / Fill
  * for a photo or video, and on the folded cover the way into its menu. Kept clear of the cover's camera
- * cutout, if it has one.
+ * cutout, if it has one, and of the screen-saver clock's corner (bottom left).
  */
 @Composable
 internal fun CoverControls(
@@ -152,30 +152,28 @@ internal fun CoverControls(
             }
         }
 
-        if (mediaFit != null) {
-            Box(
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 10.dp, bottom = 14.dp),
-            ) {
-                // Says what a press does: a fitted picture fills the cover, a filled one fits.
-                val fitted = mediaFit == MediaFit.FIT
-                ControlButton(
-                    if (fitted) Icons.Filled.ZoomOutMap else Icons.Filled.FitScreen,
-                    stringResource(if (fitted) R.string.media_fit_fill else R.string.media_fit_fit),
-                    onSwitchFit,
-                    size = 44,
-                )
-            }
-        }
-
-        if (onOpenMenu != null) {
-            Box(
-                Modifier
+        // Bottom right, so the clock in the bottom-left corner stays readable.
+        if (mediaFit != null || onOpenMenu != null) {
+            Row(
+                modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 10.dp, bottom = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                ControlButton(Icons.Filled.KeyboardArrowUp, stringResource(R.string.cover_menu_open), onOpenMenu, size = 44)
+                if (mediaFit != null) {
+                    // Says what a press does: a fitted picture fills the cover, a filled one fits.
+                    val fitted = mediaFit == MediaFit.FIT
+                    ControlButton(
+                        if (fitted) Icons.Filled.ZoomOutMap else Icons.Filled.FitScreen,
+                        stringResource(if (fitted) R.string.media_fit_fill else R.string.media_fit_fit),
+                        onSwitchFit,
+                        size = 44,
+                    )
+                }
+                if (onOpenMenu != null) {
+                    ControlButton(Icons.Filled.KeyboardArrowUp, stringResource(R.string.cover_menu_open), onOpenMenu, size = 44)
+                }
             }
         }
     }

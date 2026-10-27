@@ -95,6 +95,9 @@ class MainActivity : ComponentActivity() {
     /** Standby may run on every screen; only an import the user waits for holds it off. */
     private val standbyAllowed = MutableStateFlow(true)
 
+    /** A photo or video import is running; it ends with the activity, so nothing may finish or idle it out. */
+    private val importing = MutableStateFlow(false)
+
     /**
      * One of Zlip's own sheets, dialogs or menus has the input focus. Their touches wake the standby
      * themselves, so losing focus to them does not hold it off like another window in front does.
@@ -256,9 +259,14 @@ class MainActivity : ComponentActivity() {
             app.cover.closeRefused.collect { if (isInPictureInPictureMode) moveTaskToBack(true) }
         }
         // The small window's close button: the cover is off already (CoverActionReceiver), the window goes too. Only
-        // Zlip's window closes; everything the user made stays.
+        // Zlip's window closes; everything the user made stays. An import still running keeps the activity: the window
+        // is only hidden, and the file arrives in the library.
         lifecycleScope.launch {
-            app.cover.closeHoverRequests.collect { if (isInPictureInPictureMode) finish() }
+            app.cover.closeHoverRequests.collect {
+                if (isInPictureInPictureMode) {
+                    if (importing.value) moveTaskToBack(true) else finish()
+                }
+            }
         }
         // The optional always-show service may only be started while Zlip is on screen.
         lifecycleScope.launch {
@@ -358,11 +366,12 @@ class MainActivity : ComponentActivity() {
             combine(
                 app.cover.status,
                 app.repository.settings.map { it.autoOffMinutes }.distinctUntilChanged(),
-                inPip,
+                // A long video's conversion takes minutes without a touch: the cover stays on until it is done.
+                combine(inPip, importing) { pip, busy -> pip || busy },
                 lastInteraction,
                 lastCoverTouch,
-            ) { status, minutes, pip, inner, cover ->
-                if (status == CoverStatus.ACTIVE && !pip && minutes > 0) maxOf(inner, cover) + minutes * 60_000L else null
+            ) { status, minutes, held, inner, cover ->
+                if (status == CoverStatus.ACTIVE && !held && minutes > 0) maxOf(inner, cover) + minutes * 60_000L else null
             }.collectLatest { deadline ->
                 idleCutOff.value = false
                 autoOffCountdown.value = null
@@ -433,6 +442,11 @@ class MainActivity : ComponentActivity() {
                     onWake = ::noteUserActivity,
                     onStandbyAllowedChange = { allowed ->
                         standbyAllowed.value = allowed
+                        lastInteraction.value = SystemClock.uptimeMillis()
+                    },
+                    onImportingChange = { running ->
+                        importing.value = running
+                        // The idle wait starts again from the end of an import.
                         lastInteraction.value = SystemClock.uptimeMillis()
                     },
                     onModalOpenChange = { ownModalOpen.value = it },

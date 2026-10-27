@@ -267,9 +267,10 @@ fun GroupEditorScreen(
                         StepRow(
                             step = step,
                             timing = when {
-                                // A video playing to its end stays its own length; cut, it stays the photo time.
+                                // A video playing to its end stays its own length (the Playback card says "to the end");
+                                // cut, it stays the photo time.
                                 video && videosToEnd -> (step as CoverItem.Media).durationMs.takeIf { it > 0 }
-                                    ?.let { stringResource(R.string.group_clip_to_end, clipLengthLabel(it)) }
+                                    ?.let(::clipLengthLabel)
                                     ?: untilEnd
                                 video -> stepLabel
                                 // GIFs, marquees, animations and collages finish their pass after the photo time.
@@ -390,7 +391,8 @@ private fun ReorderableRowScope.StepRow(step: CoverItem, timing: String, onRemov
                 text = stringResource(R.string.group_item_timing, stringResource(step.badgeLabel()), timing),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                // Two lines: the timing is what this row is for, and large fonts must not cut it.
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }

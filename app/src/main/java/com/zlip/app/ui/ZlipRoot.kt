@@ -208,6 +208,7 @@ fun ZlipRoot(
     onOpeningPicker: () -> Unit,
     onWake: () -> Unit,
     onStandbyAllowedChange: (Boolean) -> Unit,
+    onImportingChange: (Boolean) -> Unit,
     onModalOpenChange: (Boolean) -> Unit,
     inPip: StateFlow<Boolean>,
     autoOffCountdown: StateFlow<Int?>,
@@ -219,6 +220,8 @@ fun ZlipRoot(
     val items by repository.items.collectAsState()
     val playlist by repository.playlist.collectAsState()
     val selected by repository.selectedItem.collectAsState()
+    // What the cover shows: for a group the step it is on, as the small window's Fit / Fill acts on that.
+    val shownOnCover by app.playback.shownItem.collectAsState()
     val settings by repository.settings.collectAsState()
     val loaded by repository.loaded.collectAsState()
     val saveFailed by repository.saveFailed.collectAsState()
@@ -279,12 +282,15 @@ fun ZlipRoot(
     // and our sheets, dialogs and menus count theirs. Only an import, which the user waits for, keeps it off.
     val standbyAllowed = importProgress == null && batchResult == null && (!loaded || settings.onboardingDone)
     LaunchedEffect(standbyAllowed) { onStandbyAllowedChange(standbyAllowed) }
+    // An import runs here: the idle cutoff waits for it, and closing the small window must not cancel it.
+    val importing = importJob != null
+    LaunchedEffect(importing) { onImportingChange(importing) }
     val currentOnWake by rememberUpdatedState(onWake)
     val currentOnModalOpenChange by rememberUpdatedState(onModalOpenChange)
     val standbyHooks = remember { StandbyHooks(wake = { currentOnWake() }, onOpenChange = { currentOnModalOpenChange(it) }) }
     val onDraftChange: (CoverItem) -> Unit = remember(repository) {
         { item ->
-            // A library change can still reach a hidden editor (sound toggled from the notification); as the
+            // A library change can still reach a hidden editor (Fit / Fill switched from the small window); as the
             // small window its draft must not take the cover over from the playlist.
             if (currentHovering) parkedDraft = item else repository.setDraft(item)
             currentOnWake()
@@ -772,7 +778,7 @@ fun ZlipRoot(
 
         if (hovering) {
             CoverPipCard(
-                item = selected,
+                item = shownOnCover ?: selected,
                 settings = settings,
                 status = status,
                 paused = paused,

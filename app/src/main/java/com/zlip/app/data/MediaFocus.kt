@@ -59,6 +59,12 @@ internal object MediaFocus {
     /** One TalkBack zoom step ("zoom in"): four steps go from 1x to [MAX_ZOOM]. */
     const val ZOOM_STEP = 1.415f
 
+    /**
+     * Less than this is no zoom: two fingers that were not quite parallel, a two-finger swipe. It snaps back to 1x as
+     * the fingers let go ([snapped]), as in a phone's gallery, and is never kept.
+     */
+    const val SNAP_ZOOM = 1.1f
+
     /** A stored or dragged value kept in range; a damaged file or a fast drag never pushes the picture off its box. */
     fun clamp(value: Float): Float = if (value.isNaN()) 0f else value.coerceIn(MIN, MAX)
 
@@ -148,6 +154,21 @@ internal object MediaFocus {
     fun focusFor(leading: Float, size: Float, box: Float): Float {
         val overflow = size - box
         return if (overflow <= 0f || leading.isNaN()) 0f else clamp(-2f * leading / overflow - 1f)
+    }
+
+    /**
+     * [framing] with a zoom just above 1x (below [SNAP_ZOOM]) taken back to exactly 1x around the box's centre, every
+     * axis that then fits centred; any other framing as it is.
+     */
+    fun snapped(framing: MediaFraming, aspect: Float, boxWidth: Float, boxHeight: Float): MediaFraming {
+        if (!(framing.zoom > MIN_ZOOM && framing.zoom < SNAP_ZOOM)) return framing
+        val back = zoomedAround(framing, aspect, boxWidth, boxHeight, MIN_ZOOM / framing.zoom, boxWidth / 2f, boxHeight / 2f)
+        val (overX, overY) = overflow(aspect, boxWidth, boxHeight, framing.fit, MIN_ZOOM)
+        return back.copy(
+            zoom = MIN_ZOOM,
+            focusX = if (overX > 0f) back.focusX else 0f,
+            focusY = if (overY > 0f) back.focusY else 0f,
+        )
     }
 
     private fun finite(value: Float): Float = if (value.isFinite()) value else 0f

@@ -27,7 +27,6 @@
     <string name="group_total_at_least">%1$s · en az %2$s</string>
     <!-- Adım satırı: "GIF · en az 5 sn", "Video · 0:42 · sonuna kadar" -->
     <string name="group_at_least">en az %1$s</string>
-    <string name="group_clip_to_end">%1$s · sonuna kadar</string>
 
     <!-- Süreler -->
     <string name="duration_minutes_seconds">%1$d dk %2$d sn</string>

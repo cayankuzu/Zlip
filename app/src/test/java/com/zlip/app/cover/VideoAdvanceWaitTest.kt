@@ -45,17 +45,23 @@ class VideoAdvanceWaitTest {
 
     @Test
     fun afterTheMinimumAPlayingClipWaitsForItsFirstPass() {
-        assertEquals(VideoWait.FIRST_PASS, AdvanceWait.videoWait(failed = false, passSeen = false, holdsLastFrame = false))
+        assertEquals(VideoWait.FIRST_PASS, AdvanceWait.videoWait(failed = false, passSeen = false, holdsLastFrame = false, shortClip = false))
     }
 
     @Test
     fun aLoopingClipShorterThanTheMinimumFinishesThePassItIsIn() {
-        assertEquals(VideoWait.CURRENT_PASS, AdvanceWait.videoWait(failed = false, passSeen = true, holdsLastFrame = false))
+        assertEquals(VideoWait.CURRENT_PASS, AdvanceWait.videoWait(failed = false, passSeen = true, holdsLastFrame = false, shortClip = true))
+    }
+
+    @Test
+    fun aLongClipWhoseEndShowsDuringTheMinimumIsDone() {
+        // Resumed 1.5 s before the end of a 60 s loop: that end closes the pass, no replay that credit would cut.
+        assertEquals(VideoWait.DONE, AdvanceWait.videoWait(failed = false, passSeen = true, holdsLastFrame = false, shortClip = false))
     }
 
     @Test
     fun aPlayOnceClipThatEndedOrAFailedOneMovesOnAtTheMinimum() {
-        assertEquals(VideoWait.DONE, AdvanceWait.videoWait(failed = false, passSeen = true, holdsLastFrame = true))
-        assertEquals(VideoWait.DONE, AdvanceWait.videoWait(failed = true, passSeen = false, holdsLastFrame = false))
+        assertEquals(VideoWait.DONE, AdvanceWait.videoWait(failed = false, passSeen = true, holdsLastFrame = true, shortClip = false))
+        assertEquals(VideoWait.DONE, AdvanceWait.videoWait(failed = true, passSeen = false, holdsLastFrame = false, shortClip = false))
     }
 }

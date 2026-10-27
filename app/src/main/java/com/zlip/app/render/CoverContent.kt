@@ -92,6 +92,7 @@ import com.zlip.app.data.CoverItem
 import com.zlip.app.data.MediaFit
 import com.zlip.app.data.MediaFocus
 import com.zlip.app.data.MediaFraming
+import com.zlip.app.data.MediaImport
 import com.zlip.app.data.MediaKind
 import com.zlip.app.data.MediaPlacement
 import com.zlip.app.data.MediaStorage
@@ -275,7 +276,7 @@ private sealed interface Decoded {
     data class Ready(val drawable: Drawable) : Decoded
 }
 
-/** Longest edge we decode to; the cover is 748 px wide, so anything larger only costs memory. */
+/** Longest edge we decode to unzoomed; the cover is 748 px wide, so anything larger only costs memory. */
 private const val MAX_DECODE_EDGE = 1024
 
 /** How the cover's video sound identifies itself to the system (media volume, film content). */
@@ -394,14 +395,15 @@ private fun decodeZoom(zoom: Float): Float = when {
 /**
  * Decodes exactly as many pixels as the box shows: FIT must cover the box's limiting side, FILL (crop)
  * the other one, both [zoom] times closer. Only ever scales down, so nothing is decoded small and stretched up
- * afterwards.
+ * afterwards. Zoomed in, the cap is the stored photo's own size, so the detail the file has shows.
  */
 private fun decodeForBox(decoder: ImageDecoder, width: Int, height: Int, boxWidth: Int, boxHeight: Int, fit: MediaFit, zoom: Float) {
     if (boxWidth <= 0 || boxHeight <= 0) return
     val sx = boxWidth.toFloat() / width
     val sy = boxHeight.toFloat() / height
     val shown = (if (fit == MediaFit.FILL) max(sx, sy) else min(sx, sy)) * MediaFocus.clampZoom(zoom)
-    val scale = minOf(shown, MAX_DECODE_EDGE.toFloat() / max(width, height).coerceAtLeast(1))
+    val cap = if (zoom > MediaFocus.MIN_ZOOM) MediaImport.MAX_PHOTO_EDGE else MAX_DECODE_EDGE
+    val scale = minOf(shown, cap.toFloat() / max(width, height).coerceAtLeast(1))
     if (scale < 1f) {
         decoder.setTargetSize(ceil(width * scale).toInt().coerceAtLeast(1), ceil(height * scale).toInt().coerceAtLeast(1))
     }
@@ -587,6 +589,8 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
     }
     var aspect by remember { mutableFloatStateOf(0f) }
     var failed by remember { mutableStateOf(false) }
+    // A play-once clip holding its last frame: it plays nothing, so it must not keep the user's music paused.
+    var atEnd by remember { mutableStateOf(false) }
     // The poster covers the codec's start-up (black) until the first real frame is on screen.
     var firstFrame by remember { mutableStateOf(false) }
     // Another app took the audio (music, a video) or headphones were unplugged: keep looping, silently,
@@ -602,7 +606,8 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
     // Only while on screen: a stopped screen saver (the cover went dark) gives the audio back, so the
     // user's music resumes.
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
-    val wantsSound = item.playsSound && allowSound && playing && !audioLost && lifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    val wantsSound = item.playsSound && allowSound && playing && !audioLost && !atEnd && !failed &&
+        lifecycleState.isAtLeast(Lifecycle.State.STARTED)
     var focusGranted by remember { mutableStateOf(false) }
     val withSound = wantsSound && focusGranted
     // What the player really does (not ended, failed, buffering or paused), for what the cover reports as heard.
@@ -632,6 +637,9 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 val ended = playbackState == Player.STATE_ENDED
+                // Only READY clears it (looping turned back on seeks to the start), so dropping the audio track
+                // at the end cannot flip it back and forth.
+                if (ended) atEnd = true else if (playbackState == Player.STATE_READY) atEnd = false
                 if (ended) currentEvents?.onCycle()
                 if (playbackState == Player.STATE_READY) currentEvents?.onFailed(false)
                 // IDLE also follows stop() when the app goes to the background; only READY/ENDED say anything.

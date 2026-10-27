@@ -102,6 +102,26 @@ internal class CoverFraming(private val repository: ContentRepository) {
 
     private var glideJob: Job? = null
 
+    /**
+     * The item fingers zoomed during this showing (main thread only). Only then does one finger move a zoomed-in picture
+     * instead of swiping: a zoom saved earlier just frames it, and the swipes to the next item, the menu and the lock
+     * screen keep working until the user pinches again.
+     */
+    private var pinchedId: String? = null
+
+    /** Fingers began zooming [media] in this showing. */
+    fun pinched(media: CoverItem.Media) {
+        pinchedId = media.id
+    }
+
+    /** Another item, or a new session: swipes are swipes again. */
+    fun forgetPinch() {
+        pinchedId = null
+    }
+
+    /** One finger moves [media] around rather than swiping: it was zoomed in, really ([MediaFocus.SNAP_ZOOM]), here. */
+    fun pansWithOneFinger(media: CoverItem.Media): Boolean = pinchedId == media.id && framingOf(media).zoom >= MediaFocus.SNAP_ZOOM
+
     /** How [media] shows now: as the fingers left it, or as stored. */
     fun framingOf(media: CoverItem.Media): MediaFraming = edit.framingOf(media)
 
@@ -159,12 +179,16 @@ internal class CoverFraming(private val repository: ContentRepository) {
         repository.setMediaFraming(media.id, switched)
     }
 
-    /** Saves the framing the fingers left, unless something else changed the item meanwhile (that change wins). */
+    /**
+     * Saves the framing the fingers left, unless something else changed the item meanwhile (that change wins). A zoom
+     * that is no zoom ([MediaFocus.SNAP_ZOOM]) is never kept; the cover snaps it back before this anyway.
+     */
     fun save() {
         val pending = edit ?: return
         edit = null
         val stored = storedFraming(pending.id) ?: return
-        if (pending.standsOver(stored) && stored != pending.shown) repository.setMediaFraming(pending.id, pending.shown)
+        val shown = pending.shown.let { if (it.zoom < MediaFocus.SNAP_ZOOM) it.copy(zoom = MediaFocus.MIN_ZOOM) else it }
+        if (pending.standsOver(stored) && stored != shown) repository.setMediaFraming(pending.id, shown)
     }
 
     private fun storedFraming(id: String): MediaFraming? =

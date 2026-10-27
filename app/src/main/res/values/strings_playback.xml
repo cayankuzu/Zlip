@@ -27,7 +27,6 @@
     <string name="group_total_at_least">%1$s · at least %2$s</string>
     <!-- A step row: "GIF · at least 5 s", "Video · 0:42 · to the end" -->
     <string name="group_at_least">at least %1$s</string>
-    <string name="group_clip_to_end">%1$s · to the end</string>
 
     <!-- Running times -->
     <string name="duration_minutes_seconds">%1$d min %2$d s</string>

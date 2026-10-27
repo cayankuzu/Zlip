@@ -174,6 +174,32 @@ class MediaFocusTest {
     }
 
     @Test
+    fun aSlipOfTheFingersSnapsBackToNoZoom() {
+        // A square photo fitted in a square box, pinched 1.05x and moved: back to exactly as it was.
+        val slipped = MediaFraming(MediaFit.FIT, zoom = 1.05f, focusX = 0.3f, focusY = -0.2f)
+        val snapped = MediaFocus.snapped(slipped, 1f, 400f, 400f)
+        assertEquals(MediaFraming(MediaFit.FIT), snapped)
+        assertFalse(snapped.adjusted)
+    }
+
+    @Test
+    fun snappingKeepsTheCroppedAxisFocus() {
+        // A portrait video filling the cover still overflows vertically at 1x: that axis keeps a focus near where it was.
+        val slipped = MediaFraming(MediaFit.FILL, zoom = 1.04f, focusY = 0.5f)
+        val snapped = MediaFocus.snapped(slipped, 9f / 16f, 374f, 360f)
+        assertEquals(MediaFocus.MIN_ZOOM, snapped.zoom, delta)
+        assertEquals(0f, snapped.focusX, delta)
+        assertTrue(snapped.focusY > 0.3f)
+    }
+
+    @Test
+    fun aRealZoomIsNotSnapped() {
+        val zoomed = MediaFraming(MediaFit.FIT, zoom = MediaFocus.SNAP_ZOOM, focusX = 0.3f)
+        assertEquals(zoomed, MediaFocus.snapped(zoomed, 1f, 400f, 400f))
+        assertEquals(MediaFraming(MediaFit.FILL), MediaFocus.snapped(MediaFraming(MediaFit.FILL), 1f, 400f, 400f))
+    }
+
+    @Test
     fun switchingTheFitStartsFromScratch() {
         // Zoomed in and moved off the centre: the switch is also the way back.
         val zoomed = MediaFraming(MediaFit.FIT, zoom = 3f, focusX = 0.4f, focusY = -1f)
