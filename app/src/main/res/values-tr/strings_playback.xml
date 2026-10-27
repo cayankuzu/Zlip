@@ -19,7 +19,7 @@
     <string name="group_shuffle">Karışık sıra</string>
     <string name="group_shuffle_desc">Her turda adımlar rastgele sırayla oynar.</string>
     <string name="group_repeat">Tekrarla</string>
-    <string name="group_repeat_desc">Son adımdan sonra baştan başlar. Kapalıyken son adımda durur.</string>
+    <string name="group_repeat_desc">Grup tek başınayken ya da otomatik ilerleme kapalıyken baştan başlar. Kapalıysa son adımda durur.</string>
     <string name="group_crossfade">Yumuşak geçiş</string>
     <string name="group_crossfade_desc">Fotoğraflar arasında yavaşça geçer. Videolar her zaman doğrudan başlar.</string>
     <!-- Önizlemenin altında: "4 içerik · yaklaşık 2 dk 10 sn" / "2/4 · yaklaşık 2 dk 10 sn" -->

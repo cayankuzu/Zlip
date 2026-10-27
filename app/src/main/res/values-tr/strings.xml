@@ -32,8 +32,8 @@
     <string name="action_resume">Oynat</string>
     <string name="action_next">Sonraki</string>
     <string name="action_previous">Önceki</string>
-    <!-- Only the always-show notification's button: it turns "Kapakta hep göster" off. -->
-    <string name="action_turn_off">Hep göstermeyi kapat</string>
+    <!-- Only the always-show notification's button: it turns "Katlayınca kendiliğinden aç" off. -->
+    <string name="action_turn_off">Kendiliğinden açmayı kapat</string>
     <string name="field_name">Ad</string>
 
     <!-- Import -->
@@ -72,7 +72,7 @@
     <string name="status_available_title">Hazır</string>
     <string name="status_available_body">Telefonu kullanırken içeriklerin arkada görünsün.</string>
     <string name="status_active_title">Kapak ekranı açık</string>
-    <string name="status_active_body">Dokunmayı açmak için kapağa iki kez dokun; 3 saniye sonra yeniden kilitlenir. Zlip ekranda kaldıkça, Mini kapak olarak bile, kapak açık kalır.</string>
+    <string name="status_active_body">Kapakta iki kez dokun: kontroller açılır.</string>
     <string name="error_start_rejected">Kapak ekranı açılamadı. Zlip ekrandayken tekrar dene.</string>
     <string name="error_session_failed">Kapak ekranı beklenmedik şekilde kapandı.</string>
 
@@ -82,24 +82,24 @@
     <string name="settings_section_controls">Kontroller</string>
     <string name="settings_section_about">Hakkında</string>
     <string name="settings_brightness">Parlaklık</string>
-    <string name="settings_brightness_desc">Kapağın otomatik parlaklığını daha da kısar. Koyu pikseller OLED\'de daha az pil harcar.</string>
+    <string name="settings_brightness_desc">Kapağı otomatik parlaklığın da altına kısar.</string>
     <string name="settings_rotation">Döndürme</string>
     <string name="settings_rotation_desc">Kapaktaki içerik yan ya da ters görünüyorsa çevir.</string>
     <string name="settings_power_mode">Güç modu</string>
     <string name="power_saver">Tasarruf</string>
     <string name="power_balanced">Dengeli</string>
     <string name="power_smooth">Akıcı</string>
-    <string name="power_saver_desc">Kayan yazı ve kapak yenilemesi en fazla 20 kare/sn. Pil en uzun dayanır.</string>
-    <string name="power_balanced_desc">En fazla 30 kare/sn. Yazı ve GIF\'ler için akıcı, pile hafif.</string>
-    <string name="power_smooth_desc">60 kare/sn\'ye kadar. En pürüzsüz hareket, en çok pil harcar.</string>
-    <string name="settings_standby">İç ekran bekleme modu</string>
-    <string name="settings_standby_desc">Kapak açıkken iç ekran açık kalmalı. Bu süre dokunulmazsa iç ekran kararır; dokununca uyanır.</string>
+    <string name="power_saver_desc">Hareket biraz daha az akıcı, pil en uzun gider.</string>
+    <string name="power_balanced_desc">Çoğu içerik için akıcı, pile hafif.</string>
+    <string name="power_smooth_desc">En akıcı hareket, en çok pil.</string>
+    <string name="settings_standby">İç ekranı karart</string>
+    <string name="settings_standby_desc">Kapak açıkken iç ekrana bu süre dokunulmazsa kararır; dokununca uyanır.</string>
     <string name="settings_battery_tip">İpucu: Kapağın OLED ekranında siyah arka planlar neredeyse hiç pil harcamaz. En çok pili videolar harcar.</string>
     <string name="settings_auto_start">Otomatik başlat</string>
     <string name="settings_auto_start_desc">Zlip açılınca kapak da açılsın.</string>
     <string name="settings_notification">Bildirim kontrolleri</string>
     <string name="settings_notification_desc">Kapağı bildirim panelinden duraklat, geç ya da kapat.</string>
-    <string name="settings_notification_denied">Zlip\'in bildirimleri kapalı.</string>
+    <string name="settings_notification_denied">Bildirimler kapalı olduğu için kontroller görünmüyor.</string>
     <string name="settings_notification_allow">Bildirimlere izin ver</string>
     <string name="settings_tile">Hızlı ayarlar kutucuğu</string>
     <string name="settings_tile_desc">Kapağı hızlı ayarlardan aç ya da kapat.</string>
@@ -131,17 +131,17 @@
     <string name="text_field">Yazı</string>
     <string name="text_placeholder">Bir şey yaz…</string>
     <string name="text_color">Yazı rengi</string>
-    <string name="text_size">Boyut: en fazla %1$d sp</string>
+    <string name="text_size">Yazı boyutu: en fazla %1$d</string>
     <string name="text_bold">Kalın</string>
     <string name="text_scroll">LED tabela gibi kaydır</string>
     <string name="text_scroll_desc">Kapalıyken yazı sabit ve ortalanmış görünür.</string>
-    <string name="text_speed">Hız: %1$d</string>
+    <string name="text_speed">Kayma hızı: %1$d</string>
 
     <!-- Media editor -->
     <string name="media_title_photo">Fotoğraf</string>
     <string name="media_title_gif">GIF</string>
     <string name="media_title_video">Video</string>
-    <string name="media_fit">Ölçekleme</string>
+    <string name="media_fit">Ekrana yerleşim</string>
     <string name="media_fit_fit">Sığdır</string>
     <string name="media_fit_fill">Doldur</string>
     <string name="media_loop">Döngü</string>
@@ -158,7 +158,7 @@
 
     <!-- Onboarding -->
     <string name="intro_welcome_title">Telefon açıkken de kapakta</string>
-    <string name="intro_welcome_body">Fotoğrafların, videoların, yazıların ve çizimlerin kapakta oynar. Avucun değince bir şey olmaz; kapağı kullanmak için ona iki kez dokun. Başka uygulamaya geçince Zlip Mini kapak olur ve kapak açık kalır.</string>
+    <string name="intro_welcome_body">Fotoğrafların, videoların, yazıların ve çizimlerin kapakta oynar.</string>
     <string name="intro_skip">Geç</string>
     <string name="intro_next">İleri</string>
     <string name="intro_start">Başla</string>
@@ -184,32 +184,32 @@
     <string name="tile_add_failed">Kutucuk eklenemedi. Hızlı ayarların düzenleme ekranından ekleyebilirsin.</string>
     <!-- Playlist & auto-advance -->
     <string name="filter_playlist">Liste</string>
-    <string name="home_playlist_tip">İpucu: Birkaç öğeye basılı tutup seçerek kapağın sırayla göstereceği bir oynatma listesi oluştur.</string>
+    <string name="home_playlist_tip">Basılı tutup seç, Listeye ekle: kapak yalnızca onları gösterir.</string>
     <string name="action_select_all">Tümünü seç</string>
     <string name="action_select">Seç</string>
-    <string name="playlist_position">Oynatma listesinde %1$d. sıra</string>
+    <string name="playlist_position">Listede %1$d. sıra</string>
     <string name="action_playlist_add">Listeye ekle</string>
     <string name="action_playlist_remove">Listeden çıkar</string>
     <string name="action_move_earlier">Öne al</string>
     <string name="action_move_later">Geriye al</string>
     <string name="advance_title">Otomatik ilerleme</string>
     <string name="advance_off">Kapalı</string>
-    <string name="advance_shuffle">Karıştır</string>
-    <string name="advance_shuffle_desc">Rastgele sıra, hepsi oynayana kadar tekrar yok</string>
-    <string name="advance_repeat">Döngü</string>
-    <string name="advance_repeat_desc">Son öğeden sonra baştan başla</string>
-    <string name="advance_playlist_hint">Oynatma listesi varsa yalnızca onun öğeleri döner, yoksa tüm kitaplık.</string>
+    <string name="advance_shuffle">Karışık sıra</string>
+    <string name="advance_shuffle_desc">Otomatik ilerlemede rastgele sıra; hepsi oynayana kadar tekrar yok</string>
+    <string name="advance_repeat">Tekrarla</string>
+    <string name="advance_repeat_desc">Son içerikten sonra baştan başlar</string>
+    <string name="advance_playlist_hint">Liste varsa yalnızca onun içerikleri döner, yoksa tüm kitaplık.</string>
     <plurals name="playlist_count">
-        <item quantity="one">Listede %d öğe</item>
-        <item quantity="other">Listede %d öğe</item>
+        <item quantity="one">Listede %d içerik</item>
+        <item quantity="other">Listede %d içerik</item>
     </plurals>
     <plurals name="selection_count">
         <item quantity="one">%d seçildi</item>
         <item quantity="other">%d seçildi</item>
     </plurals>
     <plurals name="home_delete_many">
-        <item quantity="one">%d öğe kitaplığından kaldırılacak.</item>
-        <item quantity="other">%d öğe kitaplığından kaldırılacak.</item>
+        <item quantity="one">%d içerik kitaplığından kaldırılacak.</item>
+        <item quantity="other">%d içerik kitaplığından kaldırılacak.</item>
     </plurals>
     <!-- Folded cover (widget + live view) -->
     <string name="widget_empty">Zlip\'i aç ve kapak için bir şey seç</string>
@@ -250,8 +250,8 @@
     <string name="collage_pick_hint">Oynama sırasına göre dokun. Kolajdaki videolar sessiz oynar.</string>
     <string name="action_done">Tamam</string>
     <plurals name="collage_cell_items">
-        <item quantity="one">%d öğe</item>
-        <item quantity="other">%d öğe</item>
+        <item quantity="one">%d içerik</item>
+        <item quantity="other">%d içerik</item>
     </plurals>
     <string name="media_sound">Sesli oynat</string>
     <string name="media_sound_desc">Kapalıyken bu video hep sessiz oynar.</string>
@@ -269,21 +269,21 @@
     <string name="home_add_countdown_desc">Tatile, doğum gününe, her şeye kalan gün</string>
     <string name="home_add_qr_desc">Wi-Fi, bağlantı ya da kartvizit, taranmaya hazır</string>
     <string name="home_add_toy_desc">Zar, yazı tura, sihirli küre ve fazlası, tek dokunuşla</string>
-    <string name="guard_channel">Kapakta hep göster</string>
+    <string name="guard_channel">Katlayınca kendiliğinden aç</string>
     <string name="guard_channel_desc">Katlıyken ekran koruyucuyu hazır tutar.</string>
     <string name="guard_notif_title">Ekran koruyucu hazır</string>
     <string name="guard_notif_text">Kapak her uyandığında Zlip görünür. Bu bildirimi kaydırıp kaldırabilirsin.</string>
     <string name="settings_stay_on">Açık kalma süresi</string>
     <string name="settings_stay_on_desc">Katlıyken kapağa son dokunuştan sonra.</string>
-    <string name="stay_on_system">Kapak varsayılanı</string>
+    <string name="stay_on_system">Telefonun ayarı</string>
     <string name="stay_on_always">Hep açık</string>
     <string name="settings_nightstand">Şarjdayken hep açık</string>
     <string name="settings_nightstand_desc">Telefon şarj olurken kısık ışıkta saat ve içeriklerin; komodin saati gibi.</string>
-    <string name="settings_auto_show">Kapakta hep göster</string>
-    <string name="settings_auto_show_desc">Her uyanışta kilit ekranının önünde, Zlip kapalıyken bile.</string>
+    <string name="settings_auto_show">Katlayınca kendiliğinden aç</string>
+    <string name="settings_auto_show_desc">Kapak her uyandığında içeriklerin kilit ekranının önünde açılır, Zlip kapalıyken bile.</string>
     <string name="settings_auto_show_missing">\'Üstte göster\' izni verilene kadar katlıyken kapakta yalnızca widget görünür.</string>
     <string name="settings_auto_show_allow">İzin ver</string>
-    <string name="auto_show_dialog_title">Kapakta hep göster</string>
+    <string name="auto_show_dialog_title">Katlayınca kendiliğinden aç</string>
     <string name="auto_show_dialog_body">Katlıyken kapakta kendiliğinden açılabilmek için Zlip\'in \'Üstte göster\' iznine ihtiyacı var: listede Zlip\'i bul ve aç. Sessiz bir hizmet yalnızca ekranların açılıp kapanmasını dinler; pil etkisi yok denecek kadar azdır. İstediğin an kapatabilirsin.</string>
     <string name="settings_led">LED matris görünümü</string>
     <string name="settings_led_desc">Kapaktaki her şey LED tabela gibi noktalarla parlar.</string>
@@ -311,7 +311,7 @@
         <item>Teşekkürler! ♥</item>
     </string-array>
     <string name="intro_folded_title">Katlıyken ekran koruyucu</string>
-    <string name="intro_folded_body">Zlip widget\'ını kapağa ekle ve dokun: içeriklerin kilit ekranının önünde oynar. Yana kaydırarak gez, yukarı kaydırınca menü açılır, aşağı kaydırınca kilit ekranına dönersin. Telefonu açınca kendiliğinden çekilir.</string>
+    <string name="intro_folded_body">Zlip widget\'ını kapağa ekle ve dokun: içeriklerin kilit ekranının önünde oynar. Telefonu açınca kendiliğinden çekilir.</string>
     <string name="cover_show_controls">Kontrolleri göster</string>
     <string name="cover_to_lock_screen">Kilit ekranına dön</string>
     <string name="color_black">Siyah</string>
