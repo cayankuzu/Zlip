@@ -320,14 +320,13 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
      * Imports a picked photo, GIF/animated WebP or video and adds it to the library. With [select] it also
      * goes on the cover (and into a custom playlist); several files picked at once, or files added to a
      * group, only join the library. Videos are converted for the cover first; [onProgress] reports 0..1
-     * during that step, and [onClipped] hears when only the first [MediaImport.MAX_VIDEO_MS] of a longer
-     * video were kept. Fails with [MediaTooLargeException], [MediaUnreadableException] or
-     * [VideoConversionException]; never leaves partial files behind.
+     * during that step; a video is kept whole, however long. Fails with [MediaTooLargeException],
+     * [MediaUnreadableException], [VideoConversionException] or [NotEnoughSpaceException]; never leaves
+     * partial files behind.
      */
     suspend fun importMedia(
         uri: Uri,
         select: Boolean = true,
-        onClipped: () -> Unit = {},
         onProgress: (Float) -> Unit = {},
     ): Result<CoverItem.Media> {
         loadJob.join()
@@ -337,8 +336,6 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
         val created = mutableListOf<File>()
 
         fun newFile(name: String) = MediaStorage.file(appContext, name).also { created += it }
-
-        var clipped = false
 
         val item = try {
             withContext(Dispatchers.IO) {
@@ -352,12 +349,10 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
                     mime.startsWith("video/") -> {
                         val video = newFile("$baseName.mp4")
                         val partial = newFile("$baseName.mp4$PARTIAL_SUFFIX")
-                        val transcoded = MediaImport.transcodeVideo(appContext, uri, partial, onProgress)
-                        val hasAudio = transcoded.hasAudio
+                        val hasAudio = MediaImport.transcodeVideo(appContext, uri, partial, onProgress)
                         if (!partial.renameTo(video)) throw IOException("Could not move ${partial.name}")
                         val poster = newFile("$baseName.jpg")
                         val hasPoster = MediaImport.writePoster(video, poster)
-                        if (transcoded.clipped) clipped = true
                         CoverItem.Media(
                             id = newId(),
                             name = name,
@@ -435,7 +430,6 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
         }
         keepStoreFile = false
         persist()
-        if (clipped) onClipped()
         return Result.success(item)
     }
 

@@ -51,9 +51,7 @@ class GroupPlaybackTimingTest {
     @Test
     fun aVideosBoundComesFromItsRealLength() {
         assertEquals(42_000L + 5_000, GroupTiming.videoPassMs(clip))
-        assertEquals(MediaImport.MAX_VIDEO_MS + 5_000, GroupTiming.videoPassMs(unmeasured))
-        // The cap covers five-minute clips.
-        assertEquals(300_000L, MediaImport.MAX_VIDEO_MS)
+        assertEquals(GroupTiming.UNKNOWN_VIDEO_MS + 5_000, GroupTiming.videoPassMs(unmeasured))
         val toEnd = group(clip, photo)
         assertEquals(GroupTiming.MIN_VIDEO_STEP_MS + 47_000L, GroupTiming.stepMaxMs(toEnd, clip))
         assertEquals(GroupTiming.MIN_VIDEO_STEP_MS + 47_000L + 5_000L + GroupTiming.WRAP_GRACE_MS + 5_000, GroupTiming.maxPassMs(toEnd))
@@ -61,10 +59,11 @@ class GroupPlaybackTimingTest {
 
     @Test
     fun theLongestPassCoversEveryStepPlayingInFull() {
-        // Thirty five-minute clips: the bound must never cut the last one short.
-        val long = clip.copy(durationMs = MediaImport.MAX_VIDEO_MS)
+        // Thirty hour-long clips: the bound must never cut the last one short.
+        val hour = 60 * 60_000L
+        val long = clip.copy(durationMs = hour)
         val group = CoverItem.Group(id = "g", name = "G", items = List(CoverItem.Group.MAX_ITEMS) { long.copy(id = "v$it") })
-        assertTrue(GroupTiming.maxPassMs(group) > CoverItem.Group.MAX_ITEMS * MediaImport.MAX_VIDEO_MS)
+        assertTrue(GroupTiming.maxPassMs(group) > CoverItem.Group.MAX_ITEMS * hour)
     }
 
     @Test

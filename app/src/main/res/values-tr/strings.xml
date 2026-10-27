@@ -39,10 +39,10 @@
     <!-- Import -->
     <string name="import_title">Hazırlanıyor…</string>
     <string name="import_body">Kitaplığına ekleniyor.</string>
-    <string name="import_video_body">Video kapak ekranı için optimize ediliyor (720p, en fazla 5 dakika). Böylece akıcı oynar ve pil tasarrufu sağlar.</string>
+    <string name="import_video_body">Video kapak ekranı için optimize ediliyor (720p), böylece akıcı oynar ve pil tasarrufu sağlar. Uzun videolarda bu birkaç dakika sürebilir.</string>
     <string name="import_failed">Dosya içe aktarılamadı.</string>
     <string name="import_too_large">Dosya %1$d MB sınırından büyük.</string>
-    <string name="import_video_failed">Bu video dönüştürülemedi. Daha kısa ya da farklı bir video dene.</string>
+    <string name="import_video_failed">Bu video dönüştürülemedi. Farklı bir video dene.</string>
     <string name="media_added">Kitaplığına eklendi</string>
     <string name="save_failed">Değişiklikler kaydedilemedi. Depolama dolu olabilir.</string>
 

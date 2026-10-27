@@ -41,8 +41,8 @@ class GroupTimingTest {
 
     @Test
     fun extraWaitKeepsThePlaylistBounds() {
-        // A video of unknown length may run up to the import cap.
-        assertEquals(MediaImport.MAX_VIDEO_MS + 5_000, GroupTiming.extraWaitMs(video))
+        // A video of unknown length gets a generous bound.
+        assertEquals(GroupTiming.UNKNOWN_VIDEO_MS + 5_000, GroupTiming.extraWaitMs(video))
         assertEquals(GroupTiming.MAX_EXTRA_WAIT_MS, GroupTiming.extraWaitMs(marquee))
         // 300 characters of the largest text crawling at 10 dp/s take far longer than the default bound.
         val crawl = marquee.copy(text = "x".repeat(300), sizeSp = 160, speedDps = 10)
@@ -64,9 +64,9 @@ class GroupTimingTest {
         assertEquals(3 * 10_000L + GroupTiming.WRAP_GRACE_MS + 5_000, GroupTiming.maxPassMs(stills))
 
         val mixed = stills.copy(items = listOf(photo, video))
-        // The video plays to its end: a moment, then its whole (unknown, so capped) length.
+        // The video plays to its end: a moment, then its whole (unknown, so bounded) length.
         assertEquals(
-            10_000L + GroupTiming.MIN_VIDEO_STEP_MS + MediaImport.MAX_VIDEO_MS + 5_000 + GroupTiming.WRAP_GRACE_MS + 5_000,
+            10_000L + GroupTiming.MIN_VIDEO_STEP_MS + GroupTiming.UNKNOWN_VIDEO_MS + 5_000 + GroupTiming.WRAP_GRACE_MS + 5_000,
             GroupTiming.maxPassMs(mixed),
         )
         assertEquals(GroupTiming.maxPassMs(mixed), GroupTiming.extraWaitMs(mixed))

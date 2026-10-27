@@ -3,7 +3,7 @@ package com.zlip.app.cover
 import com.zlip.app.cover.AdvanceWait.MIN_AFTER_START_MS
 import com.zlip.app.cover.AdvanceWait.VideoWait
 import com.zlip.app.data.CoverItem
-import com.zlip.app.data.MediaImport
+import com.zlip.app.data.GroupTiming
 import com.zlip.app.data.MediaKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -20,8 +20,14 @@ class VideoAdvanceWaitTest {
     }
 
     @Test
-    fun anUnmeasuredVideoMayRunToTheImportCap() {
-        assertEquals(MediaImport.MAX_VIDEO_MS + 5_000, AdvanceWait.videoCapMs(clip.copy(durationMs = 0), seenMs = 0))
+    fun anUnmeasuredVideoIsWaitedForAGenerousBound() {
+        assertEquals(GroupTiming.UNKNOWN_VIDEO_MS + 5_000, AdvanceWait.videoCapMs(clip.copy(durationMs = 0), seenMs = 0))
+    }
+
+    @Test
+    fun aLongVideoIsWaitedForToItsEnd() {
+        // Clips are no longer cut at import: a 40-minute one gets its whole length.
+        assertEquals(40 * 60_000L + 5_000, AdvanceWait.videoCapMs(clip.copy(durationMs = 40 * 60_000L), seenMs = 0))
     }
 
     @Test

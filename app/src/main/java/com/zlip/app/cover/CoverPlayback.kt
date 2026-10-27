@@ -435,7 +435,7 @@ internal object AdvanceWait {
     fun passCapMs(maxPassMs: Long, seenMs: Long): Long = maxOf(maxPassMs - seenMs, MIN_AFTER_START_MS)
 
     /**
-     * The longest wait for [video] playing to its end: its length (the import cap when unknown) plus room.
+     * The longest wait for [video] playing to its end: its length ([GroupTiming.UNKNOWN_VIDEO_MS] when unknown) plus room.
      * The room also covers a clip shorter than [MIN_AFTER_START_MS], which finishes its second pass.
      */
     fun videoCapMs(video: CoverItem.Media, seenMs: Long): Long = passCapMs(GroupTiming.videoPassMs(video), seenMs)

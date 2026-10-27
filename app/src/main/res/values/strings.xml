@@ -41,10 +41,10 @@
     <!-- Import -->
     <string name="import_title">Preparing…</string>
     <string name="import_body">Adding it to your library.</string>
-    <string name="import_video_body">Optimizing the video for the cover screen (720p, up to 5 minutes) so it plays smoothly and saves battery.</string>
+    <string name="import_video_body">Optimizing the video for the cover screen (720p) so it plays smoothly and saves battery. Long videos can take a few minutes.</string>
     <string name="import_failed">Could not import the file.</string>
     <string name="import_too_large">The file is larger than %1$d MB.</string>
-    <string name="import_video_failed">This video could not be converted. Try a shorter or different clip.</string>
+    <string name="import_video_failed">This video could not be converted. Try a different clip.</string>
     <string name="media_added">Added to your library</string>
     <string name="save_failed">Could not save your changes. Is the storage full?</string>
 
