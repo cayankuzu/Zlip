@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -908,18 +907,29 @@ fun CoverScreen(
  * The content's lifecycle: the host's, except that content of a session that was replaced never starts
  * again. A waking screen saver starts over as it starts, a frame before the new session's content takes
  * the old one's place; without this the old video would start decoding only to be thrown away.
+ *
+ * It follows the host from one [DisposableEffect], which adds and removes it exactly once. It must not be a
+ * RememberObserver: provided through LocalLifecycleOwner it is remembered twice (here and by the provider),
+ * and a move to another item could forget one copy after the other was remembered again. It then stopped
+ * following the host, so turning the folded cover off left the clip playing, out loud, until the next wake.
  */
 @Composable
 private fun rememberSessionLifecycle(playback: CoverPlayback, session: Int): LifecycleOwner {
     val host = LocalLifecycleOwner.current.lifecycle
-    return remember(host, session) { SessionLifecycle(host) { playback.session.value == session } }
+    val owner = remember(host, session) { SessionLifecycle(host) { playback.session.value == session } }
+    DisposableEffect(owner) {
+        owner.follow()
+        onDispose { owner.unfollow() }
+    }
+    return owner
 }
 
-private class SessionLifecycle(
+/** See [rememberSessionLifecycle]. Internal so the stop / start rules are unit-tested. */
+internal class SessionLifecycle(
     private val host: Lifecycle,
     private val isCurrent: () -> Boolean,
-) : LifecycleOwner, LifecycleEventObserver, RememberObserver {
-    private val registry = LifecycleRegistry(this)
+) : LifecycleOwner, LifecycleEventObserver {
+    private val registry = LifecycleRegistry.createUnsafe(this)
 
     override val lifecycle: Lifecycle get() = registry
 
@@ -929,12 +939,14 @@ private class SessionLifecycle(
         registry.handleLifecycleEvent(event)
     }
 
-    // Following the host starts here: added, it catches up with the host's state at once.
-    override fun onRemembered() = host.addObserver(this)
+    /** Starts following the host: added, it catches up with the host's state at once. */
+    fun follow() = host.addObserver(this)
 
-    override fun onForgotten() = host.removeObserver(this)
-
-    override fun onAbandoned() = Unit
+    /** Stops following the host, and stops the content with it: nothing of a gone session keeps running. */
+    fun unfollow() {
+        host.removeObserver(this)
+        if (registry.currentState.isAtLeast(Lifecycle.State.CREATED)) registry.currentState = Lifecycle.State.CREATED
+    }
 }
 
 /** A random spot [RESTING_SHIFT_MIN_DP]..[RESTING_SHIFT_MAX_DP] dp off on each axis, either way. */

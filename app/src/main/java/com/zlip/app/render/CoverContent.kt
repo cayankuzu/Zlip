@@ -623,13 +623,16 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
     // Only while on screen: a stopped screen saver (the cover went dark) gives the audio back, so the
     // user's music resumes.
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
-    val wantsSound = item.playsSound && allowSound && playing && !audioLost && !atEnd && !failed &&
-        lifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    // Plays only while it is on a screen that is on: a move, a resume or sound coming back while the screen is
+    // off (or for content of a session already replaced) must never start it there, out of sight and out loud.
+    val shown = lifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    val wantsSound = item.playsSound && allowSound && playing && !audioLost && !atEnd && !failed && shown
     var focusGranted by remember { mutableStateOf(false) }
     val withSound = wantsSound && focusGranted
     // What the player really does (not ended, failed, buffering or paused), for what the cover reports as heard.
     var playerPlaying by remember { mutableStateOf(false) }
     val currentPlaying by rememberUpdatedState(playing)
+    val currentShouldPlay by rememberUpdatedState(playing && shown)
     val currentEvents by rememberUpdatedState(events)
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -673,7 +676,7 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
                     reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY
                 if (!playWhenReady && lostAudio) {
                     audioLost = true
-                    player.playWhenReady = currentPlaying
+                    player.playWhenReady = currentShouldPlay
                 }
             }
         }
@@ -689,7 +692,7 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
         // A play-once clip that already ended would otherwise stay frozen when looping is turned back on.
         if (item.loop && player.playbackState == Player.STATE_ENDED) player.seekTo(0)
     }
-    LaunchedEffect(playing) { player.playWhenReady = playing }
+    LaunchedEffect(playing, shown) { player.playWhenReady = playing && shown }
     // Audio focus only while sound is wanted, so a silent loop never touches the user's music. Transient
     // focus: whatever was playing resumes once the clip goes quiet. Losing it (a call, another app) mutes
     // the clip, which keeps looping.
@@ -731,7 +734,7 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
         player.volume = if (withSound) 1f else 0f
         // Unplugged headphones mute the clip instead of blasting the speaker (see onPlayWhenReadyChanged).
         player.setHandleAudioBecomingNoisy(withSound)
-        if (withSound) player.playWhenReady = currentPlaying
+        if (withSound) player.playWhenReady = currentShouldPlay
     }
     // Someone may be listening: the folded cover then stays lit a while longer. The listener that heard
     // "audible" always hears the matching "quiet", also when the player leaves the screen.

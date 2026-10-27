@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug builds sit next to the real Zlip on the phone: a different name keeps the two apart. -->
+    <string name="app_name" translatable="false">Zlip Test</string>
+</resources>

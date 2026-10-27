@@ -1,5 +1,6 @@
 package com.zlip.app
 
+import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -64,6 +65,19 @@ class CoverActivity : ComponentActivity() {
 
     private val app: ZlipApp get() = application as ZlipApp
     private val displays by lazy { getSystemService(DisplayManager::class.java) }
+    private val keyguard by lazy { getSystemService(KeyguardManager::class.java) }
+
+    /** Unlocking the folded phone (fingerprint, PIN, pattern, face) closes the screen saver like its ×. */
+    private val unlockClose = UnlockClose()
+    private var unlockRegistered = false
+
+    private val unlockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            unlockClose.unlocked()
+            // Shown: decide now. Otherwise when it is shown again, after any widget tap that brought it back.
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) closeIfUnlocked()
+        }
+    }
 
     /** Uptime of the last touch (or wake); the stay-on timer counts from here. */
     private val lastTouch = MutableStateFlow(SystemClock.uptimeMillis())
@@ -139,6 +153,11 @@ class CoverActivity : ComponentActivity() {
             if (!startedOver) app.playback.startOver()
         }
         displays.registerDisplayListener(displayListener, Handler(Looper.getMainLooper()))
+        // Also while the cover is dark: unlocking a folded phone with the fingerprint wakes and opens it at once.
+        // Exported because SystemUI (an app uid, not the system) sends USER_PRESENT, and a not-exported receiver
+        // never gets it. It is a protected broadcast, so no app can fake it.
+        ContextCompat.registerReceiver(this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_EXPORTED)
+        unlockRegistered = true
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -247,10 +266,20 @@ class CoverActivity : ComponentActivity() {
         super.onNewIntent(intent)
         // A widget tap is the user asking for it; the always-show service re-arming a dark cover is not.
         if (intent.openedByUser()) {
+            unlockClose.openedByUser(locked = keyguard.isKeyguardLocked)
             used()
             app.playback.resume()
         }
         showRequestedItem(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        closeIfUnlocked()
+    }
+
+    private fun closeIfUnlocked() {
+        if (unlockClose.shown(secure = keyguard.isDeviceSecure, locked = keyguard.isKeyguardLocked)) close()
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -350,6 +379,7 @@ class CoverActivity : ComponentActivity() {
             app.playback.liveViewStopped()
             unregisterReceiver(batteryReceiver)
         }
+        unlockClose.stopped()
         super.onStop()
         // The cover going dark only pauses the screen saver; opening the phone ends it.
         if (innerScreenOn()) leave()
@@ -362,6 +392,7 @@ class CoverActivity : ComponentActivity() {
 
     override fun onDestroy() {
         displays.unregisterDisplayListener(displayListener)
+        if (unlockRegistered) unregisterReceiver(unlockReceiver)
         if (isFinishing) alive = false
         super.onDestroy()
     }
@@ -440,6 +471,42 @@ internal object StayLit {
     /** A watched clip going quiet at [now] restarts the stay-lit time like a touch, but only within the limit. */
     fun endCountsAsTouch(now: Long, touchedAt: Long, visibleSince: Long): Boolean =
         touchedAt >= visibleSince && now < touchedAt + WATCH_CAP_MS
+}
+
+/**
+ * When unlocking the folded phone closes the screen saver like its ×. Pure, so it is unit-tested.
+ *
+ * Decided when it is shown, never from how the instance was born: with a secure lock (PIN, pattern, password)
+ * every unlock is the user's, also a fingerprint that wakes and unlocks a dark cover at once. Without one (None,
+ * Swipe) it never closes, since there a plain wake can count as an unlock. A late unlock is dropped: the system
+ * holds it for a frozen Zlip, so it can arrive after the phone locked again, or right as a widget tap on an
+ * already unlocked phone brings the screen saver back. Such a tap stays until the cover next goes dark.
+ */
+internal class UnlockClose {
+    private var unlocked = false
+    private var openedUnlocked = false
+
+    /** The phone was unlocked (USER_PRESENT), possibly a while ago. */
+    fun unlocked() {
+        unlocked = true
+    }
+
+    /** A widget tap: on an unlocked phone, any unlock heard from now on until [stopped] came before it. */
+    fun openedByUser(locked: Boolean) {
+        openedUnlocked = !locked
+    }
+
+    /** The cover went dark or the screen saver left it. */
+    fun stopped() {
+        openedUnlocked = false
+    }
+
+    /** Shown on the cover: true when it should close now. An unlock is used up either way. */
+    fun shown(secure: Boolean, locked: Boolean): Boolean {
+        val close = unlocked && secure && !locked && !openedUnlocked
+        unlocked = false
+        return close
+    }
 }
 
 /** A widget tap (or a request for a particular item), as opposed to the always-show service re-arming it. */
