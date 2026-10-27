@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ayarlar: kapak her açıldığında sesin nasıl başlayacağı -->
+    <string name="settings_cover_sound">Kapak açılınca ses</string>
+    <string name="settings_cover_sound_on">Açık başlasın</string>
+    <string name="settings_cover_sound_off">Kapalı başlasın</string>
+    <string name="settings_cover_sound_desc">Kapak her açıldığında videolar böyle başlar. Kapaktaki ses düğmesi ya da ses tuşu yalnızca o seferlik değiştirir.</string>
+</resources>

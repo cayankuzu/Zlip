@@ -345,7 +345,6 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
                             crisp = false,
                             posterFileName = if (hasPoster) poster.name else null,
                             hasAudio = hasAudio,
-                            sound = hasAudio && state.value.settings.videoSoundDefault,
                         )
                     }
                     else -> {

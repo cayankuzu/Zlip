@@ -37,7 +37,6 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -67,7 +66,6 @@ import com.zlip.app.data.MediaFocus
 import com.zlip.app.data.MediaKind
 import com.zlip.app.data.MediaStorage
 import com.zlip.app.render.CoverContent
-import com.zlip.app.render.LocalAllowSound
 import com.zlip.app.render.Playback
 import com.zlip.app.ui.components.COVER_ASPECT_RATIO
 import com.zlip.app.ui.components.ColorSwatchRow
@@ -100,7 +98,7 @@ fun MediaEditorScreen(
     var fit by rememberSaveable { mutableStateOf(initial.fit) }
     var crisp by rememberSaveable { mutableStateOf(initial.crisp) }
     var loop by rememberSaveable { mutableStateOf(initial.loop) }
-    var sound by rememberSaveable { mutableStateOf(initial.sound) }
+    var muted by rememberSaveable { mutableStateOf(initial.muted) }
     var background by rememberSaveable { mutableIntStateOf(initial.background) }
     var focusX by rememberSaveable { mutableFloatStateOf(initial.focusX) }
     var focusY by rememberSaveable { mutableFloatStateOf(initial.focusY) }
@@ -112,7 +110,7 @@ fun MediaEditorScreen(
         crisp = crisp,
         loop = loop,
         background = background,
-        sound = sound,
+        muted = muted,
         focusX = focusX,
         focusY = focusY,
     )
@@ -167,10 +165,9 @@ fun MediaEditorScreen(
                     .fillMaxWidth(0.72f)
                     .align(Alignment.CenterHorizontally),
             ) {
-                // The preview may play the sound the user just switched on, so they hear what the cover will do.
-                CompositionLocalProvider(LocalAllowSound provides true) {
-                    CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback) }
-                }
+                // Silent, like every inner-screen preview: the cover (showing this draft) is where the clip is heard,
+                // and a preview that blares the moment an editor opens would only startle.
+                CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback) }
                 if (framing) {
                     FramingSurface(
                         aspect = aspect,
@@ -192,9 +189,9 @@ fun MediaEditorScreen(
                         SwitchRow(
                             title = stringResource(R.string.media_sound),
                             description = stringResource(R.string.media_sound_desc),
-                            checked = sound,
-                            onCheckedChange = { sound = it },
-                            icon = if (sound) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                            checked = !muted,
+                            onCheckedChange = { muted = !it },
+                            icon = if (muted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                         )
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {

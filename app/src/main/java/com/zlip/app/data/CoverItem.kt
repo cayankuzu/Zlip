@@ -62,8 +62,11 @@ sealed interface CoverItem {
         val posterFileName: String? = null,
         /** Videos: the file kept its audio track (older imports and silent clips have none). */
         val hasAudio: Boolean = false,
-        /** Videos with audio: play with sound on the cover. Off by default; never on inner-screen previews. */
-        val sound: Boolean = false,
+        /**
+         * Videos with audio: always silent, whatever the cover's sound says. Off by default: a clip with audio
+         * is heard on the cover whenever its sound is on there (see [CoverSettings.startWithSound]).
+         */
+        val muted: Boolean = false,
         /**
          * [MediaFit.FILL] only: which part of the cropped picture stays in view, -1 (left / top edge) .. 1
          * (right / bottom edge), 0 = centre. See [MediaFocus].
@@ -71,7 +74,8 @@ sealed interface CoverItem {
         val focusX: Float = 0f,
         val focusY: Float = 0f,
     ) : CoverItem {
-        val playsSound: Boolean get() = kind == MediaKind.VIDEO && hasAudio && sound
+        /** A clip the cover may play with sound: a video that kept its audio and is not [muted]. */
+        val playsSound: Boolean get() = kind == MediaKind.VIDEO && hasAudio && !muted
     }
 
     data class Text(
@@ -270,7 +274,8 @@ internal object CoverItemJson {
                 put("loop", item.loop)
                 if (item.posterFileName != null) put("poster", item.posterFileName)
                 put("hasAudio", item.hasAudio)
-                put("sound", item.sound)
+                // Only when set: an untouched clip keeps its JSON (the widget keys its frames by it).
+                if (item.muted) put("muted", true)
                 // Only when framed off the centre: an untouched item keeps its old JSON, so the widget's frames
                 // (keyed by it) are not all redrawn after an update. Clamped: JSON cannot hold NaN.
                 MediaFocus.clamp(item.focusX).let { if (it != 0f) put("focusX", it.toDouble()) }
@@ -366,7 +371,8 @@ internal object CoverItemJson {
                 loop = json.optBoolean("loop", true),
                 posterFileName = json.optString("poster").ifEmpty { null },
                 hasAudio = json.optBoolean("hasAudio", false),
-                sound = json.optBoolean("sound", false),
+                // The old "sound" key is ignored: it was mostly the import default, not a choice.
+                muted = json.optBoolean("muted", false),
                 focusX = MediaFocus.clamp(json.optDouble("focusX", 0.0).toFloat()),
                 focusY = MediaFocus.clamp(json.optDouble("focusY", 0.0).toFloat()),
             )

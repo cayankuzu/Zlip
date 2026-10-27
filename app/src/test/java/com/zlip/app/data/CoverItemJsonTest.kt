@@ -29,7 +29,7 @@ class CoverItemJsonTest {
         loop = false,
         posterFileName = "b.jpg",
         hasAudio = true,
-        sound = true,
+        muted = true,
     )
     private val text = CoverItem.Text(id = "text", name = "Note", text = "Hello ✦", textColor = 0xFF9DB4FF.toInt(), sizeSp = 72, scroll = false, speedDps = 30, bold = false)
     private val countdown = CoverItem.Countdown(id = "countdown", name = "Trip", title = "Holiday", targetMillis = 1_800_000_000_000L, countUp = true, dotMatrix = false)

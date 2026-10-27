@@ -21,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.AddToHomeScreen
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AutoMode
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.CheckCircle
@@ -122,6 +121,9 @@ fun SettingsScreen(
                 Text(stringResource(R.string.settings_brightness), style = MaterialTheme.typography.bodyLarge)
                 BrightnessRow(settings, onSettingsChange)
                 HintText(stringResource(R.string.settings_brightness_desc))
+                Spacer(Modifier.height(16.dp))
+
+                CoverSoundChoice(settings, onSettingsChange)
                 Spacer(Modifier.height(16.dp))
 
                 SwitchRow(
@@ -266,6 +268,29 @@ fun SettingsScreen(
     }
 }
 
+/**
+ * Whether the cover's videos start with sound each time it turns on. A choice of two rather than a switch:
+ * the cover's sound button changes the sound for the moment, so this only says how it starts.
+ */
+@Composable
+private fun CoverSoundChoice(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit) {
+    val choices = listOf(true to R.string.settings_cover_sound_on, false to R.string.settings_cover_sound_off)
+    Text(stringResource(R.string.settings_cover_sound), style = MaterialTheme.typography.bodyLarge)
+    HintText(stringResource(R.string.settings_cover_sound_desc))
+    Spacer(Modifier.height(8.dp))
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        choices.forEachIndexed { index, (on, label) ->
+            SegmentedButton(
+                selected = settings.startWithSound == on,
+                onClick = { onSettingsChange(settings.copy(startWithSound = on)) },
+                shape = SegmentedButtonDefaults.itemShape(index, choices.size),
+                // No checkmark: the fill marks the choice, and the Turkish labels need the room.
+                icon = {},
+            ) { SegmentLabel(stringResource(label)) }
+        }
+    }
+}
+
 /** LED dot size and color, under the LED switch while it is on. */
 @Composable
 private fun LedStyleChoices(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit) {
@@ -386,15 +411,6 @@ private fun AdvancedCard(settings: CoverSettings, onSettingsChange: (CoverSettin
                 ) { SegmentLabel("$degrees°") }
             }
         }
-        Spacer(Modifier.height(12.dp))
-
-        SwitchRow(
-            title = stringResource(R.string.settings_video_sound),
-            description = stringResource(R.string.settings_video_sound_desc),
-            checked = settings.videoSoundDefault,
-            onCheckedChange = { onSettingsChange(settings.copy(videoSoundDefault = it)) },
-            icon = Icons.AutoMirrored.Filled.VolumeUp,
-        )
         Spacer(Modifier.height(12.dp))
         HintText(stringResource(R.string.settings_battery_tip))
     }

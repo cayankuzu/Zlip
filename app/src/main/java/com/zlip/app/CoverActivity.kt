@@ -35,7 +35,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.zlip.app.cover.CoverScreen
-import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
 import com.zlip.app.system.CoverGuard
 import com.zlip.app.ui.theme.ZlipTheme
@@ -274,11 +273,10 @@ class CoverActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        // Volume up on a muted clip that has sound plays it with sound, like most video apps; only for this
-        // viewing, so a press meant for something else does not make the clip loud from then on.
-        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP && event.repeatCount == 0) {
-            (app.playback.shownItem.value as? CoverItem.Media)?.let(app.playback::soundOnForNow)
-        }
+        // Volume up while the cover is silent turns its sound on, like most video apps (a clip with sound, or a
+        // group with one); only until the next wake, so a press meant for something else does not make every
+        // clip loud from then on.
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP && event.repeatCount == 0) app.playback.soundOnForNow()
         wake()
         return super.onKeyDown(keyCode, event)
     }

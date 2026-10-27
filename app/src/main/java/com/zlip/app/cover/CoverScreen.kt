@@ -61,11 +61,11 @@ import com.zlip.app.cover.mirror.steerMirror
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
-import com.zlip.app.data.MediaKind
 import com.zlip.app.data.showsQr
 import com.zlip.app.render.CoverContent
 import com.zlip.app.render.LocalAllowSound
 import com.zlip.app.render.LocalAnimationFps
+import com.zlip.app.render.LocalOnSoundLost
 import com.zlip.app.render.LedStyle
 import com.zlip.app.render.LocalVideoOverlay
 import com.zlip.app.render.Playback
@@ -125,13 +125,12 @@ fun CoverScreen(
     // Drafts belong to the open phone while the editor is in view; otherwise the cover keeps the playlist.
     val editing = lockTouches && draft != null && !inPip
     val item = if (editing) draft else selected
-    // Clips that volume up turned on for this session play with sound; their saved setting stays.
-    val shownItem = remember(item, soundOn) { item?.withSoundFor(soundOn) }
     // A group reports the step on screen, so LED and brightness follow that step rather than the whole group.
     // Seeded with step one, where every showing starts, so the first frame is never judged by the whole group
     // (a QR step anywhere in it would flash full brightness without LED dots, and rebuild a video's surface).
     var groupStep by remember(item?.id, session) { mutableStateOf((item as? CoverItem.Group)?.items?.firstOrNull()) }
     val events = remember(item?.id, session) { item?.let { playback.eventsFor(it.id) { step -> groupStep = step } } }
+    val onSoundLost = remember(playback) { { playback.soundLost() } }
     val lock = remember { TouchLock(autoLock = lockTouches) }
     var unlocked by remember { mutableStateOf(false) }
     var controlsShown by remember { mutableStateOf(false) }
@@ -370,15 +369,16 @@ fun CoverScreen(
                     LocalAnimationFps provides settings.powerMode.fps,
                     // A hardware overlay cannot be rotated or turned into LED dots: use a texture then.
                     LocalVideoOverlay provides (settings.rotation == 0 && led == null),
-                    // The cover is the one place sound may play; never while the screen saver rests.
-                    LocalAllowSound provides !ambient,
+                    // The cover is where sound plays: whenever its sound is on, never while the screen saver rests.
+                    LocalAllowSound provides (soundOn && !ambient),
+                    LocalOnSoundLost provides onSoundLost,
                 ) {
                     // A new session builds the content afresh: a video at 0:00, a GIF at its first frame, a group
                     // at step one. Its events are new too, so nothing from before can end the new showing.
                     key(session) {
                         CompositionLocalProvider(LocalLifecycleOwner provides rememberSessionLifecycle(playback, session)) {
                             CoverContent(
-                                item = shownItem,
+                                item = item,
                                 modifier = Modifier.fillMaxSize(),
                                 playback = if (paused || ambient || menuShown) Playback.PAUSED else Playback.LIVE,
                                 events = events,
@@ -468,14 +468,15 @@ fun CoverScreen(
                 if (mirroring != null) return@Box
                 val shown = item
                 val index = sequence.indexOfFirst { it.id == shown?.id }
-                val clip = (shown as? CoverItem.Media)?.takeIf { !editing && it.kind == MediaKind.VIDEO && it.hasAudio }
+                // Only the cover's sound for now, so an editor's draft may switch it too.
+                val canSwitchSound = hasSoundToSwitch(shown)
                 CoverControls(
                     title = shown?.name.orEmpty(),
                     position = if (!editing && index >= 0 && sequence.size > 1) "${index + 1}/${sequence.size}" else null,
                     paused = paused,
                     // A group steps through its items even when it is alone in the playlist.
                     canSkip = !editing && (sequence.size > 1 || shown is CoverItem.Group),
-                    soundOn = clip?.let { it.sound || it.id in soundOn },
+                    soundOn = soundOn.takeIf { canSwitchSound },
                     onPrevious = {
                         lastTouch = SystemClock.uptimeMillis()
                         currentOnUserActivity()
@@ -494,7 +495,7 @@ fun CoverScreen(
                     onToggleSound = {
                         lastTouch = SystemClock.uptimeMillis()
                         currentOnUserActivity()
-                        clip?.let(playback::toggleSound)
+                        playback.toggleSound()
                     },
                     onClose = onClose,
                     onOpenMenu = if (menuAllowed) {
@@ -530,14 +531,6 @@ fun CoverScreen(
             }
         }
     }
-}
-
-/** [this] with the clips in [ids] playing their sound, also as steps of a group; anything else unchanged. */
-private fun CoverItem.withSoundFor(ids: Set<String>): CoverItem = when {
-    ids.isEmpty() -> this
-    this is CoverItem.Media -> if (id in ids && !sound) copy(sound = true) else this
-    this is CoverItem.Group -> copy(items = items.map { it.withSoundFor(ids) })
-    else -> this
 }
 
 /**

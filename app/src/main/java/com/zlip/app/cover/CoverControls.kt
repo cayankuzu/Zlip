@@ -67,7 +67,7 @@ internal fun CoverControls(
     position: String?,
     paused: Boolean,
     canSkip: Boolean,
-    /** Null when the item has no sound to switch. */
+    /** The cover's sound for now ([CoverPlayback.soundOn]); null when the item has no sound to switch. */
     soundOn: Boolean?,
     onPrevious: () -> Unit,
     onTogglePause: () -> Unit,

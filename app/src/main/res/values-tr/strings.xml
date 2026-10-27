@@ -261,7 +261,7 @@
         <item quantity="other">%d öğe</item>
     </plurals>
     <string name="media_sound">Sesli oynat</string>
-    <string name="media_sound_desc">Yalnızca kapak ekranında. İstediğin an kapaktan ya da bildirimden kapatabilirsin.</string>
+    <string name="media_sound_desc">Kapalıyken bu video hep sessiz oynar.</string>
     <string name="media_sound_none">Bu klipte ses yok (ya da ses desteğinden önce eklendi).</string>
     <string name="action_sound_on">Sesi aç</string>
     <string name="action_sound_off">Sesi kapat</string>
@@ -305,8 +305,6 @@
     <string name="led_color_green">Yeşil</string>
     <string name="led_color_blue">Buz</string>
     <string name="led_color_white">Beyaz</string>
-    <string name="settings_video_sound">Yeni videolar sesli başlasın</string>
-    <string name="settings_video_sound_desc">Her birini kapakta ya da kendi ayarında yine sessize alabilirsin.</string>
     <string name="add_section_media">Galeriden</string>
     <string name="add_section_create">Kendin oluştur</string>
     <string name="add_section_smart">Akıllı kartlar</string>
