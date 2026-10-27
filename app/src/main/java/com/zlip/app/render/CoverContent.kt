@@ -171,6 +171,14 @@ interface PlaybackEvents {
     /** A group now shows [child], so the cover can treat the step like that item (a QR code stays bright). */
     fun onStep(child: CoverItem) {}
 
+    /**
+     * A group now shows [child] at [position] (1-based) of the [count] steps in this pass's play order, so a shuffled
+     * group still counts 1, 2, 3. Defaults to [onStep] for listeners that only need the step.
+     */
+    fun onStepAt(child: CoverItem, position: Int, count: Int) {
+        onStep(child)
+    }
+
     /** A group on screen lets next/previous move through its steps, until [detachStepper]. */
     fun attachStepper(stepper: GroupStepper) {}
 
@@ -182,8 +190,17 @@ interface GroupStepper {
     /** Shows the next step; at the last one only with [wrap] (back to the first), otherwise returns false. */
     fun next(wrap: Boolean): Boolean
 
-    /** Shows the previous step; at the first one only with [wrap] (on to the last), otherwise returns false. */
+    /**
+     * Shows the previous step. At step one of a later pass that is the last step of the pass before (the step just
+     * seen); at the very first one only with [wrap] (on to the last), otherwise returns false.
+     */
     fun previous(wrap: Boolean): Boolean
+
+    /**
+     * Jumps to the group's item at [itemIndex] (in the group's list), at its place in this pass's play order.
+     * False when there is no such item, or the group cannot jump.
+     */
+    fun showItem(itemIndex: Int): Boolean = false
 }
 
 /** Renders any [CoverItem]. Used on the cover screen and for previews/thumbnails on the inner screen. */

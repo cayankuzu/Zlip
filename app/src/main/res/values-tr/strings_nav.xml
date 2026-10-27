@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Grupta (adımlar) ve listede (içerikler) gezinme; her yüzeyde aynı sözcükler -->
+    <string name="action_previous_step">Önceki adım</string>
+    <string name="action_next_step">Sonraki adım</string>
+    <string name="action_previous_item">Önceki içerik</string>
+    <string name="action_next_item">Sonraki içerik</string>
+    <string name="cover_group_step">Adım %1$d/%2$d</string>
+</resources>

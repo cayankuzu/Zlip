@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Moving through a group (steps) and the playlist (items), the same words on every surface -->
+    <string name="action_previous_step">Previous step</string>
+    <string name="action_next_step">Next step</string>
+    <string name="action_previous_item">Previous item</string>
+    <string name="action_next_item">Next item</string>
+    <string name="cover_group_step">Step %1$d of %2$d</string>
+</resources>

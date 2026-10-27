@@ -107,19 +107,41 @@ class CoverPlayback(
     /** The group on screen (by item id) and how to step through it; main thread only. */
     private var groupStepper: Pair<String, GroupStepper>? = null
 
-    /** The step a group on the cover shows (group id to step). */
-    private val stepShown = MutableStateFlow<Pair<String, CoverItem>?>(null)
+    /** The step a group on the cover shows, and where it is in the group's play order. */
+    private val stepShown = MutableStateFlow<StepShown?>(null)
 
     /** The step a group on the cover shows, as (group id, step item id), for "Grup · 2/4" in the notification. */
-    val groupStep: StateFlow<Pair<String, String>?> = stepShown.map { shown -> shown?.let { (group, step) -> group to step.id } }
+    val groupStep: StateFlow<Pair<String, String>?> = stepShown.map { shown -> shown?.let { it.groupId to it.child.id } }
         .stateIn(scope, SharingStarted.Eagerly, null)
+
+    /**
+     * Where the group on the cover is ("Adım 2/5"): its step in this pass's play order, so a shuffled group still
+     * counts 1, 2, 3. Null unless the selected item is a group that reported a step.
+     */
+    val groupProgress: StateFlow<GroupProgress?> = combine(repository.selectedItem, stepShown, CoverNav::progress)
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    /**
+     * A group is on the cover and the rotation has something else to go to: [nextItem] and [previousItem] leave the
+     * group. A group alone goes round instead, so there is nowhere to skip to.
+     */
+    val itemSkipAvailable: StateFlow<Boolean> = combine(repository.selectedItem, repository.sequence, CoverNav::itemSkipAvailable)
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
+    private val _manualMoves = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+
+    /**
+     * One event per move the user made ([next], [previous], [nextItem], [previousItem]) from any surface, sent once
+     * the move happened; never for auto-advance. The cover answers it with a short "Adım 3/5" hint.
+     */
+    val manualMoves: SharedFlow<Unit> = _manualMoves.asSharedFlow()
 
     /**
      * What the cover shows: the selected item, or the step its group is on. The step as the group holds it now, so an
      * edit of that step (a new framing) shows here at once rather than when the group next moves on.
      */
     val shownItem: StateFlow<CoverItem?> = combine(repository.selectedItem, stepShown) { selected, step ->
-        val shown = step?.takeIf { it.first == selected?.id }?.second
+        val shown = step?.takeIf { it.groupId == selected?.id }?.child
         if (shown == null) selected else (selected as? CoverItem.Group)?.items?.firstOrNull { it.id == shown.id } ?: shown
     }.stateIn(scope, SharingStarted.Eagerly, null)
 
@@ -213,20 +235,29 @@ class CoverPlayback(
         _soundOn.value = false
     }
 
-    /** Next step of the group on the cover (stories-style), then the next item after its last step. */
-    fun next() {
+    /**
+     * Next step of the group on the cover (stories-style), then the next item after its last step. A single item
+     * goes on to the next item in list order: manual moves never shuffle, so [previous] always undoes it.
+     */
+    fun next() = move(forward = true, byStep = true)
+
+    /** Previous step of the group on the cover, then the previous item before its first step. */
+    fun previous() = move(forward = false, byStep = true)
+
+    /** The next item in list order, leaving a group on the cover whatever step it is on. */
+    fun nextItem() = move(forward = true, byStep = false)
+
+    /** The previous item in list order, leaving a group on the cover whatever step it is on. */
+    fun previousItem() = move(forward = false, byStep = false)
+
+    private fun move(forward: Boolean, byStep: Boolean) {
         // While an editor streams a draft the selection is hidden; changing it would be invisible.
         if (editing.value) return
         _paused.value = false
-        if (stepGroup(forward = true)) return
-        repository.selectNext(shuffle = repository.settings.value.shuffle)
-    }
-
-    fun previous() {
-        if (editing.value) return
-        _paused.value = false
-        if (stepGroup(forward = false)) return
-        repository.selectPrevious()
+        if (!CoverNav.staysInGroup(byStep) { stepGroup(forward) }) {
+            if (forward) repository.selectNext(shuffle = CoverNav.MANUAL_SHUFFLE) else repository.selectPrevious()
+        }
+        _manualMoves.tryEmit(Unit)
     }
 
     /** Moves inside the group on the cover; false when there is no group or no step that way. */
@@ -295,8 +326,8 @@ class CoverPlayback(
             heard.update { HeardCount.update(it, itemId, audible) }
         }
 
-        override fun onStep(child: CoverItem) {
-            stepShown.value = itemId to child
+        override fun onStepAt(child: CoverItem, position: Int, count: Int) {
+            stepShown.value = StepShown(itemId, child, position, count)
             onGroupStep(child)
         }
 
@@ -428,6 +459,37 @@ class CoverPlayback(
         /** Grep the device log for this to see when the cover started over. */
         const val TAG = "ZlipSession"
     }
+}
+
+/** Where the group [groupId] on the cover is: [step] (1-based, in this pass's play order) of [count]. */
+data class GroupProgress(val groupId: String, val step: Int, val count: Int)
+
+/** The step [child] that the group [groupId] shows, at [position] (1-based) of the [count] steps in its play order. */
+internal data class StepShown(val groupId: String, val child: CoverItem, val position: Int, val count: Int)
+
+/** How manual moves go through groups and the playlist. Pure, so it is unit-tested. */
+internal object CoverNav {
+    /**
+     * Manual moves follow the list order even with shuffle on, so Önceki always undoes Sonraki; shuffle is for
+     * auto-advance alone.
+     */
+    const val MANUAL_SHUFFLE = false
+
+    /**
+     * Whether a manual move stays inside the group on the cover: a step move ([byStep]) tries [step] first and stays
+     * when it moved; an item move never steps, so it skips the rest of the group.
+     */
+    inline fun staysInGroup(byStep: Boolean, step: () -> Boolean): Boolean = byStep && step()
+
+    /** [shown]'s place in its group while that group is the [selected] item; otherwise none. */
+    fun progress(selected: CoverItem?, shown: StepShown?): GroupProgress? {
+        if (shown == null || selected !is CoverItem.Group || shown.groupId != selected.id) return null
+        return GroupProgress(shown.groupId, shown.position, shown.count)
+    }
+
+    /** A group is [selected] and the [sequence] has another item to move to. */
+    fun itemSkipAvailable(selected: CoverItem?, sequence: List<CoverItem>): Boolean =
+        selected is CoverItem.Group && sequence.any { it.id != selected.id }
 }
 
 /**

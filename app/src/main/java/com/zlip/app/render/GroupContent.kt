@@ -127,6 +127,7 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
     val currentEvents by rememberUpdatedState(events)
     val currentSize by rememberUpdatedState(items.size)
     val currentRepeat by rememberUpdatedState(item.repeat)
+    val currentShuffle by rememberUpdatedState(item.shuffle)
     // Nothing advances while paused, while the cover is dark or while the step is being framed; coming back restarts
     // the step's minimum time.
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
@@ -136,26 +137,20 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
     // first, in the order they play (shuffled too).
     val stepper = remember {
         object : GroupStepper {
-            override fun next(wrap: Boolean): Boolean {
-                val at = index.coerceIn(0, currentSize - 1)
-                when {
-                    at + 1 < currentSize -> index = at + 1
-                    wrap -> {
-                        pass++
-                        index = 0
-                    }
-                    else -> return false
-                }
-                return true
+            override fun next(wrap: Boolean): Boolean = go(GroupSteps.next(GroupSteps.At(pass, index), currentSize, wrap))
+
+            override fun previous(wrap: Boolean): Boolean =
+                go(GroupSteps.previous(GroupSteps.At(pass, index), currentSize, wrap))
+
+            override fun showItem(itemIndex: Int): Boolean {
+                val order = GroupTiming.playOrder(currentSize, currentShuffle, seed, pass)
+                return go(GroupSteps.show(itemIndex, order, pass))
             }
 
-            override fun previous(wrap: Boolean): Boolean {
-                val at = index.coerceIn(0, currentSize - 1)
-                when {
-                    at > 0 -> index = at - 1
-                    wrap -> index = currentSize - 1
-                    else -> return false
-                }
+            private fun go(to: GroupSteps.At?): Boolean {
+                if (to == null) return false
+                pass = to.pass
+                index = to.index
                 return true
             }
         }
@@ -170,7 +165,8 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
         }
     }
 
-    LaunchedEffect(step) { currentEvents?.onStep(child) }
+    // The position in play order, so a shuffled group still counts 1, 2, 3; a live edit that changes the size tells again.
+    LaunchedEffect(step, order.size) { currentEvents?.onStepAt(child, position + 1, order.size) }
 
     // Repeat off: holding the last step is the group's end, like a play-once clip's last frame, so a plan that starts
     // after it stopped moves on instead of waiting for a pass that never comes.
@@ -276,3 +272,44 @@ private fun CoverItem.asStep(group: CoverItem.Group, stopped: Boolean): CoverIte
 }
 
 private fun CoverItem.isVideo(): Boolean = this is CoverItem.Media && kind == MediaKind.VIDEO
+
+/**
+ * Where next, previous and a jump take the group on screen, as a pass and a position in that pass's play order
+ * ([GroupTiming.playOrder]). Null when the step cannot move that way. Pure, so it is unit-tested.
+ */
+internal object GroupSteps {
+    data class At(val pass: Int, val index: Int)
+
+    /** The next step; after the last one only with [wrap] (step one of a new pass). */
+    fun next(at: At, size: Int, wrap: Boolean): At? {
+        if (size <= 0) return null
+        val index = at.index.coerceIn(0, size - 1)
+        return when {
+            index + 1 < size -> at.copy(index = index + 1)
+            wrap -> At(at.pass + 1, 0)
+            else -> null
+        }
+    }
+
+    /**
+     * The previous step. At step one of a later pass that is the last step of the pass before, the step just seen
+     * (play orders are stable per seed and pass, so a shuffled pass comes back exactly); at the very first step only
+     * with [wrap] (on to the last).
+     */
+    fun previous(at: At, size: Int, wrap: Boolean): At? {
+        if (size <= 0) return null
+        val index = at.index.coerceIn(0, size - 1)
+        return when {
+            index > 0 -> at.copy(index = index - 1)
+            at.pass > 0 -> At(at.pass - 1, size - 1)
+            wrap -> at.copy(index = size - 1)
+            else -> null
+        }
+    }
+
+    /** The group's item at [itemIndex] (in its list) where it plays in [pass], whose play order is [order]. */
+    fun show(itemIndex: Int, order: List<Int>, pass: Int): At? {
+        val position = order.indexOf(itemIndex)
+        return if (position < 0) null else At(pass, position)
+    }
+}
