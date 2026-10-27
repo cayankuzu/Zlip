@@ -3,7 +3,21 @@ package com.zlip.app.cover
 import kotlin.math.abs
 import kotlin.math.hypot
 
-enum class GestureResult { IGNORED, ACTIVATED, TAP, SWIPE_NEXT, SWIPE_PREVIOUS, SWIPE_DOWN, SWIPE_UP }
+enum class GestureResult {
+    IGNORED,
+    ACTIVATED,
+    TAP,
+
+    /**
+     * A clean single tap (short, still, one finger) on a locked cover: the first half of the unlocking double tap, or
+     * someone trying the cover who should be told how it works if no second tap follows.
+     */
+    LOCKED_TAP,
+    SWIPE_NEXT,
+    SWIPE_PREVIOUS,
+    SWIPE_DOWN,
+    SWIPE_UP,
+}
 
 /**
  * Guards the cover screen against accidental touches while the phone is open (the cover faces the
@@ -45,8 +59,19 @@ class TouchLock(
         if (isActive) lastInteractionMs = timeMs
     }
 
-    /** Scores a finished gesture (first finger lifted). */
-    fun onGesture(downMs: Long, downX: Float, downY: Float, upMs: Long, upX: Float, upY: Float): GestureResult {
+    /**
+     * Scores a finished gesture (first finger lifted). [multiTouch]: another finger touched during it (a palm, a
+     * pinch); it still counts towards the double tap as before, but is never a [GestureResult.LOCKED_TAP].
+     */
+    fun onGesture(
+        downMs: Long,
+        downX: Float,
+        downY: Float,
+        upMs: Long,
+        upX: Float,
+        upY: Float,
+        multiTouch: Boolean = false,
+    ): GestureResult {
         val dx = upX - downX
         val dy = upY - downY
         val isTap = upMs - downMs <= tapMaxDurationMs && hypot(dx, dy) <= tapSlopPx
@@ -68,7 +93,7 @@ class TouchLock(
             pendingTapUpMs = upMs
             pendingTapX = upX
             pendingTapY = upY
-            return GestureResult.IGNORED
+            return if (multiTouch) GestureResult.IGNORED else GestureResult.LOCKED_TAP
         }
 
         lastInteractionMs = upMs
@@ -108,6 +133,16 @@ class TouchLock(
     fun lock() {
         isActive = false
         pendingTapUpMs = NO_TAP
+    }
+
+    /**
+     * Unlocks without the double tap, for TalkBack, whose own double tap never reaches the cover as touches. The idle
+     * countdown starts from [nowMs] (the cover skips it while touch exploration is on).
+     */
+    fun unlock(nowMs: Long) {
+        isActive = true
+        pendingTapUpMs = NO_TAP
+        lastInteractionMs = nowMs
     }
 
     private companion object {

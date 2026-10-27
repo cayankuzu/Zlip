@@ -6,4 +6,11 @@
     <string name="action_previous_item">Previous item</string>
     <string name="action_next_item">Next item</string>
     <string name="cover_group_step">Step %1$d of %2$d</string>
+    <!-- Cover: the menu pill, the locked open-phone cover, TalkBack -->
+    <string name="cover_menu_label">Menu</string>
+    <string name="cover_locked_hint">Double-tap to use</string>
+    <string name="cover_controls_hide">Hide controls</string>
+    <!-- Notification and Mini cover status -->
+    <string name="notif_list_position">%1$d of %2$d in list</string>
+    <string name="notif_paused">Paused</string>
 </resources>

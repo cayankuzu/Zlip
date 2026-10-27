@@ -39,10 +39,36 @@ class TouchLockTest {
     }
 
     @Test
-    fun singleTapWhileLockedIsIgnored() {
+    fun singleTapWhileLockedIsALockedTap() {
         val lock = TouchLock()
-        assertEquals(GestureResult.IGNORED, lock.tap(1_000))
+        assertEquals(GestureResult.LOCKED_TAP, lock.tap(1_000))
         assertFalse(lock.isActive)
+    }
+
+    @Test
+    fun aPalmOrPinchIsNeverALockedTap() {
+        val lock = TouchLock()
+        lock.onDown(1_000)
+        assertEquals(GestureResult.IGNORED, lock.onGesture(1_000, 100f, 100f, 1_050, 100f, 100f, multiTouch = true))
+        lock.onAllUp(1_050)
+        assertFalse(lock.isActive)
+    }
+
+    @Test
+    fun aSecondTapActivatesRatherThanAskingAgain() {
+        val lock = TouchLock()
+        assertEquals(GestureResult.LOCKED_TAP, lock.tap(1_000))
+        assertEquals(GestureResult.ACTIVATED, lock.tap(1_200))
+    }
+
+    @Test
+    fun unlockWorksWithoutTheDoubleTapAndLocksWhenIdle() {
+        val lock = TouchLock()
+        lock.unlock(5_000)
+        assertTrue(lock.isActive)
+        assertEquals(GestureResult.TAP, lock.tap(5_500))
+        assertFalse(lock.lockIfIdle(8_000))
+        assertTrue(lock.lockIfIdle(8_550))
     }
 
     @Test
@@ -57,7 +83,7 @@ class TouchLockTest {
     fun slowSecondTapDoesNotActivate() {
         val lock = TouchLock()
         lock.tap(1_000)
-        assertEquals(GestureResult.IGNORED, lock.tap(2_000))
+        assertEquals(GestureResult.LOCKED_TAP, lock.tap(2_000))
         assertFalse(lock.isActive)
     }
 
@@ -65,7 +91,7 @@ class TouchLockTest {
     fun distantSecondTapDoesNotActivate() {
         val lock = TouchLock()
         lock.tap(1_000, x = 50f, y = 50f)
-        assertEquals(GestureResult.IGNORED, lock.tap(1_150, x = 600f, y = 600f))
+        assertEquals(GestureResult.LOCKED_TAP, lock.tap(1_150, x = 600f, y = 600f))
         assertFalse(lock.isActive)
     }
 
@@ -74,7 +100,7 @@ class TouchLockTest {
         val lock = TouchLock()
         lock.tap(1_000)
         assertEquals(GestureResult.IGNORED, lock.swipe(1_100, dx = -200f))
-        assertEquals(GestureResult.IGNORED, lock.tap(1_250))
+        assertEquals(GestureResult.LOCKED_TAP, lock.tap(1_250))
         assertFalse(lock.isActive)
     }
 
@@ -84,7 +110,7 @@ class TouchLockTest {
         lock.onDown(1_000)
         lock.onGesture(1_000, 100f, 100f, 1_800, 100f, 100f)
         lock.onAllUp(1_800)
-        assertEquals(GestureResult.IGNORED, lock.tap(1_900))
+        assertEquals(GestureResult.LOCKED_TAP, lock.tap(1_900))
         assertFalse(lock.isActive)
     }
 
@@ -163,12 +189,12 @@ class TouchLockTest {
     }
 
     @Test
-    fun afterLockingSingleTapIsIgnoredAgain() {
+    fun afterLockingSingleTapIsOnlyALockedTapAgain() {
         val lock = TouchLock()
         lock.tap(1_000)
         lock.tap(1_200)
         lock.lockIfIdle(10_000)
-        assertEquals(GestureResult.IGNORED, lock.tap(11_000))
+        assertEquals(GestureResult.LOCKED_TAP, lock.tap(11_000))
         assertFalse(lock.isActive)
     }
 }

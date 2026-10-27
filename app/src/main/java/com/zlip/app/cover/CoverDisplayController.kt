@@ -22,6 +22,7 @@ import com.zlip.app.data.CoverSettings
 import com.zlip.app.ui.ComposeHostOwner
 import com.zlip.app.ui.theme.ZlipTheme
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -78,6 +79,8 @@ val coverHoverSupported: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_
  *
  * Battery: the cover window gets a refresh-rate cap from [CoverSettings.powerMode], and holds the screen
  * on only while Zlip asks for it ([setScreenHold]).
+ *
+ * [onUserClose]: the cover's own × was pressed; the app turns the cover off as from Home or the notification.
  */
 @OptIn(ExperimentalWindowApi::class)
 class CoverDisplayController(
@@ -86,7 +89,16 @@ class CoverDisplayController(
     private val sessions: CoverSessions,
     private val mirror: MirrorController,
     private val scope: CoroutineScope,
+    private val onUserClose: () -> Unit,
 ) {
+    /**
+     * The cover's ×. Posted rather than run inside the click, so the presentation is not torn down under its own
+     * click handler (the app scope's immediate dispatcher would run it inline).
+     */
+    private val closeFromCover: () -> Unit = {
+        scope.launch(Dispatchers.Main) { onUserClose() }
+    }
+
     private val windowAreaController: WindowAreaController by lazy { WindowAreaController.getOrCreate() }
 
     private val area = MutableStateFlow(Area.CHECKING)
@@ -289,7 +301,7 @@ class CoverDisplayController(
             val view = owner.composeView(session.context) {
                 ZlipTheme {
                     val inPip by hovering.collectAsState()
-                    CoverScreen(repository, playback, mirror = mirror, inPip = inPip)
+                    CoverScreen(repository, playback, onClose = closeFromCover, mirror = mirror, inPip = inPip)
                 }
             }.also { coverView = it }
             session.setContentView(view)

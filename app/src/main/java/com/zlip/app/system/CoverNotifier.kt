@@ -12,12 +12,14 @@ import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.media.app.NotificationCompat.MediaStyle
 import com.zlip.app.MainActivity
 import com.zlip.app.ZlipApp
 import com.zlip.app.R
 import com.zlip.app.cover.CoverDisplayController
 import com.zlip.app.cover.CoverPlayback
 import com.zlip.app.cover.CoverStatus
+import com.zlip.app.cover.GroupProgress
 import com.zlip.app.cover.hasSoundToSwitch
 import com.zlip.app.cover.mirror.MirrorController
 import com.zlip.app.cover.mirror.MirrorState
@@ -32,11 +34,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * Cover controls in the notification shade while the cover plays (open phone or folded live view):
- * pause/resume, next, turn off, plus where in the playlist it is ("2/5") and in a group ("Grup · 2/4"). Swiped away, they stay away until the
- * next session. While the inner screen is mirrored, the mirroring notification is the control instead.
+ * Cover controls in the notification shade while the cover plays (open phone or folded live view), as a media
+ * notification with fixed slots ([notificationActions]): ⏮ ⏯ ⏭ always first and shown even when collapsed, then the
+ * item's extra (Sonraki içerik for a group, the sound switch for a clip) and × last, away from ⏭. The title is what
+ * plays; the text says where ("Adım 2/5 · Listede 3/7"). Swiped away, they stay away until the next session. While the
+ * inner screen is mirrored, the mirroring notification is the control instead.
  * Turning the cover on is up to the quick-settings tile and Zlip's small window.
- * Plain notifications only (no foreground service): nothing has to stay alive in the background.
+ * Plain notifications only (no foreground service, no media session): nothing has to stay alive in the background.
  */
 @OptIn(FlowPreview::class)
 class CoverNotifier(
@@ -51,13 +55,20 @@ class CoverNotifier(
         data object Hidden : Model
         data class Playing(
             val title: String,
-            val position: String?,
+            /** Where the item is in a playlist of more than one: (1-based position, size). */
+            val position: Pair<Int, Int>?,
             val paused: Boolean,
             val editing: Boolean,
+            /** The folded screen saver plays it, rather than the open phone's cover. */
+            val live: Boolean,
             /** The cover's sound for now (null: the item has no sound to switch). */
             val sound: Boolean?,
-            /** A group on the cover: the step it shows (from 1) and how many it has. */
-            val groupStep: Pair<Int, Int>?,
+            /** A group is on the cover: ⏮ and ⏭ move through its steps. */
+            val inGroup: Boolean,
+            /** Where that group is, in its play order (so a shuffled group still counts 1, 2, 3). */
+            val step: GroupProgress?,
+            /** The group can be left for another item: "Sonraki içerik". */
+            val itemSkip: Boolean,
         ) : Model
     }
 
@@ -65,8 +76,9 @@ class CoverNotifier(
     private data class Shown(
         val selected: CoverItem?,
         val sequence: List<CoverItem>,
-        val step: Pair<String, String>?,
+        val progress: GroupProgress?,
         val soundOn: Boolean,
+        val itemSkip: Boolean,
     )
 
     private val manager = NotificationManagerCompat.from(context)
@@ -85,11 +97,18 @@ class CoverNotifier(
         scope.launch {
             combine(
                 combine(cover.status, playback.liveViewVisible, mirror.state) { status, live, mirroring -> Triple(status, live, mirroring) },
-                combine(repository.selectedItem, repository.sequence, playback.groupStep, playback.soundOn, ::Shown),
+                combine(
+                    repository.selectedItem,
+                    repository.sequence,
+                    playback.groupProgress,
+                    playback.soundOn,
+                    playback.itemSkipAvailable,
+                    ::Shown,
+                ),
                 repository.draft,
                 playback.paused,
                 combine(repository.settings, playingDismissed) { settings, dismissed -> settings.notificationControls && !dismissed },
-            ) { (status, live, mirroring), (selected, sequence, step, soundOn), draft, paused, wanted ->
+            ) { (status, live, mirroring), (selected, sequence, progress, soundOn, itemSkip), draft, paused, wanted ->
                 val active = status == CoverStatus.ACTIVE
                 when {
                     !wanted -> Model.Hidden
@@ -100,16 +119,18 @@ class CoverNotifier(
                         val index = sequence.indexOfFirst { it.id == selected?.id }
                         // Drafts only show on the open-phone cover, never in the live view.
                         val editing = draft != null && !live
-                        val group = (selected as? CoverItem.Group)?.takeIf { !editing && step?.first == it.id }
-                        val stepIndex = group?.items?.indexOfFirst { it.id == step?.second } ?: -1
+                        val inGroup = !editing && selected is CoverItem.Group
                         Model.Playing(
                             // Not the draft's name: that would re-post the notification on every keystroke.
                             title = selected?.name.orEmpty(),
-                            position = if (index >= 0 && sequence.size > 1) "${index + 1}/${sequence.size}" else null,
+                            position = if (index >= 0 && sequence.size > 1) index + 1 to sequence.size else null,
                             paused = paused,
                             editing = editing,
+                            live = live,
                             sound = notifiedSound(selected, soundOn),
-                            groupStep = if (group != null && stepIndex >= 0) stepIndex + 1 to group.items.size else null,
+                            inGroup = inGroup,
+                            step = progress?.takeIf { inGroup },
+                            itemSkip = inGroup && itemSkip,
                         )
                     }
                     else -> Model.Hidden
@@ -165,36 +186,61 @@ class CoverNotifier(
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
     private fun playingNotification(model: Model.Playing) = base().apply {
-        val title = listOfNotNull(model.title.ifBlank { null }, model.position).joinToString(" · ")
-        setContentTitle(context.getString(R.string.notif_title))
+        // What plays is the headline; the fixed "cover on" goes to the small header.
+        setContentTitle(model.title.ifBlank { context.getString(R.string.notif_title) })
         setContentText(
-            when {
-                model.editing -> context.getString(R.string.notif_text_editing)
-                model.paused -> context.getString(R.string.notif_text_paused, title)
-                else -> title
+            if (model.editing) {
+                context.getString(R.string.notif_text_editing)
+            } else {
+                // Labelled parts, so the group's step and the playlist position never read as two bare fractions.
+                listOfNotNull(
+                    context.getString(R.string.notif_paused).takeIf { model.paused },
+                    model.step?.let { context.getString(R.string.cover_group_step, it.step, it.count) },
+                    model.position?.let { (index, size) -> context.getString(R.string.notif_list_position, index, size) },
+                ).joinToString(" · ").ifEmpty { null }
             },
         )
-        // "Grup · 2/4" in the header while a group plays.
-        model.groupStep?.let { (step, count) -> setSubText(context.getString(R.string.notif_group_step, step, count)) }
+        when {
+            model.live -> setSubText(context.getString(R.string.tile_screen_saver))
+            // Not twice: a nameless item already has "cover on" as its title.
+            model.title.isNotBlank() -> setSubText(context.getString(R.string.notif_title))
+        }
         setOngoing(true)
         // Android 14+ lets the user swipe even ongoing notifications away.
         setDeleteIntent(action(ACTION_PLAYING_DISMISSED))
-        addAction(
-            if (model.paused) R.drawable.ic_notif_play else R.drawable.ic_notif_pause,
-            context.getString(if (model.paused) R.string.action_resume else R.string.action_pause),
-            action(ACTION_TOGGLE),
-        )
-        // Three buttons fit: a clip with sound (or a group with one) gets the sound switch in place of "next" (a swipe on the cover
-        // still skips). "Next" would change a hidden selection while an editor shows its draft on the cover.
-        when {
-            model.sound != null && !model.editing -> addAction(
-                if (model.sound) R.drawable.ic_notif_sound_off else R.drawable.ic_notif_sound_on,
-                context.getString(if (model.sound) R.string.action_sound_off else R.string.action_sound_on),
-                action(ACTION_SOUND),
-            )
-            !model.editing -> addAction(R.drawable.ic_notif_next, context.getString(R.string.action_next), action(ACTION_NEXT))
+        val buttons = notificationActions(group = model.inGroup, otherItems = model.itemSkip, sound = model.sound != null, editing = model.editing)
+        buttons.actions.forEach { button ->
+            when (button) {
+                NotifAction.PREVIOUS -> addAction(
+                    R.drawable.ic_notif_previous,
+                    context.getString(if (model.inGroup) R.string.action_previous_step else R.string.action_previous),
+                    action(ACTION_PREVIOUS),
+                )
+                NotifAction.PLAY_PAUSE -> addAction(
+                    if (model.paused) R.drawable.ic_notif_play else R.drawable.ic_notif_pause,
+                    context.getString(if (model.paused) R.string.action_resume else R.string.action_pause),
+                    action(ACTION_TOGGLE),
+                )
+                NotifAction.NEXT -> addAction(
+                    R.drawable.ic_notif_next,
+                    context.getString(if (model.inGroup) R.string.action_next_step else R.string.action_next),
+                    action(ACTION_NEXT),
+                )
+                NotifAction.NEXT_ITEM -> addAction(R.drawable.ic_notif_next_item, context.getString(R.string.action_next_item), action(ACTION_NEXT_ITEM))
+                NotifAction.SOUND -> addAction(
+                    if (model.sound == true) R.drawable.ic_notif_sound_off else R.drawable.ic_notif_sound_on,
+                    context.getString(if (model.sound == true) R.string.action_sound_off else R.string.action_sound_on),
+                    action(ACTION_SOUND),
+                )
+                // The same words as the × on the cover it turns off.
+                NotifAction.STOP -> addAction(
+                    R.drawable.ic_notif_close,
+                    context.getString(if (model.live) R.string.cover_close else R.string.action_cover_off),
+                    action(ACTION_STOP),
+                )
+            }
         }
-        addAction(R.drawable.ic_notif_close, context.getString(R.string.action_cover_off), action(ACTION_STOP))
+        setStyle(MediaStyle().setShowActionsInCompactView(*buttons.compact.toIntArray()))
     }.build()
 
     private fun post(notification: android.app.Notification) {
@@ -231,8 +277,17 @@ class CoverNotifier(
         private const val NOTIFICATION_ID = 1
         private const val BRAND_COLOR = 0xFF8A9BFF.toInt()
         const val ACTION_TOGGLE = "com.zlip.app.action.TOGGLE"
+        const val ACTION_PREVIOUS = "com.zlip.app.action.PREVIOUS"
         const val ACTION_NEXT = "com.zlip.app.action.NEXT"
+
+        /** The next item, leaving a group whatever step it is on. */
+        const val ACTION_NEXT_ITEM = "com.zlip.app.action.NEXT_ITEM"
+
+        /** Turns the cover off from outside Zlip (the notification): the small window, if one floats, closes too. */
         const val ACTION_STOP = "com.zlip.app.action.STOP"
+
+        /** The small window's own "turn cover off": the window stays, dimmed, as the way back on. */
+        const val ACTION_STOP_KEEP_WINDOW = "com.zlip.app.action.STOP_KEEP_WINDOW"
         const val ACTION_SOUND = "com.zlip.app.action.SOUND"
         const val ACTION_PLAYING_DISMISSED = "com.zlip.app.action.PLAYING_DISMISSED"
         const val ACTION_MIRROR_STOP = "com.zlip.app.action.MIRROR_STOP"
@@ -253,6 +308,29 @@ class CoverNotifier(
  */
 internal fun notifiedSound(selected: CoverItem?, soundOn: Boolean): Boolean? = soundOn.takeIf { hasSoundToSwitch(selected) }
 
+/** A button of the cover-controls notification. */
+internal enum class NotifAction { PREVIOUS, PLAY_PAUSE, NEXT, NEXT_ITEM, SOUND, STOP }
+
+/** The notification's buttons in order, and the positions of those its collapsed view shows. */
+internal data class NotifActions(val actions: List<NotifAction>, val compact: List<Int>)
+
+/**
+ * The notification's buttons: ⏮ ⏯ ⏭ in fixed slots, also when collapsed, so they never move or change meaning between
+ * items. The expanded view adds one extra, "Sonraki içerik" for a [group] with [otherItems] or else the sound switch
+ * for an item with [sound], and × always last, outside the collapsed view. While [editing] (a draft on the cover) a
+ * move would change a hidden selection: only ⏯ and ×. Pure, so it is unit-tested.
+ */
+internal fun notificationActions(group: Boolean, otherItems: Boolean, sound: Boolean, editing: Boolean): NotifActions {
+    if (editing) return NotifActions(listOf(NotifAction.PLAY_PAUSE, NotifAction.STOP), compact = listOf(0))
+    val extra = when {
+        group && otherItems -> NotifAction.NEXT_ITEM
+        sound -> NotifAction.SOUND
+        else -> null
+    }
+    val actions = listOfNotNull(NotifAction.PREVIOUS, NotifAction.PLAY_PAUSE, NotifAction.NEXT, extra, NotifAction.STOP)
+    return NotifActions(actions, compact = listOf(0, 1, 2))
+}
+
 /**
  * Handles the buttons of the cover-controls and mirroring notifications and of Zlip's small window. Not
  * exported: only our own PendingIntents can reach it.
@@ -262,7 +340,10 @@ class CoverActionReceiver : BroadcastReceiver() {
         val app = context.applicationContext as ZlipApp
         when (intent.action) {
             CoverNotifier.ACTION_TOGGLE -> app.playback.togglePause()
-            CoverNotifier.ACTION_NEXT -> app.playback.next() // ignored while an editor draft is shown
+            // Moves are ignored while an editor draft is shown.
+            CoverNotifier.ACTION_PREVIOUS -> app.playback.previous()
+            CoverNotifier.ACTION_NEXT -> app.playback.next()
+            CoverNotifier.ACTION_NEXT_ITEM -> app.playback.nextItem()
             CoverNotifier.ACTION_PLAYING_DISMISSED -> app.notifier.dismissPlaying()
             CoverNotifier.ACTION_MIRROR_STOP -> app.mirror.stop()
             CoverNotifier.ACTION_MIRROR_VIEW -> app.mirror.toggleView()
@@ -270,9 +351,10 @@ class CoverActionReceiver : BroadcastReceiver() {
             // The same switch as the cover's own button: the cover's sound, until it next starts over.
             CoverNotifier.ACTION_SOUND -> if (hasSoundToSwitch(app.repository.selectedItem.value)) app.playback.toggleSound()
             CoverNotifier.ACTION_STOP -> {
-                if (app.cover.status.value == CoverStatus.ACTIVE) app.stopCover()
+                if (app.cover.status.value == CoverStatus.ACTIVE) app.stopCover(hideMiniWindow = true)
                 app.playback.requestCloseLiveView()
             }
+            CoverNotifier.ACTION_STOP_KEEP_WINDOW -> if (app.cover.status.value == CoverStatus.ACTIVE) app.stopCover()
         }
     }
 

@@ -63,7 +63,8 @@ class CoverTileService : TileService() {
             return
         }
         if (app.cover.status.value == CoverStatus.ACTIVE) {
-            app.stopCover()
+            // From outside Zlip: its small window, if one floats, closes too.
+            app.stopCover(hideMiniWindow = true)
             // The session ends asynchronously; show the result right away so a second tap does not restart it.
             show(Shown.OFF)
             return

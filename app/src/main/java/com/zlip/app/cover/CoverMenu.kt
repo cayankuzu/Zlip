@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -36,7 +37,9 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -96,9 +99,10 @@ import kotlinx.coroutines.flow.drop
 /**
  * The folded cover's menu, opened with a swipe up, so everything can be done without opening the phone:
  * the playlist as a paged grid of still thumbnails (tap one to show it), brightness, how long the cover
- * stays lit and quick switches. The title, position, sound and close button of what is showing stay at
- * hand too, so toys (whose taps go to the game) keep them. It covers the whole cover; a swipe down, Back or
- * picking an item closes it. Laid out for the small square cover: big targets, nothing tiny.
+ * stays lit and quick switches. The title, position and sound of what is showing stay at hand too, so toys (whose
+ * taps go to the game) keep them. It covers the whole cover; the ⌄ in its corner, the handle, a swipe down, Back or
+ * picking an item closes it and the screen saver plays on. Closing the screen saver itself is a labelled row at the
+ * end, so it is never mistaken for closing the menu. Laid out for the small square cover: big targets, nothing tiny.
  *
  * Every click, switch, slider change and page turn calls [onUserActivity], since TalkBack's double tap
  * sends no touch the host could count. [open] is false while the menu slides away. [brightnessLocked]: a QR
@@ -189,7 +193,6 @@ internal fun CoverMenu(
                 onUserActivity()
                 playback.toggleSound()
             },
-            onClose = onClose,
             onDismiss = onDismiss,
             modifier = faded.draggable(
                 state = rememberDraggableState { delta -> pull = (pull + delta).coerceAtLeast(0f) },
@@ -274,29 +277,57 @@ internal fun CoverMenu(
                     },
                 )
             }
+            if (onClose != null) CloseScreenSaverRow(onClose, faded)
         }
     }
 }
 
-/** The handle (a tap or a swipe down closes the menu), then what is showing: title, position, sound, close. */
+/** The way out of the screen saver altogether (back to the cover's lock screen), spelled out at the end of the menu. */
+@Composable
+private fun CloseScreenSaverRow(onClose: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.padding(top = 12.dp)) {
+        HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp)
+                .clip(MaterialTheme.shapes.small)
+                .clickable(role = Role.Button, onClick = onClose)
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.85f))
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = stringResource(R.string.cover_close),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.85f),
+            )
+        }
+    }
+}
+
+/**
+ * The handle (a tap anywhere along it or a swipe down closes the menu), then what is showing: title, position, sound,
+ * and ⌄, which closes the menu (it mirrors the ^ that opened it) and nothing more.
+ */
 @Composable
 private fun MenuHeader(
     title: String,
     position: String?,
     soundOn: Boolean?,
     onToggleSound: () -> Unit,
-    onClose: (() -> Unit)?,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val closeMenu = stringResource(R.string.cover_menu_close)
     Column(modifier.fillMaxWidth()) {
+        // A big target for fingers; TalkBack has the ⌄ button for the same, so the handle stays out of its way.
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(22.dp)
+                .height(40.dp)
                 .clickable(role = Role.Button, onClick = onDismiss)
-                .semantics { contentDescription = closeMenu },
+                .clearAndSetSemantics {},
             contentAlignment = Alignment.Center,
         ) {
             Box(
@@ -322,7 +353,7 @@ private fun MenuHeader(
                     onToggleSound,
                 )
             }
-            if (onClose != null) MenuIconButton(Icons.Filled.Close, stringResource(R.string.cover_close), onClose)
+            MenuIconButton(Icons.Filled.KeyboardArrowDown, stringResource(R.string.cover_menu_close), onDismiss)
         }
     }
 }

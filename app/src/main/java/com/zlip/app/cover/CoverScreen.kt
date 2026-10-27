@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -89,18 +91,26 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.pow
 import kotlin.random.Random
 
 /**
  * What the cover shows, with its controls.
  *
- * Phone open ([lockTouches]): the cover faces the palm, so touches are ignored until a double tap and
- * lock again after 3 s; while unlocked the controls show, a tap pauses and a swipe changes the item.
- * Folded screen saver: touches work directly. A tap shows the controls, a sideways swipe changes the
- * item, a swipe up opens the menu ([CoverMenu]) and a swipe down hands the cover back to its lock screen
- * ([onDismiss]); [onClose] ends it. The open phone has no menu: its cover faces other people.
+ * Phone open ([lockTouches]): the cover faces the palm, so touches are ignored until a double tap (a single tap says
+ * so) and lock again after 3 s; while unlocked the controls show, a swipe moves on and a tap on empty space is done
+ * with them (it locks again). Its [onClose], the controls' ×, turns the cover off.
+ * Folded screen saver: touches work directly. A tap shows the controls, a sideways swipe moves on, a swipe up opens
+ * the menu ([CoverMenu]) and a swipe down hands the cover back to its lock screen ([onDismiss]); [onClose] ends it.
+ * The open phone has no menu: its cover faces other people.
+ *
+ * Moves follow one model everywhere: in a group, swipes and the main buttons step through it (on to the next item
+ * after its last step), and two labelled pills leave it for another item; a single item moves to the next one. After a
+ * move the user made while the controls are hidden, a short hint says where it went. TalkBack gets every move, pause
+ * and close as actions on both covers.
  *
  * A photo or video (a group's step too) frames like a phone's gallery wherever touches work: two fingers zoom it, one
  * finger moves it while it is zoomed in (it then stays the item on screen), and the controls switch Fit / Fill, which
@@ -140,6 +150,8 @@ fun CoverScreen(
     val paused by playback.paused.collectAsState()
     val session by playback.session.collectAsState()
     val soundOn by playback.soundOn.collectAsState()
+    val groupProgress by playback.groupProgress.collectAsState()
+    val itemSkipAvailable by playback.itemSkipAvailable.collectAsState()
     val mirrorOn = mirror?.state?.collectAsState()?.value == MirrorState.ON
     val mirroring = mirror?.takeIf { mirrorOn }
     val currentMirroring by rememberUpdatedState(mirroring)
@@ -163,9 +175,30 @@ fun CoverScreen(
     val currentOnUserActivity by rememberUpdatedState(onUserActivity)
     val context = LocalContext.current
     val accessibility = remember { context.getSystemService(AccessibilityManager::class.java) }
+    // TalkBack's explore by touch: its double tap never reaches the touch lock, so the open phone answers actions.
+    var talkBack by remember { mutableStateOf(accessibility.isTouchExplorationEnabled) }
+    DisposableEffect(accessibility) {
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { enabled -> talkBack = enabled }
+        accessibility.addTouchExplorationStateChangeListener(listener)
+        talkBack = accessibility.isTouchExplorationEnabled
+        onDispose { accessibility.removeTouchExplorationStateChangeListener(listener) }
+    }
     val showControlsLabel = stringResource(R.string.cover_show_controls)
+    val hideControlsLabel = stringResource(R.string.cover_controls_hide)
     val openMenuLabel = stringResource(R.string.cover_menu_open)
     val lockScreenLabel = stringResource(R.string.cover_to_lock_screen)
+    // The same words as Home, the notification and the Mini kapak on the open phone; the screen saver closes itself.
+    val closeLabel = stringResource(if (lockTouches) R.string.action_cover_off else R.string.cover_close)
+    // What the moves do here, the same as the buttons: steps inside a group, items otherwise.
+    val inGroup = !editing && item is CoverItem.Group
+    val itemSkip = !editing && itemSkipAvailable
+    // A group alone in the playlist goes round its steps; a single item alone has nowhere to go.
+    val canSkip = !editing && (sequence.size > 1 || item is CoverItem.Group)
+    val previousLabel = stringResource(if (inGroup) R.string.action_previous_step else R.string.action_previous)
+    val nextLabel = stringResource(if (inGroup) R.string.action_next_step else R.string.action_next)
+    val previousItemLabel = stringResource(R.string.action_previous_item)
+    val nextItemLabel = stringResource(R.string.action_next_item)
+    val pauseLabel = stringResource(if (paused) R.string.action_resume else R.string.action_pause)
     val openMenu = {
         controlsShown = false
         menuShown = true
@@ -331,19 +364,79 @@ fun CoverScreen(
         }
     }
 
-    // Open phone: re-lock after 3 s without touches. The screen itself stays on (FLAG_KEEP_SCREEN_ON).
-    LaunchedEffect(unlocked) {
+    // Open phone: re-lock after 3 s without touches. The screen itself stays on (FLAG_KEEP_SCREEN_ON). Not with
+    // TalkBack, whose exploring never counts as a touch: the controls would vanish under the user's finger.
+    LaunchedEffect(unlocked, talkBack) {
+        if (talkBack) return@LaunchedEffect
         while (unlocked) {
             delay(lock.millisUntilLock(SystemClock.uptimeMillis()).coerceAtLeast(16))
             if (lock.lockIfIdle(SystemClock.uptimeMillis())) unlocked = false
         }
     }
-    // Folded: the controls fade away by themselves once the user stops touching. Not with TalkBack, whose
-    // exploring never counts as a touch here: the controls would vanish under the user's finger.
-    LaunchedEffect(controlsShown, lastTouch) {
-        if (!controlsShown || accessibility.isTouchExplorationEnabled) return@LaunchedEffect
+    // Folded: the controls fade away by themselves once the user stops touching. Not with TalkBack, as above.
+    LaunchedEffect(controlsShown, lastTouch, talkBack) {
+        if (!controlsShown || talkBack) return@LaunchedEffect
         delay(CONTROLS_TIMEOUT_MS)
         controlsShown = false
+    }
+    // Done with the controls: a tap on empty space (or TalkBack's "hide") puts them away, and the open phone locks again.
+    val hideControls = {
+        if (lockTouches) {
+            unlocked = false
+            lock.lock()
+        } else {
+            controlsShown = false
+        }
+    }
+
+    // A single tap on the locked open-phone cover: if no second tap follows, say how to use it (at most every 30 s).
+    var lockedTapAt by remember { mutableLongStateOf(0L) }
+    var lockedHintShownAt by remember { mutableStateOf<Long?>(null) }
+    var lockedHint by remember { mutableStateOf(false) }
+    LaunchedEffect(lockedTapAt) {
+        if (lockedTapAt == 0L) return@LaunchedEffect
+        delay(CoverHints.LOCKED_TAP_WAIT_MS)
+        val now = SystemClock.uptimeMillis()
+        if (lock.isActive || !CoverHints.lockedHintDue(now, lockedHintShownAt)) return@LaunchedEffect
+        lockedHintShownAt = now
+        lockedHint = true
+        try {
+            delay(CoverHints.LOCKED_HINT_MS)
+        } finally {
+            lockedHint = false
+        }
+    }
+
+    // After a move the user made (here, the notification, Home or the Mini kapak) while the controls are hidden, a
+    // moment of "Adım 3/5" or the item's name says where it went. Auto-advance never sends one.
+    // The last hint stays set while it fades out, so its text does not vanish before the pill does.
+    var moveHint by remember { mutableStateOf<MoveHint?>(null) }
+    var moveHintShown by remember { mutableStateOf(false) }
+    LaunchedEffect(playback) {
+        playback.manualMoves.collectLatest { move ->
+            // A step is reported by the group once it shows; wait for that (briefly), not for the old step.
+            if (move == CoverMove.STEP) {
+                val before = playback.groupProgress.value
+                withTimeoutOrNull(MOVE_SETTLE_MS) { playback.groupProgress.first { it != before } }
+            }
+            val hint = CoverHints.afterMove(move, repository.currentSelected, repository.currentSequence, playback.groupProgress.value)
+            if (hint == null) {
+                moveHintShown = false
+                return@collectLatest
+            }
+            moveHint = hint
+            moveHintShown = true
+            try {
+                delay(MOVE_HINT_MS)
+            } finally {
+                moveHintShown = false
+            }
+        }
+    }
+    val moveHintText = when (val hint = moveHint) {
+        is MoveHint.Step -> stringResource(R.string.cover_group_step, hint.step, hint.count)
+        is MoveHint.Item -> listOfNotNull(hint.name, hint.position?.let { "$it/${hint.count}" }).joinToString(" · ")
+        null -> null
     }
 
     Box(
@@ -352,19 +445,49 @@ fun CoverScreen(
             .background(Color.Black)
             .onSizeChanged { coverSize = it }
             .semantics {
-                // TalkBack cannot swipe the cover: offer the same things as actions. They reach no touch
-                // handler, so each one tells the host it was used.
-                if (!lockTouches && !menuShown) {
-                    onClick(label = showControlsLabel) {
+                // TalkBack cannot swipe the cover, and on the open phone its double tap never reaches the touch lock:
+                // offer the same things as actions. They reach no touch handler, so each one tells the host it was used.
+                if ((!lockTouches || talkBack) && !menuShown) {
+                    onClick(label = if (controlsVisible) hideControlsLabel else showControlsLabel) {
                         currentOnUserActivity()
-                        // Like a touch, the first one only wakes a resting screen saver.
-                        if (!ambient) {
-                            controlsShown = true
-                            lastTouch = SystemClock.uptimeMillis()
+                        when {
+                            controlsVisible -> hideControls()
+                            // Unlocked for as long as TalkBack is on: it never counts as a touch, so no idle re-lock.
+                            lockTouches -> {
+                                lock.unlock(SystemClock.uptimeMillis())
+                                unlocked = true
+                            }
+                            // Like a touch, the first one only wakes a resting screen saver.
+                            !ambient -> {
+                                controlsShown = true
+                                lastTouch = SystemClock.uptimeMillis()
+                            }
                         }
                         true
                     }
                     customActions = buildList {
+                        val used = { action: () -> Unit ->
+                            currentOnUserActivity()
+                            lastTouch = SystemClock.uptimeMillis()
+                            action()
+                            true
+                        }
+                        // Moves, exactly as the buttons: steps in a group, items otherwise; the item pills' way out. Not
+                        // while mirroring: the playlist behind the mirror is out of sight.
+                        if (mirroring == null) {
+                            if (canSkip) {
+                                add(CustomAccessibilityAction(nextLabel) { used(playback::next) })
+                                add(CustomAccessibilityAction(previousLabel) { used(playback::previous) })
+                            }
+                            if (itemSkip) {
+                                add(CustomAccessibilityAction(nextItemLabel) { used(playback::nextItem) })
+                                add(CustomAccessibilityAction(previousItemLabel) { used(playback::previousItem) })
+                            }
+                            add(CustomAccessibilityAction(pauseLabel) { used(playback::togglePause) })
+                        }
+                        val close = onClose
+                        if (close != null) add(CustomAccessibilityAction(closeLabel) { close(); true })
+                        if (lockTouches) return@buildList
                         add(
                             CustomAccessibilityAction(openMenuLabel) {
                                 // Woken first, so the menu never opens over a resting (dimmed, paused) screen.
@@ -419,8 +542,9 @@ fun CoverScreen(
                         // Zoomed in by a pinch in this showing: the fingers move the picture around, and it stays the
                         // item on screen. A zoom saved earlier only frames it; swipes stay swipes until a new pinch.
                         val gesture = frameMedia(down, lock, pinching = false, framing, glideScope, moveMedia)
+                        // A tap on the picture: the open phone is done with the controls (pause is the button's job).
                         if (gesture.tapped) {
-                            if (lockTouches) playback.togglePause() else controlsShown = !controlsShown
+                            if (lockTouches) hideControls() else controlsShown = !controlsShown
                         }
                         lastTouch = gesture.upTime
                         return@awaitEachGesture
@@ -429,6 +553,8 @@ fun CoverScreen(
                     var lifted = false
                     var othersDown = false
                     var pinched = false
+                    // More than one finger at any point (a palm, a pinch): never a tap that asks for the lock's hint.
+                    var multiTouch = false
                     try {
                         while (true) {
                             val event = awaitPointerEvent()
@@ -436,6 +562,7 @@ fun CoverScreen(
                             val change = event.changes.firstOrNull { it.id == down.id }
                             if (change == null || change.isConsumed) break
                             last = change
+                            if (event.changes.count { it.pressed } > 1) multiTouch = true
                             // A second finger on a photo or video: a pinch, which zooms it from here on.
                             if (framed != null && event.changes.count { it.pressed } > 1) {
                                 pinched = true
@@ -469,15 +596,21 @@ fun CoverScreen(
                             upMs = last.uptimeMillis,
                             upX = last.position.x,
                             upY = last.position.y,
+                            multiTouch = multiTouch || othersDown,
                         )
                         val shownMirror = currentMirroring
                         when (result) {
-                            GestureResult.ACTIVATED -> unlocked = true
+                            GestureResult.ACTIVATED -> {
+                                lockedTapAt = 0L
+                                unlocked = true
+                            }
+                            // Empty space means "done with the controls" on both covers; pause is the middle button.
                             GestureResult.TAP -> when {
                                 shownMirror != null -> shownMirror.toggleView()
-                                lockTouches -> playback.togglePause()
+                                lockTouches -> hideControls()
                                 else -> controlsShown = !controlsShown
                             }
+                            GestureResult.LOCKED_TAP -> lockedTapAt = last.uptimeMillis
                             // CoverPlayback ignores these while an editor streams a draft. A mirror steers itself
                             // (steerMirror above), never the playlist hidden behind it.
                             GestureResult.SWIPE_NEXT -> if (shownMirror == null) playback.next()
@@ -556,7 +689,8 @@ fun CoverScreen(
                     }
                 }
             }
-            if (clockShown) {
+            // Under the controls' scrim it would only crowd their bottom row; they say what matters then.
+            if (clockShown && !controlsVisible) {
                 CoverClock(
                     Modifier
                         .align(Alignment.BottomStart)
@@ -581,9 +715,10 @@ fun CoverScreen(
             )
         }
 
-        // The live view has no unlock hint, so a frozen frame needs its own sign that it is paused.
+        // A frozen frame needs its own sign that it is paused, on both covers. Only while the controls are hidden, so it
+        // never meets the controls' × in the same corner.
         AnimatedVisibility(
-            visible = paused && !lockTouches && !controlsVisible && !ambient && !menuShown,
+            visible = paused && !controlsVisible && !ambient && !menuShown && !editing && mirroring == null,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
@@ -623,13 +758,43 @@ fun CoverScreen(
             visible = zoomHint && look != null,
             enter = fadeIn(),
             exit = fadeOut(),
-            // Above the controls' bottom row while they show, and above the clock in the bottom-left corner.
+            // Under the title while the controls show (their item pills and bottom row take the lower half); otherwise
+            // at the bottom, above the clock in the bottom-left corner.
+            modifier = Modifier
+                .align(if (controlsVisible) Alignment.TopCenter else Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.displayCutout)
+                .padding(
+                    top = if (controlsVisible) 64.dp else 0.dp,
+                    bottom = if (controlsVisible) 0.dp else if (clockShown) 96.dp else 18.dp,
+                ),
+        ) {
+            ZoomHint()
+        }
+
+        // Where a move went, while the controls are hidden; never over a resting screen saver, the menu or a mirror.
+        AnimatedVisibility(
+            visible = moveHintShown && !controlsVisible && !ambient && !menuShown && mirroring == null && !editing,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .windowInsetsPadding(WindowInsets.displayCutout)
+                .padding(start = 24.dp, end = 24.dp, top = 14.dp),
+        ) {
+            HintPill(moveHintText.orEmpty(), announce = true)
+        }
+
+        // A single tap on the locked open-phone cover did nothing visible: say how to use it.
+        AnimatedVisibility(
+            visible = lockedHint && !controlsVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.displayCutout)
-                .padding(bottom = if (controlsVisible || clockShown) 96.dp else 18.dp),
+                .padding(bottom = 18.dp),
         ) {
-            ZoomHint()
+            HintPill(stringResource(R.string.cover_locked_hint), icon = Icons.Filled.TouchApp)
         }
 
         AnimatedVisibility(visible = controlsVisible, enter = fadeIn(), exit = fadeOut()) {
@@ -642,8 +807,12 @@ fun CoverScreen(
                             .border(3.dp, Brush.linearGradient(BrandGradient), RoundedCornerShape(20.dp)),
                     )
                 }
-                // Mirroring shows the frame alone: taps and swipes steer the mirror, there is no playlist to control.
-                if (mirroring != null) return@Box
+                // Mirroring shows the frame and its × alone: taps and swipes steer the mirror, there is no playlist to
+                // control.
+                if (mirroring != null) {
+                    if (onClose != null) CoverCloseButton(closeLabel, onClose, Modifier.align(Alignment.TopEnd))
+                    return@Box
+                }
                 val shown = item
                 val index = sequence.indexOfFirst { it.id == shown?.id }
                 // Only the cover's sound for now, so an editor's draft may switch it too.
@@ -652,8 +821,8 @@ fun CoverScreen(
                     title = shown?.name.orEmpty(),
                     position = if (!editing && index >= 0 && sequence.size > 1) "${index + 1}/${sequence.size}" else null,
                     paused = paused,
-                    // A group steps through its items even when it is alone in the playlist.
-                    canSkip = !editing && (sequence.size > 1 || shown is CoverItem.Group),
+                    // A group steps through its items even when it is alone in the playlist (it goes round).
+                    canSkip = canSkip,
                     soundOn = soundOn.takeIf { canSwitchSound },
                     onPrevious = {
                         lastTouch = SystemClock.uptimeMillis()
@@ -676,6 +845,7 @@ fun CoverScreen(
                         playback.toggleSound()
                     },
                     onClose = onClose,
+                    closeLabel = closeLabel,
                     mediaFit = look?.fit,
                     onSwitchFit = {
                         lastTouch = SystemClock.uptimeMillis()
@@ -691,6 +861,21 @@ fun CoverScreen(
                         null
                     },
                     compact = shown is CoverItem.Toy,
+                    // Until the group reports its step, it is at step one: every showing starts there.
+                    group = (shown as? CoverItem.Group)?.takeIf { inGroup }?.let { group ->
+                        groupProgress?.takeIf { it.groupId == group.id } ?: GroupProgress(group.id, 1, group.items.size)
+                    },
+                    itemSkip = itemSkip,
+                    onPreviousItem = {
+                        lastTouch = SystemClock.uptimeMillis()
+                        currentOnUserActivity()
+                        playback.previousItem()
+                    },
+                    onNextItem = {
+                        lastTouch = SystemClock.uptimeMillis()
+                        currentOnUserActivity()
+                        playback.nextItem()
+                    },
                 )
             }
         }
@@ -786,6 +971,12 @@ private const val TOY_HINT_MS = 2_000L
 /** How long the mirror's gesture hint stays, unless a move puts it away first. */
 private const val MIRROR_HINT_MS = 4_000L
 
+/** How long the hint after a manual move stays. */
+private const val MOVE_HINT_MS = 1_200L
+
+/** How long a step move waits for the group to report its new step before the hint shows what it has. */
+private const val MOVE_SETTLE_MS = 300L
+
 /** How long the zoom hint stays. */
 private const val ZOOM_HINT_MS = 3_000L
 
@@ -801,3 +992,43 @@ private data class FramingLook(val fit: MediaFit, val zoomedIn: Boolean, val clo
 
 /** Resting brightness relative to the user's setting. */
 private const val AMBIENT_FACTOR = 0.35f
+
+/** What the short hint after a manual move says: the group's step, or the item it went to. */
+internal sealed interface MoveHint {
+    /** Still inside the group: "Adım [step]/[count]". */
+    data class Step(val step: Int, val count: Int) : MoveHint
+
+    /** On another item: its [name] (null if it has none) and, in a longer playlist, [position] of [count]. */
+    data class Item(val name: String?, val position: Int?, val count: Int) : MoveHint
+}
+
+/** What the cover's short hints say and when. Pure, so it is unit-tested. */
+internal object CoverHints {
+    /** How long after a single tap on the locked cover a second one still makes the unlocking double tap. */
+    const val LOCKED_TAP_WAIT_MS = 350L
+
+    /** How long the "double-tap to use" hint stays. */
+    const val LOCKED_HINT_MS = 1_500L
+
+    /** The hint shows at most once in this long, so taps on a cover that faces the palm do not keep it up. */
+    const val LOCKED_HINT_GAP_MS = 30_000L
+
+    /**
+     * After a manual [move]: a step inside the group [selected] says where in the group it is ([progress]); a move to
+     * another item says which ([selected]'s name and its place in [sequence]). Null when there is nothing to say.
+     */
+    fun afterMove(move: CoverMove, selected: CoverItem?, sequence: List<CoverItem>, progress: GroupProgress?): MoveHint? {
+        if (move == CoverMove.STEP && progress != null && progress.groupId == selected?.id) {
+            return MoveHint.Step(progress.step, progress.count)
+        }
+        if (selected == null) return null
+        val index = sequence.indexOfFirst { it.id == selected.id }
+        val position = (index + 1).takeIf { index >= 0 && sequence.size > 1 }
+        val name = selected.name.ifBlank { null }
+        if (name == null && position == null) return null
+        return MoveHint.Item(name, position, sequence.size)
+    }
+
+    /** Whether the locked cover's hint may show at [nowMs], having last shown at [lastShownMs] (null: not yet). */
+    fun lockedHintDue(nowMs: Long, lastShownMs: Long?): Boolean = lastShownMs == null || nowMs - lastShownMs >= LOCKED_HINT_GAP_MS
+}

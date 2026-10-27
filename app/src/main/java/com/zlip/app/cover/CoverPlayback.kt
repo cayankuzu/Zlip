@@ -128,13 +128,14 @@ class CoverPlayback(
     val itemSkipAvailable: StateFlow<Boolean> = combine(repository.selectedItem, repository.sequence, CoverNav::itemSkipAvailable)
         .stateIn(scope, SharingStarted.Eagerly, false)
 
-    private val _manualMoves = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+    private val _manualMoves = MutableSharedFlow<CoverMove>(extraBufferCapacity = 4)
 
     /**
      * One event per move the user made ([next], [previous], [nextItem], [previousItem]) from any surface, sent once
-     * the move happened; never for auto-advance. The cover answers it with a short "Adım 3/5" hint.
+     * the move happened, saying whether it stayed inside the group; never for auto-advance. The cover answers it with
+     * a short "Adım 3/5" (or the item's name) hint.
      */
-    val manualMoves: SharedFlow<Unit> = _manualMoves.asSharedFlow()
+    val manualMoves: SharedFlow<CoverMove> = _manualMoves.asSharedFlow()
 
     /**
      * What the cover shows: the selected item, or the step its group is on. The step as the group holds it now, so an
@@ -254,10 +255,11 @@ class CoverPlayback(
         // While an editor streams a draft the selection is hidden; changing it would be invisible.
         if (editing.value) return
         _paused.value = false
-        if (!CoverNav.staysInGroup(byStep) { stepGroup(forward) }) {
+        val stayed = CoverNav.staysInGroup(byStep) { stepGroup(forward) }
+        if (!stayed) {
             if (forward) repository.selectNext(shuffle = CoverNav.MANUAL_SHUFFLE) else repository.selectPrevious()
         }
-        _manualMoves.tryEmit(Unit)
+        _manualMoves.tryEmit(if (stayed) CoverMove.STEP else CoverMove.ITEM)
     }
 
     /** Moves inside the group on the cover; false when there is no group or no step that way. */
@@ -463,6 +465,9 @@ class CoverPlayback(
 
 /** Where the group [groupId] on the cover is: [step] (1-based, in this pass's play order) of [count]. */
 data class GroupProgress(val groupId: String, val step: Int, val count: Int)
+
+/** What a manual move did: [STEP] stayed inside the group on the cover, [ITEM] went to another item. */
+enum class CoverMove { STEP, ITEM }
 
 /** The step [child] that the group [groupId] shows, at [position] (1-based) of the [count] steps in its play order. */
 internal data class StepShown(val groupId: String, val child: CoverItem, val position: Int, val count: Int)
