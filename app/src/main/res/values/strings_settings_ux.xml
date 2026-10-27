@@ -7,8 +7,8 @@
     <string name="gestures_folded_title">While folded</string>
     <string name="gesture_open_double_tap">Double-tap: controls appear, then lock again after 3 s</string>
     <string name="gesture_close">×: turn the cover off</string>
-    <string name="gesture_swipe">Swipe sideways: previous / next. In a group, its steps first</string>
-    <string name="gesture_leave_group">To leave a group: Next item / Previous item</string>
+    <string name="gesture_swipe">Swipe sideways: previous / next. In a sequence, its steps first</string>
+    <string name="gesture_leave_group">To leave a sequence: Next item / Previous item</string>
     <string name="gesture_pause">Middle button: pause / play</string>
     <string name="gesture_open_tap_done">Tap empty space: hide the controls</string>
     <string name="gesture_folded_tap">Tap: controls and ×</string>
@@ -29,5 +29,5 @@
     <string name="settings_pip_off">Picture-in-picture is off for this app, so the Mini cover can\'t open.</string>
     <string name="settings_pip_open">Turn on</string>
     <string name="settings_folded_inactive">These apply once the widget is added or \'Open when folded\' is on.</string>
-    <string name="advance_shuffle_auto_only">Next / previous always follow playlist order.</string>
+    <string name="advance_shuffle_auto_only">Previous / Next always go in order; shuffle is for auto-advance only.</string>
 </resources>

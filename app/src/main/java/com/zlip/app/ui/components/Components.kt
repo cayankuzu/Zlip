@@ -61,6 +61,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zlip.app.R
@@ -174,6 +175,9 @@ fun SectionTitle(@StringRes text: Int, modifier: Modifier = Modifier, trailing: 
         Text(
             text = stringResource(text),
             style = MaterialTheme.typography.titleMedium,
+            // Never split mid-word by what trails it.
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
         trailing()

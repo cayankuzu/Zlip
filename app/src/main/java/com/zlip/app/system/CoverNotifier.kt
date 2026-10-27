@@ -57,6 +57,8 @@ class CoverNotifier(
             val title: String,
             /** Where the item is in a playlist of more than one: (1-based position, size). */
             val position: Pair<Int, Int>?,
+            /** No playlist of the user's: the whole library rotates, so the position is "of all", not "in the list". */
+            val wholeLibrary: Boolean,
             val paused: Boolean,
             val editing: Boolean,
             /** The folded screen saver plays it, rather than the open phone's cover. */
@@ -76,6 +78,7 @@ class CoverNotifier(
     private data class Shown(
         val selected: CoverItem?,
         val sequence: List<CoverItem>,
+        val wholeLibrary: Boolean,
         val progress: GroupProgress?,
         val soundOn: Boolean,
         val itemSkip: Boolean,
@@ -99,16 +102,18 @@ class CoverNotifier(
                 combine(cover.status, playback.liveViewVisible, mirror.state) { status, live, mirroring -> Triple(status, live, mirroring) },
                 combine(
                     repository.selectedItem,
-                    repository.sequence,
+                    combine(repository.sequence, repository.playlist, ::Pair),
                     playback.groupProgress,
                     playback.soundOn,
                     playback.itemSkipAvailable,
-                    ::Shown,
-                ),
+                ) { selected, (sequence, playlist), progress, soundOn, itemSkip ->
+                    Shown(selected, sequence, wholeLibrary = playlist.isEmpty(), progress, soundOn, itemSkip)
+                },
                 repository.draft,
                 playback.paused,
                 combine(repository.settings, playingDismissed) { settings, dismissed -> settings.notificationControls && !dismissed },
-            ) { (status, live, mirroring), (selected, sequence, progress, soundOn, itemSkip), draft, paused, wanted ->
+            ) { (status, live, mirroring), shown, draft, paused, wanted ->
+                val (selected, sequence, wholeLibrary, progress, soundOn, itemSkip) = shown
                 val active = status == CoverStatus.ACTIVE
                 when {
                     !wanted -> Model.Hidden
@@ -124,6 +129,7 @@ class CoverNotifier(
                             // Not the draft's name: that would re-post the notification on every keystroke.
                             title = selected?.name.orEmpty(),
                             position = if (index >= 0 && sequence.size > 1) index + 1 to sequence.size else null,
+                            wholeLibrary = wholeLibrary,
                             paused = paused,
                             editing = editing,
                             live = live,
@@ -196,7 +202,10 @@ class CoverNotifier(
                 listOfNotNull(
                     context.getString(R.string.notif_paused).takeIf { model.paused },
                     model.step?.let { context.getString(R.string.cover_group_step, it.step, it.count) },
-                    model.position?.let { (index, size) -> context.getString(R.string.notif_list_position, index, size) },
+                    model.position?.let { (index, size) ->
+                        // Worded like Home's "Tümü · 3/7" / "Liste · 3/7": there may be no list at all.
+                        context.getString(if (model.wholeLibrary) R.string.notif_all_position else R.string.notif_list_position, index, size)
+                    },
                 ).joinToString(" · ").ifEmpty { null }
             },
         )

@@ -407,8 +407,11 @@ fun HomeScreen(
         showSnack(resources.getString(R.string.home_list_cleared), undoLabel) { library.onSetPlaylist(before) }
     }
 
+    // The sort sheet is a window of its own over Home: while it is open its snackbars (removing a row, with Undo)
+    // show inside it, and one still running when it closes carries on here.
+    val sortSheetShown = showSortSheet && !hovering
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { if (!sortSheetShown) SnackbarHost(snackbar) },
         topBar = {
             if (selecting) {
                 SelectionBar(
@@ -579,22 +582,6 @@ fun HomeScreen(
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        // Drag-and-drop ordering lives in its own sheet: long-press on a card selects.
-                        if (activeFilter == LibraryFilter.PLAYLIST && playlist.size >= 2 && !selecting) {
-                            TextButton(onClick = { showSortSheet = true }, modifier = Modifier.padding(start = 4.dp)) {
-                                Icon(Icons.Filled.SwapVert, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(stringResource(R.string.home_sort))
-                            }
-                        }
-                        // One tap back to "the whole library rotates", with Undo.
-                        if (activeFilter == LibraryFilter.PLAYLIST && playlist.isNotEmpty() && !selecting) {
-                            TextButton(onClick = ::clearPlaylist) {
-                                Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(stringResource(R.string.home_list_clear))
-                            }
-                        }
                     }
                     Spacer(Modifier.height(8.dp))
                     // Wraps rather than scrolls (as ChoiceChips does): a sideways row hid its last chips with nothing to
@@ -618,6 +605,26 @@ fun HomeScreen(
                                     null
                                 },
                             )
+                        }
+                    }
+                    // The list's own actions, on a row of their own under the chips: next to the title and count they
+                    // squeezed "Kitaplık" onto two lines at large font sizes.
+                    if (activeFilter == LibraryFilter.PLAYLIST && playlist.isNotEmpty() && !selecting) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Drag-and-drop ordering lives in its own sheet: long-press on a card selects.
+                            if (playlist.size >= 2) {
+                                TextButton(onClick = { showSortSheet = true }) {
+                                    Icon(Icons.Filled.SwapVert, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(stringResource(R.string.home_sort))
+                                }
+                            }
+                            // One tap back to "the whole library rotates", with Undo.
+                            TextButton(onClick = ::clearPlaylist) {
+                                Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(stringResource(R.string.home_list_clear))
+                            }
                         }
                     }
                     if (playlist.isEmpty() && items.size >= 2 && !selecting && !settings.playlistTipDismissed) {
@@ -750,12 +757,13 @@ fun HomeScreen(
         }
     }
 
-    if (showSortSheet && !hovering) {
+    if (sortSheetShown) {
         PlaylistSortSheet(
             items = playlist.mapNotNull { id -> items.firstOrNull { it.id == id } },
             onMove = library.onMoveInPlaylist,
             onRemove = { id -> removeFromPlaylist(setOf(id)) },
             onDismiss = { showSortSheet = false },
+            snackbar = snackbar,
         )
     }
 
@@ -1211,7 +1219,7 @@ private fun RowScope.ItemSkipButton(icon: ImageVector, @StringRes label: Int, ic
     }
 }
 
-/** "Süre: 10 sn": photo time, right where auto-advance is turned on; a tap lists the choices. */
+/** "Fotoğraf: 10 sn": photo time (videos play to their end), right where auto-advance is turned on; a tap lists the choices. */
 @Composable
 private fun AdvanceSecondsChip(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit) {
     var open by remember { mutableStateOf(false) }
@@ -1478,7 +1486,8 @@ private fun WidgetTipCard(onHow: () -> Unit, onDismiss: () -> Unit) {
 /**
  * Puts the playlist in order: drag a row by its handle (or long-press it), tap its arrows, or send it to
  * the top or bottom from its menu; TalkBack offers all of these as actions. [onMove] takes an item's id and
- * how many places it moves; [onRemove] takes an item out of the playlist (its menu).
+ * how many places it moves; [onRemove] takes an item out of the playlist (its menu). Home's [snackbar] shows
+ * inside the sheet, so the Undo of a removal is seen and reached while sorting.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1487,6 +1496,7 @@ private fun PlaylistSortSheet(
     onMove: (id: String, delta: Int) -> Unit,
     onRemove: (id: String) -> Unit,
     onDismiss: () -> Unit,
+    snackbar: SnackbarHostState,
 ) {
     val scrollState = rememberScrollState()
     val toTopLabel = stringResource(R.string.sort_to_top)
@@ -1500,31 +1510,36 @@ private fun PlaylistSortSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        SheetTitle(R.string.sort_title, onDone = onDismiss)
-        HintText(stringResource(R.string.sort_hint), modifier = Modifier.padding(horizontal = 24.dp))
-        Spacer(Modifier.height(12.dp))
-        Column(
-            Modifier
-                .weight(1f, fill = false)
-                .verticalScroll(scrollState)
-                .navigationBarsPadding()
-                .padding(start = 16.dp, end = 8.dp, bottom = 24.dp),
-        ) {
-            ReorderableList(
-                items = items,
-                itemKey = { it.id },
-                onMove = { from, to -> onMove(items[from].id, to - from) },
-                scrollState = scrollState,
-                actions = { item ->
-                    val index = items.indexOf(item)
-                    buildList {
-                        if (index > 0) add(CustomAccessibilityAction(toTopLabel) { toTop(item); true })
-                        if (index < items.lastIndex) add(CustomAccessibilityAction(toBottomLabel) { toBottom(item); true })
+        Box {
+            Column {
+                SheetTitle(R.string.sort_title, onDone = onDismiss)
+                HintText(stringResource(R.string.sort_hint), modifier = Modifier.padding(horizontal = 24.dp))
+                Spacer(Modifier.height(12.dp))
+                Column(
+                    Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(scrollState)
+                        .navigationBarsPadding()
+                        .padding(start = 16.dp, end = 8.dp, bottom = 24.dp),
+                ) {
+                    ReorderableList(
+                        items = items,
+                        itemKey = { it.id },
+                        onMove = { from, to -> onMove(items[from].id, to - from) },
+                        scrollState = scrollState,
+                        actions = { item ->
+                            val index = items.indexOf(item)
+                            buildList {
+                                if (index > 0) add(CustomAccessibilityAction(toTopLabel) { toTop(item); true })
+                                if (index < items.lastIndex) add(CustomAccessibilityAction(toBottomLabel) { toBottom(item); true })
+                            }
+                        },
+                    ) { item ->
+                        SortRow(item = item, onToTop = { toTop(item) }, onToBottom = { toBottom(item) }, onRemove = { onRemove(item.id) })
                     }
-                },
-            ) { item ->
-                SortRow(item = item, onToTop = { toTop(item) }, onToBottom = { toBottom(item) }, onRemove = { onRemove(item.id) })
+                }
             }
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
         }
     }
 }

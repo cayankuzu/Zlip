@@ -19,7 +19,7 @@
     <string name="group_shuffle">Shuffle</string>
     <string name="group_shuffle_desc">Steps play in a random order every round.</string>
     <string name="group_repeat">Repeat</string>
-    <string name="group_repeat_desc">Starts over when the group is alone or auto-advance is off. Off: stops at the last step.</string>
+    <string name="group_repeat_desc">Starts over when the sequence is alone or auto-advance is off. Off: stops at the last step.</string>
     <string name="group_crossfade">Soft transitions</string>
     <string name="group_crossfade_desc">Fades between photos. Videos always start directly.</string>
     <!-- Under the preview: "4 items · about 2 min 10 s" / "2/4 · about 2 min 10 s" -->

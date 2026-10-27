@@ -57,7 +57,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -131,8 +130,6 @@ fun CollageEditorScreen(
     // Dealt out automatically: toys are dead tiles in a cell and QR codes too small to scan there.
     val autoFillChoices = remember(choices) { choices.filter { it !is CoverItem.Toy && it !is CoverItem.Qr } }
     val typeName = stringResource(R.string.type_collage)
-    val resources = LocalResources.current
-    val nameFormat = { first: String, count: Int -> resources.getString(R.string.group_default_name, first, count) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val changedLabel = stringResource(R.string.editor_changed)
@@ -143,8 +140,8 @@ fun CollageEditorScreen(
         val shown = List(layout.cells.size) { cells.getOrElse(it) { emptyList() } }
         return CoverItem.Collage(
             id = id,
-            // "Kolaj · 3": several collages stay apart in the library and the notification.
-            name = name.ifBlank { defaultCollageName(typeName, shown.count { it.isNotEmpty() }, nameFormat) },
+            // Plain "Kolaj": a count of filled cells would go stale with the next edit.
+            name = name.ifBlank { typeName },
             layout = layout,
             cells = shown,
             intervalSeconds = interval,
@@ -322,10 +319,6 @@ internal fun withRoomForEveryLayout(cells: List<List<String>>): List<List<String
     val room = CollageLayout.entries.maxOf { it.cells.size }
     return if (cells.size >= room) cells else cells + List(room - cells.size) { emptyList() }
 }
-
-/** A collage with no name of its own: "Kolaj · 3" once cells are filled ([format] joins the two), plain "Kolaj" before. */
-internal fun defaultCollageName(typeName: String, filledCells: Int, format: (String, Int) -> String): String =
-    if (filledCells > 0) format(typeName, filledCells) else typeName
 
 /** Invisible tap areas over the preview, one per cell, with a "+" on empty cells. */
 @Composable

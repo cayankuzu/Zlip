@@ -112,13 +112,20 @@ internal fun roomLeft(count: Int): Int = (CoverItem.Group.MAX_ITEMS - count).coe
 internal fun canSaveSteps(count: Int): Boolean = count in MIN_ITEMS..CoverItem.Group.MAX_ITEMS
 
 /**
- * A group with no name of its own: its first step's name and how many steps it has ("Tatil · 8", [format] joins the
- * two), so several groups stay apart in the library and the notification; [typeName] ("Grup") while it has no steps.
+ * A group with no name of its own: its first step's name ("Tatil"), so several groups stay apart in the library and the
+ * notification; [typeName] ("Grup") while no step has a name, or when the first is a camera's file name
+ * ("20261027_143022", "IMG_1234"), which says nothing. No step count: it would go stale with the next edit, and the
+ * cover and Home already say "Adım 3/8".
  */
-internal fun defaultGroupName(stepNames: List<String>, typeName: String, format: (String, Int) -> String): String {
-    val first = stepNames.firstOrNull { it.isNotBlank() } ?: return typeName
-    return format(first.trim(), stepNames.size)
+internal fun defaultGroupName(stepNames: List<String>, typeName: String): String {
+    val first = stepNames.firstOrNull { it.isNotBlank() }?.trim() ?: return typeName
+    return if (looksLikeFileName(first)) typeName else first
 }
+
+/** What a gallery file is called before anyone names it: a long run of digits (a date, a time) or "IMG_1234". */
+internal fun looksLikeFileName(name: String): Boolean = FILE_NAME.containsMatchIn(name)
+
+private val FILE_NAME = Regex("""\d{6,}|^[A-Za-z]{2,5}[_-]?\d{3,}$""")
 
 /** [ids] with [id] put back at [index] (or at the end, if the list got shorter), unless it is there already or full. */
 internal fun withStepRestored(ids: List<String>, id: String, index: Int): List<String> {
@@ -156,8 +163,13 @@ fun GroupEditorScreen(
     onSave: (CoverItem.Group) -> Unit,
     onBack: () -> Unit,
 ) {
+    val resources = LocalResources.current
     val id = rememberSaveable { initial?.id ?: ContentRepository.newId() }
-    var name by rememberSaveable { mutableStateOf(initial?.name.orEmpty()) }
+    // A name the editor made up starts blank, so it keeps following the steps instead of freezing at the first one.
+    var name by rememberSaveable {
+        val typeName = resources.getString(R.string.type_group)
+        mutableStateOf(initial?.name?.takeUnless { it == defaultGroupName(initial.items.map { step -> step.name }, typeName) }.orEmpty())
+    }
     // Capped like the cover caps it on reading, so what is saved is what plays.
     var itemIds by rememberSaveable(stateSaver = ItemIdsSaver) {
         mutableStateOf((initial?.items?.map { it.id } ?: prefill).take(CoverItem.Group.MAX_ITEMS))
@@ -177,10 +189,7 @@ fun GroupEditorScreen(
     // Toys need taps a group step never gets; groups do not nest.
     val choices = remember(library) { library.filter { it !is CoverItem.Group && it !is CoverItem.Toy } }
     val typeName = stringResource(R.string.type_group)
-    val resources = LocalResources.current
-    val fallbackName = defaultGroupName(items.map { it.name }, typeName) { first, count ->
-        resources.getString(R.string.group_default_name, first, count)
-    }
+    val fallbackName = defaultGroupName(items.map { it.name }, typeName)
 
     val item = CoverItem.Group(
         id = id,

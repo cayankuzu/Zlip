@@ -46,22 +46,28 @@ class GroupStepsTest {
         assertFalse(canSaveSteps(max + 1))
     }
 
-    private val format = { first: String, count: Int -> "$first · $count" }
-
     @Test
-    fun anUnnamedGroupIsNamedAfterItsFirstStepAndItsSize() {
-        assertEquals("Tatil · 8", defaultGroupName(listOf("Tatil") + List(7) { "IMG_$it" }, "Grup", format))
+    fun anUnnamedGroupIsNamedAfterItsFirstStepWithoutACountThatGoesStale() {
+        assertEquals("Tatil", defaultGroupName(listOf("Tatil") + List(7) { "IMG_$it" }, "Grup"))
     }
 
     @Test
     fun aGroupWithoutStepsIsCalledByItsType() {
-        assertEquals("Grup", defaultGroupName(emptyList(), "Grup", format))
+        assertEquals("Grup", defaultGroupName(emptyList(), "Grup"))
     }
 
     @Test
-    fun aBlankFirstNameIsSkippedButStillCounted() {
-        assertEquals("Deniz · 3", defaultGroupName(listOf(" ", " Deniz ", "Kum"), "Grup", format))
-        assertEquals("Grup", defaultGroupName(listOf("", " "), "Grup", format))
+    fun aBlankFirstNameIsSkipped() {
+        assertEquals("Deniz", defaultGroupName(listOf(" ", " Deniz ", "Kum"), "Grup"))
+        assertEquals("Grup", defaultGroupName(listOf("", " "), "Grup"))
+    }
+
+    @Test
+    fun aCameraFileNameIsNoNameForAGroup() {
+        listOf("20261027_143022", "IMG_20261027_143022", "PXL_20261027_143022123.MP", "IMG_1234", "DSC01234", "VID-20261027-WA0001", "Screenshot_20261027_143022_Gallery")
+            .forEach { assertEquals(it, "Grup", defaultGroupName(listOf(it, "Deniz"), "Grup")) }
+        listOf("Tatil 2026", "Deniz", "Doğum günü", "Ali 2", "K2 zirve")
+            .forEach { assertEquals(it, it, defaultGroupName(listOf(it), "Grup")) }
     }
 
     @Test

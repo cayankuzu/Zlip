@@ -29,5 +29,5 @@
     <string name="settings_pip_off">Resim içinde resim bu uygulama için kapalı, Mini kapak açılamaz.</string>
     <string name="settings_pip_open">Aç</string>
     <string name="settings_folded_inactive">Bunlar widget\'ı ekleyince ya da \'Katlayınca kendiliğinden aç\' açıkken geçerli.</string>
-    <string name="advance_shuffle_auto_only">İleri / geri tuşları her zaman liste sırasıyla gider.</string>
+    <string name="advance_shuffle_auto_only">Önceki / Sonraki her zaman sırayla gider; karışık sıra yalnızca otomatik ilerlemede.</string>
 </resources>

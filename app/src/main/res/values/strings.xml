@@ -213,7 +213,7 @@
     </plurals>
     <!-- Folded cover (widget + live view) -->
     <string name="widget_empty">Open Zlip and pick something for the cover</string>
-    <string name="settings_section_folded">When folded</string>
+    <string name="settings_section_folded">While folded</string>
     <string name="folded_placed">The cover widget is on your cover screen</string>
     <string name="folded_not_placed">Add the cover widget</string>
     <string name="folded_desc">When folded, your content shows on the cover even while Zlip is closed. Tap the widget for the screen saver in front of the lock screen: swipe sideways to browse, swipe up for the menu, swipe down for the lock screen.</string>
