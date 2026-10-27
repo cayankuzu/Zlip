@@ -12,5 +12,4 @@
     <string name="cover_zoom_hint">Swipe to move around · Zoom out to switch items</string>
 
     <!-- Mini cover (picture-in-picture window) button: turns the cover off and closes the small window -->
-    <string name="pip_close">Close mini cover</string>
 </resources>

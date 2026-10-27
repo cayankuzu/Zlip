@@ -13,7 +13,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 
 - Kapak ekranı, Jetpack WindowManager'ın **rear-display presentation (dual-screen)** moduyla açılır (`androidx.window` 1.5.1, `WindowAreaController.presentContentOnWindowArea`). Root, ADB ya da Shizuku gerekmez.
 - Android bu modu yalnızca Zlip ekrandayken açık tutar. Telefon kilitlenince ya da katlanınca kapak ekranı da kapanır; Zlip'e dönünce kendiliğinden yeniden başlar.
-- **Mini kapak** (Android 15 ve üstü; isteğe bağlı, varsayılan açık): kapak açıkken başka uygulamaya geçince Zlip küçük bir resim içinde resim penceresine dönüşür. Pencere ekranda kaldıkça kapak açık kalır. Düğmeleri (Android en fazla üçüne yer verir, önem sırasıyla): duraklat/oynat, fotoğraf ve videoda Sığdır/Doldur, **×** (pencereyi ve kapağı kapatır), sonraki, kapağı kapat. Pencereyi kapatmak kapağı da kapatır; süren bir içe aktarma iptal olmaz. Kaydedilmemiş değişiklik varken Zlip küçülmez; çıkınca kapak kapanır.
+- **Mini kapak** (Android 15 ve üstü; isteğe bağlı, varsayılan açık): kapak açıkken başka uygulamaya geçince Zlip küçük bir resim içinde resim penceresine dönüşür. Pencere ekranda kaldıkça kapak açık kalır. Düğmeleri (Android en fazla üçüne yer verir, önem sırasıyla): duraklat/oynat, fotoğraf ve videoda Sığdır/Doldur, sonraki, kapağı kapat. Pencereyi sistemin kendi × düğmesiyle kapatmak kapağı da kapatır. Kaydedilmemiş değişiklik varken Zlip küçülmez; çıkınca kapak kapanır.
 - Kapak ekranında dokunma varsayılan olarak **kilitli**: tek dokunuş hiçbir şey yapmaz. **Çift dokunuş** kilidi açar, **3 saniye** dokunulmazsa kilit geri gelir. Ekran kapanmaz.
 - Kilit açıkken: kontroller görünür (önceki / oynat-duraklat / sonraki / ses / fotoğraf ve videoda Sığdır-Doldur); sağa/sola kaydırınca sıradaki öğeye ya da grubun sıradaki adımına geçer.
 - **Fotoğraf, GIF ve videoda kadraj** (açık telefonda kilit açıkken ve katlıyken): galeri uygulamaları gibi iki parmakla yakınlaştırılır; yakınken tek parmakla resmin içinde gezilir (bırakınca süzülür) ve kaydırma içerik değiştirmez; 1x'te kaydırma her zamanki gibi sıradakine geçer. Sığdır/Doldur düğmesi yakınlaştırmayı da sıfırlar. Kadraj öğeye kaydedilir; widget, küçük resimler ve düzenleyici aynı kadrajı gösterir. Düzenleyicide de iki parmakla yakınlaştırılır, "Sıfırla" ile geri alınır.
@@ -65,7 +65,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 ## Kontroller
 
 - Bildirim panelinde Duraklat/Oynat, Sonraki (sesli videoda o seferlik Ses aç/kapat), Kapağı kapat: telefon açıkken kapak ekranı için de, katlıyken ekran koruyucu için de (sıradan bildirim). Grup oynarken başlıkta "Grup · 2/4" görünür.
-- Mini kapak penceresinin düğmeleri: duraklat/oynat, fotoğraf ve videoda Sığdır/Doldur, × (pencereyi kapatır), sonraki, kapağı kapat; yansıtırken Tamamı/Doldur, yansıtmayı durdur, ×; kapak kapalıyken kapağı aç ve ×. Android pencerede genelde üç düğmeye yer verir; fazlası bu sırayla düşer.
+- Mini kapak penceresinin düğmeleri: duraklat/oynat, fotoğraf ve videoda Sığdır/Doldur, sonraki, kapağı kapat; yansıtırken Tamamı/Doldur, yansıtmayı durdur, kapağı kapat; kapak kapalıyken kapağı aç. Android pencerede genelde üç düğmeye yer verir; fazlası bu sırayla düşer. Pencereyi kapatmak için sistemin kendi × düğmesi var.
 - Hızlı ayarlar kutucuğu: kapak ekranını tek dokunuşla aç/kapat. Uzun basınca ayarlar açılır.
 - Başlatıcı kısayolları `ShortcutActivity` üzerinden gelir; açık bir Zlip (ve kaydedilmemiş düzenleme) kapanmaz.
 

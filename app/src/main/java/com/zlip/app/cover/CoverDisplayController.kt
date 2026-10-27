@@ -102,7 +102,6 @@ class CoverDisplayController(
 
     private val _endedByUser = MutableStateFlow(false)
     private val _closeRefused = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    private val _closeHoverRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val screenHold = MutableStateFlow(true)
     private val hovering = MutableStateFlow(false)
 
@@ -163,9 +162,6 @@ class CoverDisplayController(
      */
     val closeRefused: SharedFlow<Unit> = _closeRefused.asSharedFlow()
 
-    /** The small window's close button was pressed: the activity showing that window closes it. */
-    val closeHoverRequests: SharedFlow<Unit> = _closeHoverRequests.asSharedFlow()
-
     init {
         // Tracked for the whole process, not just while an activity is visible: the notification and the
         // quick-settings tile must know when folding makes the cover unavailable. The system only calls
@@ -211,11 +207,6 @@ class CoverDisplayController(
     /** Zlip is only on screen as its picture-in-picture window: the cover plays the playlist, never a draft. */
     fun setHovering(inPip: Boolean) {
         hovering.value = inPip
-    }
-
-    /** Asks the activity to close its small window (see [closeHoverRequests]). */
-    fun requestCloseHover() {
-        _closeHoverRequests.tryEmit(Unit)
     }
 
     private fun attemptStart(activity: ComponentActivity, attempt: Int) {

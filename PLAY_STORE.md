@@ -87,7 +87,7 @@ ARKADA NE İSTERSEN
 
 BAŞKA UYGULAMADAYKEN DE
 • Mini kapak: başka uygulamaya geçince Zlip küçük bir pencereye dönüşür ve kapak açık
-  kalır. Duraklat, sığdır/doldur, geç, kapağı aç ya da kapat; × ile pencereyi kapat.
+  kalır. Duraklat, sığdır/doldur, geç, kapağı aç ya da kapat; hepsi o pencereden.
 • Uygulama simgesine basılı tut: "Kapağı aç", "Ekranı yansıt", "Yeni yazı".
 
 AKILLI VE PİLE DOST
