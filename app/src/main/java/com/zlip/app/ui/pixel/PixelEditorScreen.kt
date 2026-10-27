@@ -31,11 +31,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -54,7 +52,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -86,6 +83,7 @@ import com.zlip.app.render.Playback
 import com.zlip.app.ui.components.ChoiceChips
 import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.DefaultPalette
+import com.zlip.app.ui.components.EditorTopBar
 import com.zlip.app.ui.components.HintText
 import kotlin.math.abs
 
@@ -305,22 +303,16 @@ fun PixelEditorScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(if (initial == null) R.string.pixel_title_new else R.string.pixel_title_edit)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
+            EditorTopBar(
+                title = stringResource(if (initial == null) R.string.pixel_title_new else R.string.pixel_title_edit),
+                onBack = onBack,
+                onSave = { onSave(art) },
+                extraActions = {
                     IconButton(onClick = ::undo, enabled = undoStack.isNotEmpty()) {
                         Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = stringResource(R.string.action_undo))
                     }
                     IconButton(onClick = ::redo, enabled = redoStack.isNotEmpty()) {
                         Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = stringResource(R.string.action_redo))
-                    }
-                    IconButton(onClick = { onSave(art) }) {
-                        Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.action_save))
                     }
                 },
             )

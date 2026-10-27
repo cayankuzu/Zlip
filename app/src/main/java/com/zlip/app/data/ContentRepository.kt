@@ -45,18 +45,13 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
         val items: List<CoverItem> = emptyList(),
         val selectedId: String? = null,
         val settings: CoverSettings = CoverSettings(),
-        /** Ids the user picked for rotation, in play order; empty means "the whole library". */
+        /** Ids the user picked for rotation, in play order; empty means "the whole library" (see [Rotation]). */
         val playlist: List<String> = emptyList(),
         /** Library entries this version could not read (damaged, or from a newer version): written back untouched. */
         val unreadable: List<Any> = emptyList(),
     ) {
         /** What next/previous and auto-advance move through. */
-        val sequence: List<CoverItem>
-            get() {
-                if (playlist.isEmpty()) return items
-                val byId = items.associateBy { it.id }
-                return playlist.mapNotNull { byId[it] }.ifEmpty { items }
-            }
+        val sequence: List<CoverItem> get() = Rotation.of(items, playlist)
 
         /** New items join a custom playlist so they rotate too; without one the whole library rotates anyway. */
         fun withInPlaylist(ids: List<String>): State =
@@ -231,6 +226,12 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
     fun joinPlaylist(ids: List<String>) = mutate { it.withInPlaylist(ids) }
 
     fun clearPlaylist() = mutate { it.copy(playlist = emptyList()) }
+
+    /** Makes the playlist exactly [ids] (those still in the library, none twice): how a cleared or changed list is undone. */
+    fun setPlaylist(ids: List<String>) = mutate { s ->
+        val existing = s.items.mapTo(HashSet()) { it.id }
+        s.copy(playlist = ids.distinct().filter { it in existing })
+    }
 
     /** Moves a playlist entry by [delta] places (e.g. -1 = earlier). */
     fun movePlaylistItem(id: String, delta: Int) = mutate { s ->
@@ -651,6 +652,24 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
             "................",
             "................",
         )
+    }
+}
+
+/** What the cover rotates through. Pure, so it is unit-tested. */
+internal object Rotation {
+    /**
+     * The user's [playlist] (ids, in play order) when there is one. Without one, the whole library except the items
+     * that are steps of a group: those play inside their group, and rotating them on their own too would bring the
+     * group's photos back right after it, so it would feel impossible to get past. Never empty while [items] is not:
+     * a library of nothing but such steps rotates whole.
+     */
+    fun of(items: List<CoverItem>, playlist: List<String>): List<CoverItem> {
+        if (playlist.isEmpty()) {
+            val steps = items.flatMapTo(HashSet()) { item -> if (item is CoverItem.Group) item.items.map { it.id } else emptyList() }
+            return items.filter { it.id !in steps }.ifEmpty { items }
+        }
+        val byId = items.associateBy { it.id }
+        return playlist.mapNotNull { byId[it] }.ifEmpty { items }
     }
 }
 

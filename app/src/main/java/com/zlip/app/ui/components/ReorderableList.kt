@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -261,14 +262,19 @@ fun <T> ReorderableList(
     }
 }
 
-/** The row's drag handle. Silent for TalkBack, which moves rows with the row's actions instead. */
+/**
+ * The row's drag handle, a full 48 dp target around its icon (a bare 24 dp icon was easy to miss). Silent for
+ * TalkBack, which moves rows with the row's actions instead.
+ */
 @Composable
 fun ReorderableRowScope.DragHandle(modifier: Modifier = Modifier) {
     Icon(
         imageVector = Icons.Filled.DragHandle,
         contentDescription = null,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.dragHandle(),
+        modifier = modifier
+            .minimumInteractiveComponentSize()
+            .dragHandle(),
     )
 }
 

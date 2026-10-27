@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home, controls card: where the cover is in what it rotates through -->
+    <string name="home_position_list">List · %1$d/%2$d</string>
+    <string name="home_position_all">All · %1$d/%2$d</string>
+
+    <!-- Home, snackbars after changing the playlist -->
+    <plurals name="home_list_added">
+        <item quantity="one">%d item added to the list. The cover now shows only the list.</item>
+        <item quantity="other">%d items added to the list. The cover now shows only the list.</item>
+    </plurals>
+    <plurals name="home_list_removed">
+        <item quantity="one">%d item removed from the list</item>
+        <item quantity="other">%d items removed from the list</item>
+    </plurals>
+    <string name="home_list_show">View list</string>
+    <string name="home_list_clear">Clear</string>
+    <string name="home_list_cleared">List cleared. The cover shows your whole library.</string>
+
+    <!-- Home, a card tapped while the cover is off -->
+    <string name="home_cover_off_snack">The cover is off</string>
+    <string name="home_cover_on_action">Turn on</string>
+    <!-- Home, the check on the chosen card while the cover is off -->
+    <string name="home_selected">Selected</string>
+    <!-- Home, after leaving a just-imported photo or video with Back -->
+    <string name="home_added">Added to your library</string>
+
+    <!-- Home, ways in and out -->
+    <string name="home_shrink_mini">Shrink to Mini cover</string>
+    <string name="home_empty_gallery">Add from gallery</string>
+    <string name="home_empty_create">Create</string>
+    <string name="home_advance_seconds">Time: %1$s</string>
+
+    <!-- Group editor, Order card, when the whole library rotates -->
+    <string name="group_steps_only_in_group">On the cover these play only inside the sequence.</string>
+    <string name="group_step_removed">Step removed</string>
+    <!-- A new group's name: its first step and how many steps it has ("Holiday · 8") -->
+    <string name="group_default_name">%1$s · %2$d</string>
+    <string name="group_step_menu">Step options</string>
+    <!-- TalkBack: tapping a step row shows that step in the preview -->
+    <string name="group_step_show">Show in preview</string>
+
+    <!-- Leaving an editor with changes -->
+    <string name="discard_keep_editing">Keep editing</string>
+    <string name="discard_leave">Leave without saving</string>
+    <string name="discard_delete_leave">Discard and leave</string>
+    <!-- After a multi-pick from the gallery: do not make a group -->
+    <string name="batch_keep_separate">Keep separate</string>
+    <string name="notif_settings_toast">Turn on \'Allow notifications\', then come back.</string>
+
+    <!-- Editors: why Save is off -->
+    <string name="countdown_title_required">Add a title to save</string>
+    <string name="text_required">Type something to save</string>
+
+    <!-- Editors: a preset or auto-fill replaced what was there (with Undo) -->
+    <string name="editor_changed">Changed</string>
+    <string name="media_bg_fill_hint">The background shows only with Fit</string>
+</resources>

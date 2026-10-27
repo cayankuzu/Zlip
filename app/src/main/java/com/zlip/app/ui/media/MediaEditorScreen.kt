@@ -21,16 +21,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.CenterFocusStrong
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -39,7 +36,6 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,6 +78,7 @@ import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
+import com.zlip.app.ui.components.EditorTopBar
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SegmentLabel
@@ -147,21 +144,7 @@ fun MediaEditorScreen(
     val framable = aspect > 0f
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { onSave(item) }) {
-                        Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.action_save))
-                    }
-                },
-            )
-        },
+        topBar = { EditorTopBar(title = stringResource(title), onBack = onBack, onSave = { onSave(item) }) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -268,15 +251,20 @@ fun MediaEditorScreen(
                 }
             }
 
-            SectionCard {
-                Text(
-                    text = stringResource(R.string.pixel_background),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                ColorSwatchRow(colors = DefaultPalette, selected = background, onSelect = { background = it })
-                HintText(stringResource(R.string.media_background_hint))
+            // Filled, the picture covers the whole cover and a colour would change nothing, which felt broken.
+            if (fit == MediaFit.FIT) {
+                SectionCard {
+                    Text(
+                        text = stringResource(R.string.pixel_background),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    ColorSwatchRow(colors = DefaultPalette, selected = background, onSelect = { background = it })
+                    HintText(stringResource(R.string.media_background_hint))
+                }
+            } else {
+                HintText(stringResource(R.string.media_bg_fill_hint))
             }
 
             if (initial.kind == MediaKind.VIDEO) {

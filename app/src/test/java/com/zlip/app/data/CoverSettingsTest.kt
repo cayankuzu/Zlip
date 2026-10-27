@@ -27,6 +27,7 @@ class CoverSettingsTest {
             autoOffMinutes = 30,
             mirrorFit = MirrorFit.FIT,
             widgetTipDismissed = true,
+            playlistTipDismissed = true,
         )
         assertEquals(changed, roundTrip(changed))
     }
@@ -53,6 +54,7 @@ class CoverSettingsTest {
         assertEquals(defaults.autoOffMinutes, read.autoOffMinutes)
         assertEquals(defaults.mirrorFit, read.mirrorFit)
         assertEquals(defaults.widgetTipDismissed, read.widgetTipDismissed)
+        assertFalse(read.playlistTipDismissed)
         // The fields it did have are kept.
         assertEquals(180, read.rotation)
         assertFalse(read.autoStart)

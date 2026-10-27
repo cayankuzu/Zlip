@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ana ekran, kontrol kartı: kapağın döndüğü sırada nerede olduğu -->
+    <string name="home_position_list">Liste · %1$d/%2$d</string>
+    <string name="home_position_all">Tümü · %1$d/%2$d</string>
+
+    <!-- Ana ekran, liste değişince çıkan bildirimler -->
+    <plurals name="home_list_added">
+        <item quantity="one">%d içerik listeye eklendi. Kapak artık yalnızca listeyi gösterir.</item>
+        <item quantity="other">%d içerik listeye eklendi. Kapak artık yalnızca listeyi gösterir.</item>
+    </plurals>
+    <plurals name="home_list_removed">
+        <item quantity="one">%d içerik listeden çıkarıldı</item>
+        <item quantity="other">%d içerik listeden çıkarıldı</item>
+    </plurals>
+    <string name="home_list_show">Listeyi gör</string>
+    <string name="home_list_clear">Temizle</string>
+    <string name="home_list_cleared">Liste temizlendi. Kapak tüm kitaplığı gösterir.</string>
+
+    <!-- Ana ekran, kapak kapalıyken bir karta dokununca -->
+    <string name="home_cover_off_snack">Kapak kapalı</string>
+    <string name="home_cover_on_action">Aç</string>
+    <!-- Ana ekran, kapak kapalıyken seçili kartın işareti -->
+    <string name="home_selected">Seçili</string>
+    <!-- Ana ekran, yeni eklenen fotoğraf ya da videodan Geri ile çıkınca -->
+    <string name="home_added">Kitaplığa eklendi</string>
+
+    <!-- Ana ekran, giriş ve çıkış yolları -->
+    <string name="home_shrink_mini">Mini kapağa küçült</string>
+    <string name="home_empty_gallery">Galeriden ekle</string>
+    <string name="home_empty_create">Oluştur</string>
+    <string name="home_advance_seconds">Süre: %1$s</string>
+
+    <!-- Grup düzenleyici, Sıra kartı, tüm kitaplık dönerken -->
+    <string name="group_steps_only_in_group">Bu içerikler kapakta yalnızca grubun içinde oynar.</string>
+    <string name="group_step_removed">Adım çıkarıldı</string>
+    <!-- Yeni grubun adı: ilk adımı ve adım sayısı ("Tatil · 8") -->
+    <string name="group_default_name">%1$s · %2$d</string>
+    <string name="group_step_menu">Adım seçenekleri</string>
+    <!-- TalkBack: adım satırına dokununca o adım önizlemede görünür -->
+    <string name="group_step_show">Önizlemede göster</string>
+
+    <!-- Değişiklik varken düzenleyiciden çıkma -->
+    <string name="discard_keep_editing">Düzenlemeye dön</string>
+    <string name="discard_leave">Kaydetmeden çık</string>
+    <string name="discard_delete_leave">Sil ve çık</string>
+    <!-- Galeriden çoklu seçimden sonra: grup yapma -->
+    <string name="batch_keep_separate">Ayrı kalsın</string>
+    <string name="notif_settings_toast">\'Bildirimlere izin ver\'i aç, sonra geri dön.</string>
+
+    <!-- Düzenleyiciler: Kaydet neden kapalı -->
+    <string name="countdown_title_required">Kaydetmek için bir başlık yaz</string>
+    <string name="text_required">Kaydetmek için bir şey yaz</string>
+
+    <!-- Düzenleyiciler: hazır seçim ya da otomatik doldurma öncekinin yerini aldı (Geri al ile) -->
+    <string name="editor_changed">Değiştirildi</string>
+    <string name="media_bg_fill_hint">Arka plan yalnızca Sığdır seçiliyken görünür</string>
+</resources>
