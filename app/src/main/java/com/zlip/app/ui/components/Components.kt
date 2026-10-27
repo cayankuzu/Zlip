@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -223,7 +224,10 @@ fun IconBadge(icon: ImageVector, size: Dp = 38.dp) {
     }
 }
 
-/** Row of single-choice chips, scrolling if it does not fit. */
+/**
+ * Single-choice chips, wrapping onto more lines when they do not fit: a sideways-scrolling row hid its last
+ * options with nothing to show they were there.
+ */
 @Composable
 fun <T> ChoiceChips(
     options: List<T>,
@@ -232,8 +236,8 @@ fun <T> ChoiceChips(
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
+    FlowRow(
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         options.forEach { option ->

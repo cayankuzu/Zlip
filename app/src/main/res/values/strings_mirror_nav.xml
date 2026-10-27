@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Moving around the mirrored screen on the cover -->
+    <string name="mirror_hint_pan">Swipe to move around</string>
+    <string name="mirror_hint_zoom">Pinch with two fingers to zoom</string>
+    <string name="mirror_hint_tap">Tap: Whole screen / Fill</string>
+    <string name="mirror_view_close">Close-up</string>
+    <string name="mirror_to_top">Back to top</string>
+    <string name="mirror_toggle_view">Whole screen / Fill</string>
+    <string name="mirror_view_desc">Mirrored screen</string>
+    <string name="mirror_zoom_state">Zoom %1$d%%</string>
+    <string name="mirror_scroll_up">Scroll up</string>
+    <string name="mirror_scroll_down">Scroll down</string>
+    <string name="mirror_scroll_left">Scroll left</string>
+    <string name="mirror_scroll_right">Scroll right</string>
+    <string name="mirror_zoom_in">Zoom in</string>
+    <string name="mirror_zoom_out">Zoom out</string>
+</resources>

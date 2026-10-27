@@ -117,6 +117,35 @@ class CoverItemJsonTest {
     }
 
     @Test
+    fun mediaFramingSurvivesARoundTrip() {
+        val framed = photo.copy(focusX = -0.75f, focusY = 0.3f)
+        assertEquals(framed, roundTrip(framed))
+    }
+
+    @Test
+    fun mediaFramingDefaultsToTheCentreAndIsClamped() {
+        fun mediaOf(extra: String) = CoverItemJson.decode(JSONObject("""{"id":"m","name":"M","type":"media","fileName":"a.webp"$extra}""")) as CoverItem.Media
+        assertEquals(0f, mediaOf("").focusX)
+        assertEquals(0f, mediaOf("").focusY)
+        assertEquals(1f, mediaOf(""","focusX":7.5""").focusX)
+        assertEquals(-1f, mediaOf(""","focusY":-3""").focusY)
+        assertEquals(0f, mediaOf(""","focusX":"left"""").focusX)
+    }
+
+    @Test
+    fun aCentredPictureKeepsItsOldJson() {
+        // The widget's cached frames are keyed by this JSON: an item nobody framed must not change it.
+        val json = CoverItemJson.encode(photo)
+        assertFalse(json.has("focusX"))
+        assertFalse(json.has("focusY"))
+        val framed = CoverItemJson.encode(photo.copy(focusY = 0.5f))
+        assertFalse(framed.has("focusX"))
+        assertEquals(0.5, framed.getDouble("focusY"), 0.0001)
+        // A broken value is never written as NaN, which JSON cannot hold.
+        assertFalse(CoverItemJson.encode(photo.copy(focusX = Float.NaN)).has("focusX"))
+    }
+
+    @Test
     fun leavesAreThePlainItemsInside() {
         assertEquals(listOf(photo, video, photo, video, qr, text), group.leaves())
         assertEquals(listOf(text), text.leaves())

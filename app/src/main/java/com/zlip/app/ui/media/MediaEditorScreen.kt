@@ -1,6 +1,12 @@
 package com.zlip.app.ui.media
 
+import android.content.Context
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,29 +40,50 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.zlip.app.R
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.MediaFit
+import com.zlip.app.data.MediaFocus
 import com.zlip.app.data.MediaKind
+import com.zlip.app.data.MediaStorage
 import com.zlip.app.render.CoverContent
 import com.zlip.app.render.LocalAllowSound
 import com.zlip.app.render.Playback
+import com.zlip.app.ui.components.COVER_ASPECT_RATIO
 import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.SectionCard
+import com.zlip.app.ui.components.SegmentLabel
 import com.zlip.app.ui.components.SwitchRow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.abs
+
+/** Below this (1 %), Fill crops too little of the picture for framing it to be worth offering. */
+private const val MIN_FRAMING_CROP = 0.01f
 
 /** Display options for an imported photo, GIF or video. The file itself is already in the library. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +102,8 @@ fun MediaEditorScreen(
     var loop by rememberSaveable { mutableStateOf(initial.loop) }
     var sound by rememberSaveable { mutableStateOf(initial.sound) }
     var background by rememberSaveable { mutableIntStateOf(initial.background) }
+    var focusX by rememberSaveable { mutableFloatStateOf(initial.focusX) }
+    var focusY by rememberSaveable { mutableFloatStateOf(initial.focusY) }
 
     val fallbackName = stringResource(R.string.default_media_name)
     val item = initial.copy(
@@ -84,6 +113,8 @@ fun MediaEditorScreen(
         loop = loop,
         background = background,
         sound = sound,
+        focusX = focusX,
+        focusY = focusY,
     )
     val baseline = remember { initial.copy(name = initial.name.ifBlank { fallbackName }) }
     LaunchedEffect(item) {
@@ -96,6 +127,14 @@ fun MediaEditorScreen(
         MediaKind.ANIMATION -> R.string.media_title_gif
         MediaKind.VIDEO -> R.string.media_title_video
     }
+
+    // Fill crops the picture; the user drags it to choose what shows. Only along the axis that is cropped,
+    // so the other way still scrolls the page.
+    val context = LocalContext.current
+    val aspect by produceState(0f, initial.fileName) { value = withContext(Dispatchers.IO) { pictureAspect(context, initial) } }
+    // A picture of the cover's own shape loses nothing to Fill: no drag, no hint saying there is one.
+    val framing = fit == MediaFit.FILL && aspect > 0f && abs(aspect / COVER_ASPECT_RATIO - 1f) > MIN_FRAMING_CROP
+    val horizontal = aspect > COVER_ASPECT_RATIO
 
     Scaffold(
         topBar = {
@@ -130,7 +169,20 @@ fun MediaEditorScreen(
             ) {
                 // The preview may play the sound the user just switched on, so they hear what the cover will do.
                 CompositionLocalProvider(LocalAllowSound provides true) {
-                    CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback)
+                    CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback) }
+                }
+                if (framing) {
+                    FramingSurface(
+                        aspect = aspect,
+                        horizontal = horizontal,
+                        focus = { if (horizontal) focusX else focusY },
+                        onFocusChange = { if (horizontal) focusX = it else focusY = it },
+                        onCenter = {
+                            focusX = 0f
+                            focusY = 0f
+                        },
+                        modifier = Modifier.matchParentSize(),
+                    )
                 }
             }
 
@@ -167,11 +219,13 @@ fun MediaEditorScreen(
                             selected = fit == option,
                             onClick = { fit = option },
                             shape = SegmentedButtonDefaults.itemShape(index, MediaFit.entries.size),
+                            icon = {},
                         ) {
-                            Text(stringResource(if (option == MediaFit.FIT) R.string.media_fit_fit else R.string.media_fit_fill))
+                            SegmentLabel(stringResource(if (option == MediaFit.FIT) R.string.media_fit_fit else R.string.media_fit_fill))
                         }
                     }
                 }
+                if (framing) HintText(stringResource(R.string.media_frame_hint))
                 if (initial.kind != MediaKind.IMAGE) {
                     Spacer(Modifier.height(12.dp))
                     SwitchRow(
@@ -219,4 +273,63 @@ fun MediaEditorScreen(
             Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+/**
+ * Lies over the preview while Fill crops the picture: a drag along the cropped axis ([horizontal] or not)
+ * moves the picture with the finger, a double tap centres it, and TalkBack gets the same as actions.
+ */
+@Composable
+private fun FramingSurface(
+    aspect: Float,
+    horizontal: Boolean,
+    focus: () -> Float,
+    onFocusChange: (Float) -> Unit,
+    onCenter: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val currentFocus by rememberUpdatedState(focus)
+    val currentOnFocusChange by rememberUpdatedState(onFocusChange)
+    val currentOnCenter by rememberUpdatedState(onCenter)
+    val hint = stringResource(R.string.media_frame_hint)
+    val towardsStart = stringResource(if (horizontal) R.string.media_frame_left else R.string.media_frame_top)
+    val towardsEnd = stringResource(if (horizontal) R.string.media_frame_right else R.string.media_frame_bottom)
+    val center = stringResource(R.string.media_frame_center)
+    Box(
+        modifier
+            .pointerInput(aspect, horizontal) {
+                val onDrag = { change: PointerInputChange, delta: Float ->
+                    change.consume()
+                    val (overflowX, overflowY) = MediaFocus.overflow(aspect, size.width.toFloat(), size.height.toFloat())
+                    currentOnFocusChange(MediaFocus.dragged(currentFocus(), delta, if (horizontal) overflowX else overflowY))
+                }
+                if (horizontal) detectHorizontalDragGestures(onHorizontalDrag = onDrag) else detectVerticalDragGestures(onVerticalDrag = onDrag)
+            }
+            .pointerInput(Unit) { detectTapGestures(onDoubleTap = { currentOnCenter() }) }
+            .semantics {
+                contentDescription = hint
+                customActions = listOf(
+                    CustomAccessibilityAction(towardsStart) {
+                        currentOnFocusChange(MediaFocus.clamp(currentFocus() - MediaFocus.STEP))
+                        true
+                    },
+                    CustomAccessibilityAction(towardsEnd) {
+                        currentOnFocusChange(MediaFocus.clamp(currentFocus() + MediaFocus.STEP))
+                        true
+                    },
+                    CustomAccessibilityAction(center) {
+                        currentOnCenter()
+                        true
+                    },
+                )
+            },
+    )
+}
+
+/** Width / height of the picture as stored (a video's from its poster frame), or 0 when it cannot be read. */
+private fun pictureAspect(context: Context, media: CoverItem.Media): Float {
+    val name = (if (media.kind == MediaKind.VIDEO) media.posterFileName else media.fileName) ?: return 0f
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    runCatching { BitmapFactory.decodeFile(MediaStorage.file(context, name).path, bounds) }
+    return if (bounds.outWidth > 0 && bounds.outHeight > 0) bounds.outWidth.toFloat() / bounds.outHeight else 0f
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -73,6 +73,7 @@ import com.zlip.app.render.Playback
 import com.zlip.app.ui.components.ChoiceChips
 import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.ItemPickerSheet
@@ -206,16 +207,17 @@ fun CollageEditorScreen(
                     .fillMaxWidth(0.78f)
                     .align(Alignment.CenterHorizontally),
             ) {
-                CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback)
+                CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback) }
                 CellTargets(layout = layout, cells = item.cells, onPick = { pickingCell = it })
             }
             HintText(stringResource(R.string.collage_tap_hint), Modifier.align(Alignment.CenterHorizontally))
 
             SectionCard {
                 Label(stringResource(R.string.collage_layout))
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                // Wraps rather than scrolls, so the last layout never hides off the card's edge.
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     CollageLayout.entries.forEach { option ->
                         LayoutChip(option, selected = option == layout, onClick = { setLayout(option) })
@@ -389,7 +391,7 @@ private fun CellRow(index: Int, cell: List<CoverItem>, onClick: () -> Unit) {
                         .size(width = 34.dp, height = 33.dp)
                         .clip(RoundedCornerShape(6.dp)),
                 ) {
-                    CoverContent(item = thumb, modifier = Modifier.fillMaxSize(), playback = Playback.STILL)
+                    CoverScale { CoverContent(item = thumb, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
                 }
             }
         }

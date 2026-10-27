@@ -9,7 +9,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 - **Mini kapak** (Android 15 ve üstü; isteğe bağlı, varsayılan açık): kapak açıkken başka uygulamaya geçince Zlip küçük bir resim içinde resim penceresine dönüşür. Pencere ekranda kaldıkça kapak açık kalır; düğmeleriyle duraklat, sonraki ve kapağı aç/kapat. Pencereyi kapatmak kapağı da kapatır. Kaydedilmemiş değişiklik varken Zlip küçülmez; çıkınca kapak kapanır.
 - Kapak ekranında dokunma varsayılan olarak **kilitli**: tek dokunuş hiçbir şey yapmaz. **Çift dokunuş** kilidi açar, **3 saniye** dokunulmazsa kilit geri gelir. Ekran kapanmaz.
 - Kilit açıkken: kontroller görünür (önceki / oynat-duraklat / sonraki / ses); sağa/sola kaydırınca sıradaki öğeye ya da grubun sıradaki adımına geçer.
-- **Ekran yansıtma** (Android 15 ve üstü): Ana sayfadaki "İçeriğim | Ekranı yansıt" seçimiyle iç ekran kapakta görünür (MediaProjection, `mediaProjection` türünde ön plan hizmeti). Android her seferinde izin ister ve "Tüm ekran" seçilmelidir. Görüntü yalnızca kapakta gösterilir; kaydedilmez, saklanmaz, hiçbir yere gönderilmez. "Tamamı / Doldur" görünümü seçilebilir; korumalı uygulamalar (bankacılık, Netflix) siyah görünür.
+- **Ekran yansıtma** (Android 15 ve üstü): Ana sayfadaki "İçeriğim | Ekranı yansıt" seçimiyle iç ekran kapakta görünür (MediaProjection, `mediaProjection` türünde ön plan hizmeti). Android her seferinde izin ister ve "Tüm ekran" seçilmelidir. Görüntü yalnızca kapakta gösterilir; kaydedilmez, saklanmaz, hiçbir yere gönderilmez. Kapak harita gibi gezilir: iki kez dokunup kilidi açınca tek parmakla kaydırılır (bırakınca süzülür), iki parmakla yakınlaştırılır, tek dokunuş "Tamamı / Doldur" arasında geçer; kaydırırken kenarda kaydırma çubukları görünür. İç ekrandaki "Tamamı / Doldur / Yakın" ve "Başa dön" de kapağı yönetir; Ayarlar'daki "Yansıtma görünümü" başlangıç görünümüdür (varsayılan Doldur). Korumalı uygulamalar (bankacılık, Netflix) siyah görünür.
 - Boşta kalınca kapat (5 / 10 / 30 dk / asla): Zlip tam ekranken iki ekrana da dokunulmazsa kapak kapanır, iç ekran karanlık kalır ve normal zaman aşımıyla kilitlenir. 15 saniye önce uyarı çıkar; bir sonraki dokunuşa kadar kendiliğinden yeniden açılmaz. Bölünmüş ekranda ya da TalkBack açıkken yalnızca ekranı açık tutmayı bırakır.
 
 ## İçerik
@@ -54,7 +54,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 ## Kontroller
 
 - Bildirim panelinde Duraklat/Oynat, Sonraki (sesli videoda Ses aç/kapat), Kapağı kapat: telefon açıkken kapak ekranı için de, katlıyken ekran koruyucu için de (sıradan bildirim). Grup oynarken başlıkta "Grup · 2/4" görünür.
-- Mini kapak penceresinin düğmeleri: duraklat/oynat, sonraki, kapağı aç/kapat; yansıtırken yansıtmayı durdur.
+- Mini kapak penceresinin düğmeleri: duraklat/oynat, sonraki, kapağı aç/kapat; yansıtırken Tamamı/Doldur, yansıtmayı durdur, kapağı kapat.
 - Hızlı ayarlar kutucuğu: kapak ekranını tek dokunuşla aç/kapat. Uzun basınca ayarlar açılır.
 - Başlatıcı kısayolları `ShortcutActivity` üzerinden gelir; açık bir Zlip (ve kaydedilmemiş düzenleme) kapanmaz.
 
@@ -88,7 +88,7 @@ Birim testleri:
 | `ShortcutActivity.kt` | Başlatıcı kısayollarını açık Zlip'e iletir |
 | `cover/CoverDisplayController.kt` | Kapak ekranı oturumunu açar/kapatır, parlaklık ve yenileme hızını uygular |
 | `cover/CoverScreen.kt` | Kapak ekranında görünen arayüz, dokunma kilidi, kontroller, dinlenme modu |
-| `cover/mirror/` | Ekran yansıtma: sanal ekran, görünüm (Tamamı / Doldur), kapaktaki yüzey |
+| `cover/mirror/` | Ekran yansıtma: sanal ekran, gezinilebilir görünüm (kaydır, süzül, yakınlaştır; Tamamı / Doldur / Yakın), kapaktaki yüzey ve hareketler |
 | `CoverActivity.kt` | Katlıyken ekran koruyucu (kilit ekranının önünde) |
 | `system/CoverGuard.kt` | Ekran koruyucuyu kapakta açma, isteğe bağlı "Kapakta hep göster" hizmeti |
 | `system/MirrorService.kt` | Yansıtma için `mediaProjection` ön plan hizmeti |

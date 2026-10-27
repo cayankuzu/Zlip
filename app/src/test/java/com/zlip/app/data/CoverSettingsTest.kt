@@ -16,7 +16,7 @@ class CoverSettingsTest {
         val defaults = CoverSettings()
         assertTrue(defaults.keepCoverInOtherApps)
         assertEquals(10, defaults.autoOffMinutes)
-        assertEquals(MirrorFit.FIT, defaults.mirrorFit)
+        assertEquals(MirrorFit.FILL, defaults.mirrorFit)
         assertFalse(defaults.widgetTipDismissed)
     }
 
@@ -25,7 +25,7 @@ class CoverSettingsTest {
         val changed = CoverSettings(
             keepCoverInOtherApps = false,
             autoOffMinutes = 30,
-            mirrorFit = MirrorFit.FILL,
+            mirrorFit = MirrorFit.FIT,
             widgetTipDismissed = true,
         )
         assertEquals(changed, roundTrip(changed))
@@ -65,7 +65,7 @@ class CoverSettingsTest {
         val odd = JSONObject("""{"autoOffMinutes":7,"mirrorFit":"STRETCH"}""")
         val read = CoverSettings.fromJson(odd)
         assertEquals(CoverSettings().autoOffMinutes, read.autoOffMinutes)
-        assertEquals(MirrorFit.FIT, read.mirrorFit)
+        assertEquals(CoverSettings().mirrorFit, read.mirrorFit)
     }
 
     @Test

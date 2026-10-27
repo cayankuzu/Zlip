@@ -58,6 +58,7 @@ import com.zlip.app.render.Playback
 import com.zlip.app.render.PlaybackEvents
 import com.zlip.app.ui.components.ChoiceChips
 import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DragHandle
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.ItemPickerSheet
@@ -202,7 +203,7 @@ fun GroupEditorScreen(
                     .fillMaxWidth(0.72f)
                     .align(Alignment.CenterHorizontally),
             ) {
-                CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback, events = previewEvents)
+                CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback, events = previewEvents) }
             }
             Text(
                 text = if (previewPlayback == Playback.LIVE && items.size > 1 && shownStep >= 0) {
@@ -311,7 +312,7 @@ private fun ReorderableRowScope.StepRow(step: CoverItem, timing: String, onRemov
                 .size(width = 52.dp, height = 50.dp)
                 .clip(RoundedCornerShape(8.dp)),
         ) {
-            CoverContent(item = step, modifier = Modifier.fillMaxSize(), playback = Playback.STILL)
+            CoverScale { CoverContent(item = step, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
         }
         Column(
             Modifier

@@ -121,7 +121,7 @@ fun ItemPickerSheet(
                     ) {
                         Box {
                             CoverPreviewFrame(Modifier.fillMaxWidth(), glowing = selected) {
-                                CoverContent(item = option, modifier = Modifier.fillMaxSize(), playback = Playback.STILL)
+                                CoverScale { CoverContent(item = option, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
                             }
                             Text(
                                 text = stringResource(option.badgeLabel()),

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="media_frame_hint">Önizlemeyi sürükleyerek kadrajla · çift dokun: ortala</string>
+
+    <string name="media_frame_top">Üst tarafı daha çok göster</string>
+    <string name="media_frame_bottom">Alt tarafı daha çok göster</string>
+    <string name="media_frame_left">Sol tarafı daha çok göster</string>
+    <string name="media_frame_right">Sağ tarafı daha çok göster</string>
+    <string name="media_frame_center">Görüntüyü ortala</string>
+
+    <string name="cover_menu_qr_full_brightness">QR kodları taranabilsin diye tam parlaklıkta gösterilir</string>
+</resources>

@@ -3,10 +3,10 @@ package com.zlip.app.ui.countdown
 import android.text.format.DateFormat
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +37,7 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,12 +72,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import com.zlip.app.R
@@ -90,15 +92,20 @@ import com.zlip.app.render.CountdownFormat
 import com.zlip.app.render.Playback
 import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.IconBadge
 import com.zlip.app.ui.components.LocalHovering
 import com.zlip.app.ui.components.SectionCard
+import com.zlip.app.ui.components.SegmentLabel
 import com.zlip.app.ui.components.SwitchRow
 import java.time.ZoneId
 
 private const val MAX_TITLE = 32
+
+/** A window shorter than this (the phone in landscape) cannot show the date picker's whole calendar. */
+private val COMPACT_HEIGHT = 480.dp
 
 /** Below this contrast ratio against the background, colors are flagged as hard to read. */
 private const val MIN_CONTRAST = 1.8
@@ -255,15 +262,13 @@ fun CountdownEditorScreen(
                     .fillMaxWidth(0.72f)
                     .align(Alignment.CenterHorizontally),
             ) {
-                CountdownCover(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback)
+                CoverScale { CountdownCover(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback) }
             }
 
             Column {
                 Label(stringResource(R.string.countdown_presets))
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                // Wraps rather than scrolls, so no preset hides off-screen.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Preset.entries.forEachIndexed { index, preset ->
                         AssistChip(
                             onClick = { applyPreset(preset, presetTitles[index]) },
@@ -303,8 +308,9 @@ fun CountdownEditorScreen(
                                 countUp = up
                             },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                            icon = {},
                         ) {
-                            Text(stringResource(if (up) R.string.countdown_mode_up else R.string.countdown_mode_down))
+                            SegmentLabel(stringResource(if (up) R.string.countdown_mode_up else R.string.countdown_mode_down))
                         }
                     }
                 }
@@ -339,8 +345,10 @@ fun CountdownEditorScreen(
                                     }
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(index = index, count = Repeat.entries.size),
+                                // No checkmark: the fill marks the choice, and "Tekrar yok" needs the room.
+                                icon = {},
                             ) {
-                                Text(stringResource(option.label()), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                SegmentLabel(stringResource(option.label()))
                             }
                         }
                     }
@@ -384,7 +392,12 @@ fun CountdownEditorScreen(
     when (dialog) {
         EditorDialog.NONE -> Unit
         EditorDialog.DATE -> {
-            val state = rememberDatePickerState(initialSelectedDateMillis = CountdownDates.pickerMillis(shown, zone))
+            // In landscape the calendar's lower weeks do not fit the dialog: start with typing the date there.
+            val compact = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() } < COMPACT_HEIGHT
+            val state = rememberDatePickerState(
+                initialSelectedDateMillis = CountdownDates.pickerMillis(shown, zone),
+                initialDisplayMode = if (compact) DisplayMode.Input else DisplayMode.Picker,
+            )
             // As the small window the dialog stays away (the date picked so far kept) until Zlip is full size.
             if (!LocalHovering.current) DatePickerDialog(
                 onDismissRequest = { dialog = EditorDialog.NONE },
@@ -405,7 +418,8 @@ fun CountdownEditorScreen(
                     TextButton(onClick = { dialog = EditorDialog.NONE }) { Text(stringResource(R.string.action_cancel)) }
                 },
             ) {
-                DatePicker(state = state)
+                // Scrolls if the calendar is switched back on in a short window, so every day stays reachable.
+                DatePicker(state = state, modifier = if (compact) Modifier.verticalScroll(rememberScrollState()) else Modifier)
             }
         }
         EditorDialog.TIME -> TimeDialog(

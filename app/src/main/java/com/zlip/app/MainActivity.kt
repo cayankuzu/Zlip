@@ -551,11 +551,13 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Cover on: pause/play, next and "turn the cover off" (the window stays, as the way back on). Mirroring:
-     * stop mirroring and turn off. Cover off (turned off, or ended by the lock or screen timeout): turn on.
+     * whole screen / fill (as a tap on the cover), stop mirroring and turn off. Cover off (turned off, or ended by
+     * the lock or screen timeout): turn on.
      */
     private fun buildHoverParams(state: HoverState): PictureInPictureParams {
         val actions = when {
             state.coverOn && state.mirroring -> listOf(
+                broadcastAction(R.drawable.ic_pip_mirror_view, R.string.mirror_toggle_view, CoverNotifier.ACTION_MIRROR_VIEW),
                 broadcastAction(R.drawable.ic_pip_mirror_off, R.string.mirror_stop, CoverNotifier.ACTION_MIRROR_STOP),
                 broadcastAction(R.drawable.ic_pip_power, R.string.pip_cover_off, CoverNotifier.ACTION_STOP),
             )

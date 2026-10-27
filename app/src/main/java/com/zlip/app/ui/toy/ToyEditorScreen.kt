@@ -5,10 +5,10 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -80,6 +80,7 @@ import com.zlip.app.render.ToyCover
 import com.zlip.app.render.ToyGlyph
 import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.SectionCard
@@ -204,7 +205,7 @@ fun ToyEditorScreen(
                     .fillMaxWidth(0.72f)
                     .align(Alignment.CenterHorizontally),
             ) {
-                ToyCover(item, Modifier.fillMaxSize(), previewPlayback, interactive = true)
+                CoverScale { ToyCover(item, Modifier.fillMaxSize(), previewPlayback, interactive = true) }
             }
             if (previewPlayback != Playback.STILL) {
                 HintText(stringResource(R.string.toy_editor_try), Modifier.align(Alignment.CenterHorizontally))
@@ -373,25 +374,23 @@ private fun ToyCard(kind: ToyKind, selected: Boolean, color: Int, background: In
         Text(
             text = stringResource(kind.title()),
             style = MaterialTheme.typography.titleSmall,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        // Never cut: it is the only place that says how the toy is played (long-press resets the counter).
+        // Both cards of a row grow together (IntrinsicSize.Min).
         Text(
             text = stringResource(kind.description()),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
 @Composable
 private fun WheelPresets(onPick: (List<String>) -> Unit) {
-    Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    // Wraps rather than scrolls, so no preset hides off-screen.
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         WHEEL_PRESETS.forEach { (label, items) ->
             val choices = presetChoices(items)
             SuggestionChip(onClick = { onPick(choices) }, label = { Text(stringResource(label)) })

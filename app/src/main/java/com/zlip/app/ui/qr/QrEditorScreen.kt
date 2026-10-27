@@ -2,10 +2,10 @@ package com.zlip.app.ui.qr
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -84,6 +84,7 @@ import com.zlip.app.render.Playback
 import com.zlip.app.render.icon
 import com.zlip.app.ui.components.ChoiceChips
 import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SwitchRow
@@ -169,7 +170,7 @@ fun QrEditorScreen(
                     .fillMaxWidth(0.72f)
                     .align(Alignment.CenterHorizontally),
             ) {
-                CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback)
+                CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback) }
             }
             Row(verticalAlignment = Alignment.Top) {
                 Icon(
@@ -310,10 +311,9 @@ private fun LinkFields(value: TextFieldValue, problems: Problems, onChange: (Tex
             .then(problems.track(QrPayload.URL)),
     )
     if (value.text.isBlank()) {
-        Row(
-            modifier = Modifier
-                .padding(top = 6.dp)
-                .horizontalScroll(rememberScrollState()),
+        // Wraps rather than scrolls, so no quick link hides off-screen.
+        FlowRow(
+            modifier = Modifier.padding(top = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             QUICK_LINKS.forEach { (label, prefix) ->
@@ -511,11 +511,11 @@ private fun CaptionField(caption: String, auto: Boolean, onChange: (String) -> U
 /** Scanner-safe colour pairs as little cards in their own colours. */
 @Composable
 private fun ThemeRow(code: Int, background: Int, onSelect: (QrTheme) -> Unit) {
-    Row(
-        modifier = Modifier
-            .horizontalScroll(rememberScrollState())
-            .selectableGroup(),
+    // Wraps rather than scrolls: six cards are wider than the phone, and the last ones hid off-screen.
+    FlowRow(
+        modifier = Modifier.selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         QrTheme.entries.forEach { theme ->
             val selected = theme.code == code && theme.background == background

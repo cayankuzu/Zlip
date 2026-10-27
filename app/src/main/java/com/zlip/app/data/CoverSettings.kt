@@ -63,8 +63,8 @@ data class CoverSettings(
     val autoOffMinutes: Int = 10,
     /** Leaving Zlip shrinks it into a small picture-in-picture window, which keeps the open-phone cover on. */
     val keepCoverInOtherApps: Boolean = true,
-    /** How a mirrored inner screen fills the cover. */
-    val mirrorFit: MirrorFit = MirrorFit.FIT,
+    /** How a mirrored inner screen fills the cover when mirroring starts. Fill: a portrait screen is unreadable whole. */
+    val mirrorFit: MirrorFit = MirrorFit.FILL,
     /** Cover controls in the notification shade while the cover plays: play/pause/next/off. */
     val notificationControls: Boolean = true,
     /** Show a clock on the folded cover (widget and screen saver). */

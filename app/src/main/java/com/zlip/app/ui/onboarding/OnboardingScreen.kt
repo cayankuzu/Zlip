@@ -139,10 +139,11 @@ fun OnboardingScreen(
         if (last && !notificationsAllowed) {
             OutlinedButton(
                 onClick = onRequestNotificationPermission,
+                // A minimum, not a fixed height: at the largest font sizes the label takes two lines.
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
-            ) { Text(stringResource(R.string.intro_allow_notifications)) }
+                    .heightIn(min = 52.dp),
+            ) { Text(stringResource(R.string.intro_allow_notifications), textAlign = TextAlign.Center) }
             Spacer(Modifier.height(12.dp))
         }
         GradientButton(

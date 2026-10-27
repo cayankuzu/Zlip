@@ -54,9 +54,10 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.zlip.app.R
 import com.zlip.app.cover.mirror.MirrorController
+import com.zlip.app.cover.mirror.MirrorGestureHint
 import com.zlip.app.cover.mirror.MirrorState
 import com.zlip.app.cover.mirror.MirrorSurface
-import com.zlip.app.cover.mirror.PanAxis
+import com.zlip.app.cover.mirror.steerMirror
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
@@ -90,7 +91,8 @@ import kotlin.random.Random
  * [ambient] is the screen saver's resting state: a dimmed still frame (no decoding) under the clock.
  *
  * [mirror] is the open phone's screen mirroring (the folded screen saver passes none): while it runs the
- * cover shows the inner screen instead, and once unlocked a tap switches fit and fill and a swipe pans.
+ * cover shows the inner screen instead, and once unlocked it is steered like a map: drag, fling, pinch, and a tap
+ * between the whole screen and filled ([steerMirror]).
  * [inPip]: Zlip is only its small window, so no editor is in view.
  *
  * [onUserActivity]: the user did something here that is not a touch the host sees, a TalkBack action or a
@@ -202,6 +204,18 @@ fun CoverScreen(
         }
     }
 
+    // The first unlock of each mirroring session says how to steer the mirror; the first move puts it away.
+    var mirrorHint by remember { mutableStateOf(false) }
+    LaunchedEffect(unlocked, mirroring) {
+        if (!unlocked || mirroring?.takeGestureHint() != true) return@LaunchedEffect
+        mirrorHint = true
+        try {
+            delay(MIRROR_HINT_MS)
+        } finally {
+            mirrorHint = false
+        }
+    }
+
     // Open phone: re-lock after 3 s without touches. The screen itself stays on (FLAG_KEEP_SCREEN_ON).
     LaunchedEffect(unlocked) {
         while (unlocked) {
@@ -254,6 +268,12 @@ fun CoverScreen(
                     lastTouch = down.uptimeMillis
                     // Someone is using the cover: auto-advance waits (a toy mid-roll must not be skipped).
                     if (!lockTouches || unlocked) playback.noteInteraction()
+                    // An unlocked mirror follows the fingers live, like a map; locked, only the double tap below counts.
+                    val steered = currentMirroring
+                    if (steered != null && lock.isActive) {
+                        lastTouch = steerMirror(steered, down, lock) { mirrorHint = false }
+                        return@awaitEachGesture
+                    }
                     var last = down
                     var lifted = false
                     var othersDown = false
@@ -292,24 +312,16 @@ fun CoverScreen(
                         when (result) {
                             GestureResult.ACTIVATED -> unlocked = true
                             GestureResult.TAP -> when {
-                                shownMirror != null -> shownMirror.toggleFit()
+                                shownMirror != null -> shownMirror.toggleView()
                                 lockTouches -> playback.togglePause()
                                 else -> controlsShown = !controlsShown
                             }
-                            // CoverPlayback ignores these while an editor streams a draft. A mirror pans instead,
-                            // bringing in what lies that way (a swipe left shows more of the right).
-                            GestureResult.SWIPE_NEXT ->
-                                if (shownMirror != null) shownMirror.pan(PanAxis.HORIZONTAL, towardsEnd = true) else playback.next()
-                            GestureResult.SWIPE_PREVIOUS ->
-                                if (shownMirror != null) shownMirror.pan(PanAxis.HORIZONTAL, towardsEnd = false) else playback.previous()
-                            GestureResult.SWIPE_DOWN -> when {
-                                shownMirror != null -> shownMirror.pan(PanAxis.VERTICAL, towardsEnd = false)
-                                !lockTouches -> currentOnDismiss?.invoke()
-                            }
-                            GestureResult.SWIPE_UP -> when {
-                                shownMirror != null -> shownMirror.pan(PanAxis.VERTICAL, towardsEnd = true)
-                                menuAllowed -> openMenu()
-                            }
+                            // CoverPlayback ignores these while an editor streams a draft. A mirror steers itself
+                            // (steerMirror above), never the playlist hidden behind it.
+                            GestureResult.SWIPE_NEXT -> if (shownMirror == null) playback.next()
+                            GestureResult.SWIPE_PREVIOUS -> if (shownMirror == null) playback.previous()
+                            GestureResult.SWIPE_DOWN -> if (shownMirror == null && !lockTouches) currentOnDismiss?.invoke()
+                            GestureResult.SWIPE_UP -> if (shownMirror == null && menuAllowed) openMenu()
                             GestureResult.IGNORED -> Unit
                         }
                         // Keep counting as "touched" until every finger is up, so the idle lock never fires mid-touch.
@@ -376,7 +388,10 @@ fun CoverScreen(
                     }
                 }
             }
-            if (showClock) {
+            // Not over what fills the corner: a QR code's finder pattern and quiet zone (no corner is free, so
+            // hidden rather than moved), or a toy's result band while it is played.
+            val clockFits = !showsQr && !(judged is CoverItem.Toy && !ambient)
+            if (showClock && clockFits) {
                 CoverClock(
                     Modifier
                         .align(Alignment.BottomStart)
@@ -418,12 +433,25 @@ fun CoverScreen(
             visible = toyHint && !controlsVisible && !menuShown,
             enter = fadeIn(),
             exit = fadeOut(),
+            // At the top: the toy's own result band and its "tap" pill take the bottom.
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .windowInsetsPadding(WindowInsets.displayCutout)
+                .padding(top = 12.dp),
+        ) {
+            MenuHint()
+        }
+
+        AnimatedVisibility(
+            visible = mirrorHint && mirroring != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.displayCutout)
-                .padding(bottom = 16.dp),
+                .padding(bottom = 18.dp),
         ) {
-            MenuHint()
+            MirrorGestureHint()
         }
 
         AnimatedVisibility(visible = controlsVisible, enter = fadeIn(), exit = fadeOut()) {
@@ -497,6 +525,7 @@ fun CoverScreen(
                     onUserActivity = currentOnUserActivity,
                     // False while it slides away; true again if it is reopened during that exit.
                     open = menuShown,
+                    brightnessLocked = showsQr,
                 )
             }
         }
@@ -576,6 +605,9 @@ private const val CONTROLS_TIMEOUT_MS = 4_000L
 
 /** How long a toy's first showing in a session points at the menu. */
 private const val TOY_HINT_MS = 2_000L
+
+/** How long the mirror's gesture hint stays, unless a move puts it away first. */
+private const val MIRROR_HINT_MS = 4_000L
 
 /** Resting brightness relative to the user's setting. */
 private const val AMBIENT_FACTOR = 0.35f

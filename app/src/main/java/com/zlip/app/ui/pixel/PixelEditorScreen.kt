@@ -6,23 +6,27 @@ import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.verticalScroll
@@ -117,6 +121,16 @@ private const val MAX_UNDO = 50
 
 /** From this grid size up, cells get too small for a finger, so the editor points out pinch to zoom. */
 private const val ZOOM_HINT_SIZE = 32
+
+/** A window this much wider than tall (the phone in landscape) puts the tools beside the canvas. */
+private const val SIDE_BY_SIDE_RATIO = 1.3f
+
+/** Beside the tools, the canvas takes at most this share of the width, so the tools keep a usable column. */
+private const val SIDE_CANVAS_MAX_FRACTION = 0.6f
+
+/** Room left under the canvas so the frame strip peeks out, and the smallest the canvas gets in a short window. */
+private val CANVAS_PEEK = 56.dp
+private val CANVAS_MIN_HEIGHT = 160.dp
 
 /**
  * A stroke this old that has moved past the touch slop is drawing: a second finger landing now is a
@@ -312,23 +326,9 @@ fun PixelEditorScreen(
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    // Keep strokes out of the system back-gesture zones so drawing never triggers "back".
-                    .windowInsetsPadding(WindowInsets.systemGestures.only(WindowInsetsSides.Horizontal))
-                    .systemGestureExclusion()
-                    .fillMaxWidth()
-                    .aspectRatio(sheet.width.toFloat() / sheet.height),
-            ) {
+        // The drawing surface; where it goes and how big it may be is decided by the layout below.
+        val canvas: @Composable (Modifier) -> Unit = { canvasModifier ->
+            Box(modifier = canvasModifier) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -474,7 +474,8 @@ fun PixelEditorScreen(
                     }
                 }
             }
-
+        }
+        val tools: @Composable ColumnScope.() -> Unit = {
             FrameStrip(
                 sheet = sheet,
                 background = background,
@@ -508,10 +509,8 @@ fun PixelEditorScreen(
                 HintText(stringResource(R.string.pixel_anim_hint))
             }
 
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            // Wraps rather than scrolls: Mirror, Grid and Clear sat off-screen with nothing to show they were there.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PixelTool.entries.forEach { entry ->
                     FilterChip(
                         selected = tool == entry,
@@ -572,15 +571,13 @@ fun PixelEditorScreen(
             }
 
             Label(R.string.pixel_size)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GRID_SIZES.forEach { size ->
-                    FilterChip(
-                        selected = sheet.width == size && sheet.height == size,
-                        onClick = { resize(size) },
-                        label = { Text("$size×$size") },
-                    )
-                }
-            }
+            ChoiceChips(
+                options = GRID_SIZES,
+                // An imported drawing that is not one of these squares has none selected.
+                selected = sheet.width.takeIf { sheet.width == sheet.height } ?: -1,
+                label = { "$it×$it" },
+                onSelect = { resize(it) },
+            )
             if (maxOf(sheet.width, sheet.height) >= ZOOM_HINT_SIZE) {
                 HintText(stringResource(R.string.pixel_zoom_hint))
             }
@@ -594,6 +591,72 @@ fun PixelEditorScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(24.dp))
+        }
+
+        BoxWithConstraints(
+            Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            val aspect = sheet.width.toFloat() / sheet.height
+            if (maxWidth > maxHeight * SIDE_BY_SIDE_RATIO) {
+                // Landscape: the drawing at full height on one side, the tools scrolling on their own beside it.
+                // A canvas as wide as the window would be three screens tall, take every drag and hide the tools.
+                val canvasMaxWidth = maxWidth * SIDE_CANVAS_MAX_FRACTION
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    canvas(
+                        Modifier
+                            .align(Alignment.CenterVertically)
+                            // Keep strokes out of the back-gesture zone on the canvas's side.
+                            .windowInsetsPadding(WindowInsets.systemGestures.only(WindowInsetsSides.Start))
+                            .systemGestureExclusion()
+                            .padding(vertical = 12.dp)
+                            .widthIn(max = canvasMaxWidth)
+                            // Full height if that fits the width cap; a wide imported drawing is narrowed instead,
+                            // never stretched out of shape.
+                            .aspectRatio(aspect, matchHeightConstraintsFirst = true),
+                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .imePadding()
+                            .verticalScroll(rememberScrollState())
+                            .padding(top = 12.dp, end = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        content = tools,
+                    )
+                }
+            } else {
+                // Measured outside the keyboard's padding, so the canvas keeps its size while the name is typed.
+                val canvasMaxHeight = (maxHeight - CANVAS_PEEK).coerceAtLeast(CANVAS_MIN_HEIGHT)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imePadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    canvas(
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                            // Keep strokes out of the system back-gesture zones so drawing never triggers "back".
+                            .windowInsetsPadding(WindowInsets.systemGestures.only(WindowInsetsSides.Horizontal))
+                            .systemGestureExclusion()
+                            // Never taller than the window, with the frame strip peeking below as a sign the page goes on.
+                            .widthIn(max = canvasMaxHeight * aspect)
+                            .fillMaxWidth()
+                            .aspectRatio(aspect),
+                    )
+                    tools()
+                }
+            }
         }
     }
 }

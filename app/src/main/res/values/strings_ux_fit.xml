@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Media editor, under Fit / Fill while Fill crops the picture: dragging the preview picks the part that shows -->
+    <string name="media_frame_hint">Drag the preview to frame it · double-tap to center</string>
+
+    <!-- Media editor, TalkBack actions on the preview while Fill crops the picture -->
+    <string name="media_frame_top">Show more of the top</string>
+    <string name="media_frame_bottom">Show more of the bottom</string>
+    <string name="media_frame_left">Show more of the left</string>
+    <string name="media_frame_right">Show more of the right</string>
+    <string name="media_frame_center">Center the picture</string>
+
+    <!-- Folded cover menu, under the brightness slider while a QR code is on screen -->
+    <string name="cover_menu_qr_full_brightness">QR codes stay at full brightness so they scan</string>
+</resources>

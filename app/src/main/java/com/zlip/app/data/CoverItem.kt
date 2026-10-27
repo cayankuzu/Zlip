@@ -64,6 +64,12 @@ sealed interface CoverItem {
         val hasAudio: Boolean = false,
         /** Videos with audio: play with sound on the cover. Off by default; never on inner-screen previews. */
         val sound: Boolean = false,
+        /**
+         * [MediaFit.FILL] only: which part of the cropped picture stays in view, -1 (left / top edge) .. 1
+         * (right / bottom edge), 0 = centre. See [MediaFocus].
+         */
+        val focusX: Float = 0f,
+        val focusY: Float = 0f,
     ) : CoverItem {
         val playsSound: Boolean get() = kind == MediaKind.VIDEO && hasAudio && sound
     }
@@ -265,6 +271,10 @@ internal object CoverItemJson {
                 if (item.posterFileName != null) put("poster", item.posterFileName)
                 put("hasAudio", item.hasAudio)
                 put("sound", item.sound)
+                // Only when framed off the centre: an untouched item keeps its old JSON, so the widget's frames
+                // (keyed by it) are not all redrawn after an update. Clamped: JSON cannot hold NaN.
+                MediaFocus.clamp(item.focusX).let { if (it != 0f) put("focusX", it.toDouble()) }
+                MediaFocus.clamp(item.focusY).let { if (it != 0f) put("focusY", it.toDouble()) }
             }
             is CoverItem.Text -> {
                 put("type", "text")
@@ -357,6 +367,8 @@ internal object CoverItemJson {
                 posterFileName = json.optString("poster").ifEmpty { null },
                 hasAudio = json.optBoolean("hasAudio", false),
                 sound = json.optBoolean("sound", false),
+                focusX = MediaFocus.clamp(json.optDouble("focusX", 0.0).toFloat()),
+                focusY = MediaFocus.clamp(json.optDouble("focusY", 0.0).toFloat()),
             )
             "text" -> CoverItem.Text(
                 id = id,

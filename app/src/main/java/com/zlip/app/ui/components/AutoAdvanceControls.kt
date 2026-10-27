@@ -34,11 +34,13 @@ fun AutoAdvanceControls(
         Spacer(Modifier.height(8.dp))
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             AdvanceMode.entries.forEachIndexed { index, mode ->
+                // No checkmark: the fill marks the choice, and "Zamanlayıcı" needs the room.
                 SegmentedButton(
                     selected = settings.advanceMode == mode,
                     onClick = { onSettingsChange(settings.copy(advanceMode = mode)) },
                     shape = SegmentedButtonDefaults.itemShape(index, AdvanceMode.entries.size),
-                ) { Text(stringResource(mode.label())) }
+                    icon = {},
+                ) { SegmentLabel(stringResource(mode.label())) }
             }
         }
         HintText(stringResource(settings.advanceMode.description()))

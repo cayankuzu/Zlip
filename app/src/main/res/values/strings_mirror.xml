@@ -26,8 +26,8 @@
     <string name="mirror_fit_title">Mirror view</string>
     <string name="mirror_fit_fit">Whole screen</string>
     <string name="mirror_fit_fill">Fill</string>
-    <string name="mirror_fit_desc">Whole screen shows all of it with black bars; Fill fills the cover and crops the edges.</string>
-    <string name="mirror_cover_gestures">On the cover: double-tap, then tap to switch and swipe to see the cropped part.</string>
+    <string name="mirror_fit_desc">Mirroring starts in this view. Whole screen shows all of it with black bars; Fill fills the cover and you swipe to see the rest.</string>
+    <string name="mirror_cover_gestures">On the cover: double-tap, then swipe to move around and pinch with two fingers to zoom. A tap switches between Whole screen and Fill.</string>
     <string name="mirror_settings_hint">Protected apps show black, Android asks for permission every time, and mirroring uses more battery.</string>
     <string name="mirror_channel">Screen mirroring</string>
     <string name="mirror_channel_desc">Shown while your screen is mirrored to the cover, with a button to stop.</string>

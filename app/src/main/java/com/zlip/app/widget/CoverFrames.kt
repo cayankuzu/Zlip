@@ -19,6 +19,7 @@ import androidx.core.graphics.withClip
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverItemJson
 import com.zlip.app.data.MediaFit
+import com.zlip.app.data.MediaFocus
 import com.zlip.app.data.MediaKind
 import com.zlip.app.data.MediaStorage
 import com.zlip.app.data.leaves
@@ -246,7 +247,10 @@ internal object CoverFrames {
             }
             val w = source.width * scale
             val h = source.height * scale
-            val target = RectF(box.centerX() - w / 2f, box.centerY() - h / 2f, box.centerX() + w / 2f, box.centerY() + h / 2f)
+            // A cropped picture shows the part the user framed, like the live cover; a fitted one is centred.
+            val left = if (item.fit == MediaFit.FILL) box.left + MediaFocus.offset(w - box.width(), item.focusX) else box.centerX() - w / 2f
+            val top = if (item.fit == MediaFit.FILL) box.top + MediaFocus.offset(h - box.height(), item.focusY) else box.centerY() - h / 2f
+            val target = RectF(left, top, left + w, top + h)
             // Nearest-neighbour for pixel art, smooth for photos.
             val paint = Paint().apply { isFilterBitmap = !item.crisp }
             drawBitmap(source, Rect(0, 0, source.width, source.height), target, paint)

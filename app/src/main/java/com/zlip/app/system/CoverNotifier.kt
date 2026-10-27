@@ -236,6 +236,9 @@ class CoverNotifier(
         const val ACTION_SOUND = "com.zlip.app.action.SOUND"
         const val ACTION_PLAYING_DISMISSED = "com.zlip.app.action.PLAYING_DISMISSED"
         const val ACTION_MIRROR_STOP = "com.zlip.app.action.MIRROR_STOP"
+
+        /** The small window's Whole screen / Fill switch while mirroring, as a tap on the cover. */
+        const val ACTION_MIRROR_VIEW = "com.zlip.app.action.MIRROR_VIEW"
         private const val HIDE_DELAY_MS = 300L
     }
 }
@@ -259,6 +262,7 @@ class CoverActionReceiver : BroadcastReceiver() {
             CoverNotifier.ACTION_NEXT -> app.playback.next() // ignored while an editor draft is shown
             CoverNotifier.ACTION_PLAYING_DISMISSED -> app.notifier.dismissPlaying()
             CoverNotifier.ACTION_MIRROR_STOP -> app.mirror.stop()
+            CoverNotifier.ACTION_MIRROR_VIEW -> app.mirror.toggleView()
             // The same switch as the cover's own button, so sound volume up turned on for now goes off as well.
             CoverNotifier.ACTION_SOUND -> (app.repository.selectedItem.value as? CoverItem.Media)?.let { shown ->
                 if (shown.kind == MediaKind.VIDEO && shown.hasAudio) app.playback.toggleSound(shown)

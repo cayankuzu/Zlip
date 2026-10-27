@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,10 +26,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zlip.app.R
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 /**
  * Inner screen while the cover is on and the user is idle: pure black (OLED pixels off) with a faint
@@ -51,6 +55,7 @@ fun StandbyOverlay(onWake: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         val (fx, fy) = SPOTS[spot]
+        val hintMaxWidth = hintWidth(maxWidth, fx)
         Column(
             modifier = Modifier
                 .offset(x = maxWidth * fx, y = maxHeight * fy)
@@ -59,10 +64,27 @@ fun StandbyOverlay(onWake: () -> Unit) {
         ) {
             Image(painterResource(R.drawable.brand_mark), contentDescription = null, modifier = Modifier.size(56.dp))
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.standby_hint), color = Color.White, fontSize = 12.sp)
+            // Wraps within the room this spot leaves, so the only line saying how to wake up never runs off-screen.
+            Text(
+                text = stringResource(R.string.standby_hint),
+                color = Color.White,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = hintMaxWidth),
+            )
         }
     }
 }
 
 /** Offsets from the center as fractions of the screen. */
 private val SPOTS = listOf(0f to 0f, -0.2f to -0.25f, 0.18f to 0.2f, -0.15f to 0.28f, 0.2f to -0.22f)
+
+/** Kept clear of the screen's edges on both sides. */
+private val HINT_MARGIN = 12.dp
+
+/**
+ * The widest the hint may be at a spot [offsetFraction] of the [screenWidth] off the centre: a centred
+ * line that stays [HINT_MARGIN] inside both edges. Pure, so it is unit-tested.
+ */
+internal fun hintWidth(screenWidth: Dp, offsetFraction: Float): Dp =
+    (screenWidth * (1f - 2f * abs(offsetFraction)) - HINT_MARGIN * 2).coerceAtLeast(0.dp)

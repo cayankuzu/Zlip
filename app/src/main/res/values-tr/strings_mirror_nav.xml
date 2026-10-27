@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kapakta yansıtılan ekranda gezinme -->
+    <string name="mirror_hint_pan">Kaydırarak gez</string>
+    <string name="mirror_hint_zoom">İki parmakla yakınlaştır</string>
+    <string name="mirror_hint_tap">Dokun: Tamamı / Doldur</string>
+    <string name="mirror_view_close">Yakın</string>
+    <string name="mirror_to_top">Başa dön</string>
+    <string name="mirror_toggle_view">Tamamı / Doldur</string>
+    <string name="mirror_view_desc">Yansıtılan ekran</string>
+    <string name="mirror_zoom_state">Yakınlık %%%1$d</string>
+    <string name="mirror_scroll_up">Yukarı kaydır</string>
+    <string name="mirror_scroll_down">Aşağı kaydır</string>
+    <string name="mirror_scroll_left">Sola kaydır</string>
+    <string name="mirror_scroll_right">Sağa kaydır</string>
+    <string name="mirror_zoom_in">Yakınlaştır</string>
+    <string name="mirror_zoom_out">Uzaklaştır</string>
+</resources>

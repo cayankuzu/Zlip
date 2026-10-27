@@ -26,8 +26,8 @@
     <string name="mirror_fit_title">Yansıtma görünümü</string>
     <string name="mirror_fit_fit">Tamamı</string>
     <string name="mirror_fit_fill">Doldur</string>
-    <string name="mirror_fit_desc">Tamamı ekranın hepsini siyah kenarlarla gösterir; Doldur kapağı doldurur ve kenarları kırpar.</string>
-    <string name="mirror_cover_gestures">Kapakta: iki kez dokun, sonra dokunarak değiştir, kaydırarak kırpılan yeri göster.</string>
+    <string name="mirror_fit_desc">Yansıtma bu görünümle başlar. Tamamı ekranın hepsini siyah kenarlarla gösterir; Doldur kapağı doldurur, gerisini kaydırarak görürsün.</string>
+    <string name="mirror_cover_gestures">Kapakta: iki kez dokun, sonra kaydırarak gez, iki parmakla yakınlaştır. Tek dokunuş Tamamı ile Doldur arasında geçer.</string>
     <string name="mirror_settings_hint">Korumalı uygulamalar siyah görünür, Android her yansıtmada izin ister ve yansıtma daha çok pil harcar.</string>
     <string name="mirror_channel">Ekran yansıtma</string>
     <string name="mirror_channel_desc">İç ekran kapağa yansıtılırken görünür; yansıtmayı buradan durdurabilirsin.</string>

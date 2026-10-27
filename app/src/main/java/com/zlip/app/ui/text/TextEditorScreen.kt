@@ -3,14 +3,13 @@ package com.zlip.app.ui.text
 import android.icu.text.BreakIterator
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -52,6 +51,7 @@ import com.zlip.app.render.CoverContent
 import com.zlip.app.render.Playback
 import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SwitchRow
@@ -160,7 +160,8 @@ fun TextEditorScreen(
                     .fillMaxWidth(0.72f)
                     .align(Alignment.CenterHorizontally),
             ) {
-                CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback)
+                // In cover units, so the size slider and the marquee speed look exactly as they will on the cover.
+                CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback) }
             }
 
             OutlinedTextField(
@@ -174,10 +175,8 @@ fun TextEditorScreen(
 
             // One tap for the signs people show most: name the moment, hold the phone up.
             Label(R.string.text_presets_title)
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            // Wraps rather than scrolls, so no preset hides off-screen.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 stringArrayResource(R.array.text_presets).forEach { preset ->
                     SuggestionChip(
                         onClick = { textValue = TextFieldValue(preset, TextRange(preset.length)) },

@@ -73,6 +73,7 @@ import com.zlip.app.ui.components.IconBadge
 import com.zlip.app.ui.components.MirrorFitChips
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SectionTitle
+import com.zlip.app.ui.components.SegmentLabel
 import com.zlip.app.ui.components.SwitchRow
 import com.zlip.app.ui.components.durationLabel
 import com.zlip.app.ui.home.BrightnessRow
@@ -329,11 +330,13 @@ private fun AdvancedCard(settings: CoverSettings, onSettingsChange: (CoverSettin
         Spacer(Modifier.height(8.dp))
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             PowerMode.entries.forEachIndexed { index, mode ->
+                // No checkmark: the fill marks the choice, and the labels need the room at large font sizes.
                 SegmentedButton(
                     selected = settings.powerMode == mode,
                     onClick = { onSettingsChange(settings.copy(powerMode = mode)) },
                     shape = SegmentedButtonDefaults.itemShape(index, PowerMode.entries.size),
-                ) { Text(stringResource(mode.label())) }
+                    icon = {},
+                ) { SegmentLabel(stringResource(mode.label())) }
             }
         }
         HintText(stringResource(settings.powerMode.description()))
@@ -379,7 +382,8 @@ private fun AdvancedCard(settings: CoverSettings, onSettingsChange: (CoverSettin
                     selected = settings.rotation == degrees,
                     onClick = { onSettingsChange(settings.copy(rotation = degrees)) },
                     shape = SegmentedButtonDefaults.itemShape(index, CoverSettings.ROTATIONS.size),
-                ) { Text("$degrees°") }
+                    icon = {},
+                ) { SegmentLabel("$degrees°") }
             }
         }
         Spacer(Modifier.height(12.dp))

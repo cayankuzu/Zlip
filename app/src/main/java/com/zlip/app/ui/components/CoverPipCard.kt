@@ -59,7 +59,8 @@ fun CoverPipCard(item: CoverItem?, settings: CoverSettings, status: CoverStatus,
             )
         } else {
             val led = LedStyle.of(settings).takeUnless { item?.showsQr() == true }
-            CoverContent(item = item, modifier = Modifier.fillMaxSize().ledMatrix(led), playback = Playback.STILL)
+            // In cover units: a big sign or the empty-cover note shrinks with the window instead of spilling out.
+            CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize().ledMatrix(led), playback = Playback.STILL) }
             // Off: the picture steps back, so the state reads at a glance.
             if (!coverOn) {
                 Box(

@@ -89,6 +89,7 @@ import com.zlip.app.render.Playback
 import com.zlip.app.system.CoverGuard
 import com.zlip.app.ui.components.ChoiceChips
 import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.badgeLabel
 import com.zlip.app.ui.theme.BrandMint
 import kotlinx.coroutines.flow.drop
@@ -101,7 +102,8 @@ import kotlinx.coroutines.flow.drop
  * picking an item closes it. Laid out for the small square cover: big targets, nothing tiny.
  *
  * Every click, switch, slider change and page turn calls [onUserActivity], since TalkBack's double tap
- * sends no touch the host could count. [open] is false while the menu slides away.
+ * sends no touch the host could count. [open] is false while the menu slides away. [brightnessLocked]: a QR
+ * code on screen stays at full brightness, so the slider only sets it for other items and says so.
  */
 @Composable
 internal fun CoverMenu(
@@ -112,6 +114,7 @@ internal fun CoverMenu(
     onClose: (() -> Unit)?,
     onUserActivity: () -> Unit,
     open: Boolean,
+    brightnessLocked: Boolean = false,
 ) {
     val sequence by repository.sequence.collectAsState()
     val settings by repository.settings.collectAsState()
@@ -159,10 +162,11 @@ internal fun CoverMenu(
         }
     }
 
-    // While brightness is dragged the menu steps back, so the cover's dimming shows behind it.
+    // While brightness is dragged the menu steps back, so the cover's dimming shows behind it. Not over a QR
+    // code: it stays bright, and a cover that does not change would make the slider look broken.
     val brightnessTouch = remember { MutableInteractionSource() }
     val dragging by brightnessTouch.collectIsDraggedAsState()
-    val backdrop by animateFloatAsState(if (dragging) 0f else 1f, label = "menu-backdrop")
+    val backdrop by animateFloatAsState(if (dragging && !brightnessLocked) 0f else 1f, label = "menu-backdrop")
     val faded = Modifier.graphicsLayer { alpha = backdrop }
     val menuTitle = stringResource(R.string.cover_menu_title)
 
@@ -223,6 +227,14 @@ internal fun CoverMenu(
                 // Once per drag or TalkBack step, not on every move.
                 onChangeFinished = onUserActivity,
             )
+            if (brightnessLocked) {
+                Text(
+                    text = stringResource(R.string.cover_menu_qr_full_brightness),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = faded,
+                )
+            }
 
             Column(faded) {
                 SectionLabel(stringResource(R.string.settings_stay_on))
@@ -390,7 +402,7 @@ private fun ItemTile(item: CoverItem, current: Boolean, onClick: () -> Unit, mod
             },
     ) {
         CoverPreviewFrame(Modifier.fillMaxWidth().clearAndSetSemantics {}, glowing = current) {
-            CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL)
+            CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
             Text(
                 text = name,
                 color = if (current) BrandMint else Color.White,

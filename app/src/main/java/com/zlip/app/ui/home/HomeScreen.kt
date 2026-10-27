@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -113,6 +116,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -142,12 +146,13 @@ import com.zlip.app.render.ledMatrix
 import com.zlip.app.render.Playback
 import com.zlip.app.ui.components.AutoShowControl
 import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DragHandle
 import com.zlip.app.ui.components.GradientButton
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.IconBadge
 import com.zlip.app.ui.components.LocalHovering
-import com.zlip.app.ui.components.MirrorFitChips
+import com.zlip.app.ui.components.MirrorViewControls
 import com.zlip.app.ui.components.MoveButtons
 import com.zlip.app.ui.components.ReorderableList
 import com.zlip.app.ui.components.ReorderableRowScope
@@ -162,6 +167,12 @@ import com.zlip.app.ui.theme.BrandBlue
 import com.zlip.app.ui.theme.BrandGradient
 import com.zlip.app.ui.theme.BrandMint
 import androidx.compose.ui.graphics.Brush as GradientBrush
+
+/**
+ * Room under the last row for the "Add" button: its 56 dp height, the 16 dp the Scaffold keeps under it and a
+ * 32 dp gap, so scrolled to the end no control (the brightness slider's end included) is left under the button.
+ */
+private val FAB_CLEARANCE = 56.dp + 16.dp + 32.dp
 
 /** What the add sheet offers; [GALLERY] picks one or several photos and videos. */
 enum class AddKind { GALLERY, PIXEL, TEXT, COLLAGE, GROUP, COUNTDOWN, QR, TOY }
@@ -324,14 +335,17 @@ fun HomeScreen(
             }
         },
     ) { padding ->
+        val layoutDirection = LocalLayoutDirection.current
         LazyVerticalGrid(
             state = gridState,
             columns = GridCells.Adaptive(minSize = 150.dp),
+            // Clear of a side navigation bar (landscape), and at the end of the list of the "Add" button, which sits
+            // above the navigation bar that the bottom padding already holds.
             contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
+                start = padding.calculateStartPadding(layoutDirection) + 16.dp,
+                end = padding.calculateEndPadding(layoutDirection) + 16.dp,
                 top = padding.calculateTopPadding() + 4.dp,
-                bottom = padding.calculateBottomPadding() + 104.dp,
+                bottom = padding.calculateBottomPadding() + FAB_CLEARANCE,
             ),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -641,7 +655,7 @@ private fun HeroSection(
     ) {
         CoverPreviewFrame(Modifier.fillMaxWidth(0.74f), glowing = active) {
             // Still while the cover is on (the real thing is on the back), in standby and in the background.
-            CoverContent(item = item, modifier = Modifier.fillMaxSize().ledMatrix(led), playback = playback)
+            CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize().ledMatrix(led), playback = playback) }
         }
         Spacer(Modifier.height(16.dp))
         val (label, color) = when (status) {
@@ -736,7 +750,7 @@ private fun HeroSection(
     }
 }
 
-/** The controls card while mirroring: how the screen fills the cover, and the cover's brightness. */
+/** The controls card while mirroring: which part of the screen the cover shows, and the cover's brightness. */
 @Composable
 private fun MirrorControlsCard(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit) {
     SectionCard {
@@ -746,7 +760,7 @@ private fun MirrorControlsCard(settings: CoverSettings, onSettingsChange: (Cover
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
-        MirrorFitChips(selected = settings.mirrorFit, onSelect = { onSettingsChange(settings.copy(mirrorFit = it)) })
+        MirrorViewControls()
         HintText(stringResource(R.string.mirror_cover_gestures))
         Spacer(Modifier.height(8.dp))
         BrightnessRow(settings, onSettingsChange)
@@ -801,12 +815,11 @@ private fun ControlsCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+        // Wraps rather than scrolls: shuffle and repeat move to the next line instead of hiding off the edge.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             AdvanceMode.entries.forEach { mode ->
                 FilterChip(
@@ -911,7 +924,7 @@ private fun LibraryCard(
                         .fillMaxWidth()
                         .padding(8.dp),
                 ) {
-                    CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL)
+                    CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
                 }
                 TypeBadge(
                     item = item,
@@ -1127,7 +1140,7 @@ private fun ReorderableRowScope.SortRow(item: CoverItem, onToTop: () -> Unit, on
                 .size(width = 52.dp, height = 50.dp)
                 .clip(RoundedCornerShape(8.dp)),
         ) {
-            CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL)
+            CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
         }
         Column(
             Modifier
