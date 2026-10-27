@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Home, cover on: where there is no Mini cover (Android 14, no picture-in-picture, or Mini cover switched off) -->
-    <string name="status_active_body_leave">Double-tap the cover to unlock touch; it locks again after 3 seconds. The cover turns off when you leave Zlip.</string>
+    <string name="status_active_body_leave">Double-tap the cover to show the controls. The cover turns off when you leave Zlip.</string>
 
     <!-- Onboarding welcome where there is no Mini cover -->
-    <string name="intro_welcome_body_no_mini">Your photos, videos, text and drawings play on the cover. Your palm can\'t set anything off: double-tap the cover to unlock touch.</string>
+    <string name="intro_welcome_body_no_mini">Your photos, videos, text and drawings play on the cover.</string>
 
     <!-- Unsaved-changes dialog when the changes can't be saved yet (only Don't save / Cancel) -->
     <string name="discard_title_unsavable">Discard changes?</string>

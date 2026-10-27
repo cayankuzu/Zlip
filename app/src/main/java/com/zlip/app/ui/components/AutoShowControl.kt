@@ -24,7 +24,7 @@ import com.zlip.app.data.CoverSettings
 import com.zlip.app.system.CoverGuard
 
 /**
- * "Kapakta hep göster": the screen saver on the folded cover at every wake. Turning it on without "Appear
+ * "Katlayınca kendiliğinden aç": the screen saver on the folded cover at every wake. Turning it on without "Appear
  * on top" first explains that permission, then opens its system page. While it is off, or the permission is
  * still missing, one line says what the folded cover shows instead (only the widget).
  */

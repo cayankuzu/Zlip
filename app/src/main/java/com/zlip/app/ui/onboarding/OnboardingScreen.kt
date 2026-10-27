@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -29,7 +30,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ScreenShare
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PictureInPictureAlt
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.ViewCarousel
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -56,25 +63,58 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import com.zlip.app.R
 import com.zlip.app.cover.coverHoverSupported
+import com.zlip.app.ui.components.FoldedGestures
+import com.zlip.app.ui.components.GestureRow
 import com.zlip.app.ui.components.GradientButton
+import com.zlip.app.ui.components.OpenPhoneGestures
 import com.zlip.app.ui.components.miniCoverSupported
 import com.zlip.app.ui.theme.BrandGradient
 import kotlinx.coroutines.launch
 
-internal data class Page(@StringRes val title: Int, @StringRes val body: Int, val icon: ImageVector?)
+/**
+ * One onboarding page: a short [body], then [rows] of icon lines that teach one gesture or step each (a
+ * paragraph is not remembered). [asksNotifications] puts the notification permission under the page.
+ */
+internal data class Page(
+    @StringRes val title: Int,
+    @StringRes val body: Int,
+    val icon: ImageVector?,
+    val asksNotifications: Boolean = false,
+    val rows: (@Composable () -> Unit)? = null,
+)
 
 /**
- * The open cover (and the Mini kapak), mirroring, the folded screen saver, then groups and the gallery. Only
- * what this phone has: mirroring needs Android 15 ([mirror]), the Mini kapak picture-in-picture too ([miniCover]).
+ * The open cover (and the Mini kapak), how to use it, mirroring, the folded screen saver, then groups and the
+ * gallery. Only what this phone has: mirroring needs Android 15 ([mirror]), the Mini kapak picture-in-picture
+ * too ([miniCover]).
  */
 internal fun onboardingPages(mirror: Boolean, miniCover: Boolean): List<Page> = buildList {
-    add(Page(R.string.intro_welcome_title, if (miniCover) R.string.intro_welcome_body else R.string.intro_welcome_body_no_mini, null))
-    if (mirror) add(Page(R.string.intro_mirror_title, R.string.intro_mirror_body, Icons.AutoMirrored.Filled.ScreenShare))
-    add(Page(R.string.intro_folded_title, R.string.intro_folded_body, Icons.Filled.Bedtime))
-    add(Page(R.string.intro_groups_title, R.string.intro_groups_body, Icons.Filled.ViewCarousel))
+    add(
+        Page(
+            title = R.string.intro_welcome_title,
+            body = if (miniCover) R.string.intro_welcome_body else R.string.intro_welcome_body_no_mini,
+            icon = null,
+            rows = if (miniCover) ({ GestureRow(Icons.Filled.PictureInPictureAlt, R.string.intro_welcome_mini) }) else null,
+        ),
+    )
+    // Next to the gestures, so the shade controls are offered where they make sense.
+    add(Page(R.string.intro_cover_title, R.string.intro_cover_body, Icons.Filled.TouchApp, asksNotifications = true) { OpenPhoneGestures() })
+    if (mirror) {
+        add(Page(R.string.intro_mirror_title, R.string.intro_mirror_body, Icons.AutoMirrored.Filled.ScreenShare) {
+            GestureRow(Icons.Filled.Home, R.string.intro_mirror_where)
+        })
+    }
+    add(Page(R.string.intro_folded_title, R.string.intro_folded_body, Icons.Filled.Bedtime) {
+        FoldedGestures()
+        GestureRow(Icons.Filled.Widgets, R.string.intro_folded_add)
+        GestureRow(Icons.Filled.Visibility, R.string.intro_folded_auto)
+    })
+    add(Page(R.string.intro_groups_title, R.string.intro_groups_body, Icons.Filled.ViewCarousel) {
+        GestureRow(Icons.Filled.SkipNext, R.string.gesture_leave_group)
+    })
 }
 
-/** First-run introduction. The last page offers the notification permission for shade controls. */
+/** First-run introduction. The cover page offers the notification permission for shade controls. */
 @Composable
 fun OnboardingScreen(
     notificationsAllowed: Boolean,
@@ -136,7 +176,15 @@ fun OnboardingScreen(
                 )
             }
         }
-        if (last && !notificationsAllowed) {
+        if (pages[pager.currentPage].asksNotifications && !notificationsAllowed) {
+            Text(
+                text = stringResource(R.string.intro_notifications_line),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = onRequestNotificationPermission,
                 // A minimum, not a fixed height: at the largest font sizes the label takes two lines.
@@ -157,13 +205,13 @@ fun OnboardingScreen(
 }
 
 /**
- * Centred while it fits; with large fonts or in landscape the art shrinks (at most 30% of the page) and
- * the page scrolls, so no text is ever cut off.
+ * Centred while it fits; with large fonts or in landscape the art shrinks (at most 30% of the page, 20% when
+ * rows follow) and the page scrolls, so no text is ever cut off.
  */
 @Composable
 private fun PageContent(page: Page) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val art = min(200.dp, maxHeight * 0.3f)
+        val art = if (page.rows == null) min(200.dp, maxHeight * 0.3f) else min(140.dp, maxHeight * 0.2f)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -202,6 +250,10 @@ private fun PageContent(page: Page) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
+            if (page.rows != null) {
+                Spacer(Modifier.height(16.dp))
+                Column(Modifier.widthIn(max = 440.dp).fillMaxWidth()) { page.rows.invoke() }
+            }
         }
     }
 }

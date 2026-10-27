@@ -10,8 +10,8 @@
     <string name="cover_menu_show">Show</string>
     <string name="cover_menu_minutes">%1$d min</string>
     <string name="cover_menu_always">Always</string>
-    <string name="cover_menu_auto_show">Always show on the cover</string>
-    <string name="cover_menu_allow_on_phone">Allow it on the phone</string>
+    <string name="cover_menu_auto_show">Open by itself</string>
+    <string name="cover_menu_allow_on_phone">Open Zlip on the phone → Home → Allow</string>
     <string name="cover_menu_clock">Clock</string>
     <string name="cover_menu_led">LED</string>
 </resources>

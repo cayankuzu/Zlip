@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kapak hareketleri: her hareket tek satır; tanıtımda ve Ayarlar'daki sayfada aynı satırlar -->
+    <string name="settings_gestures">Kapak hareketleri</string>
+    <string name="settings_gestures_desc">Dokunma ve kaydırma ne yapar</string>
+    <string name="gestures_open_title">Telefon açıkken</string>
+    <string name="gestures_folded_title">Katlıyken</string>
+    <string name="gesture_open_double_tap">İki kez dokun: kontroller açılır, 3 sn sonra yeniden kilitlenir</string>
+    <string name="gesture_close">×: kapağı kapat</string>
+    <string name="gesture_swipe">Yana kaydır: önceki / sonraki. Grupta önce grubun adımları</string>
+    <string name="gesture_leave_group">Gruptan çıkmak için: Sonraki içerik / Önceki içerik</string>
+    <string name="gesture_pause">Ortadaki düğme: duraklat / oynat</string>
+    <string name="gesture_open_tap_done">Boş yere dokun: kontroller kapanır</string>
+    <string name="gesture_folded_tap">Dokun: kontroller ve ×</string>
+    <string name="gesture_folded_up">Yukarı kaydır: menü</string>
+    <string name="gesture_folded_down">Aşağı kaydır: kilit ekranı</string>
+
+    <!-- Tanıtım -->
+    <string name="intro_welcome_mini">Başka uygulamaya geçince Zlip Mini kapak olur, kapak açık kalır.</string>
+    <string name="intro_cover_title">Kapağı kullanmak</string>
+    <string name="intro_cover_body">Avucun değse bile bir şey olmaz: kapak kilitli durur.</string>
+    <string name="intro_notifications_line">Kapağı bildirim panelinden de duraklat, geç ya da kapat.</string>
+    <string name="intro_folded_add">Eklemek için: katlıyken kapağa basılı tut → Düzenle → \'Zlip kapak\'.</string>
+    <string name="intro_folded_auto">Her katlayışta kendiliğinden açılsın istersen Ana sayfada \'Katlayınca kendiliğinden aç\'ı aç.</string>
+    <string name="intro_mirror_where">Ana sayfada \'Ekranı yansıt\'a dokun.</string>
+
+    <!-- Ayarlar -->
+    <string name="settings_section_open_phone">Telefon açıkken</string>
+    <string name="settings_pip_off">Resim içinde resim bu uygulama için kapalı, Mini kapak açılamaz.</string>
+    <string name="settings_pip_open">Aç</string>
+    <string name="settings_folded_inactive">Bunlar widget\'ı ekleyince ya da \'Katlayınca kendiliğinden aç\' açıkken geçerli.</string>
+    <string name="advance_shuffle_auto_only">İleri / geri tuşları her zaman liste sırasıyla gider.</string>
+</resources>

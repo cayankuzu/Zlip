@@ -66,6 +66,9 @@ fun AutoAdvanceControls(
                 onCheckedChange = { onSettingsChange(settings.copy(shuffle = it)) },
                 icon = Icons.Filled.Shuffle,
             )
+            // Manual moves never shuffle, so Önceki always undoes Sonraki; say so where shuffle is chosen.
+            HintText(stringResource(R.string.advance_shuffle_auto_only))
+            Spacer(Modifier.height(4.dp))
             SwitchRow(
                 title = stringResource(R.string.advance_repeat),
                 description = stringResource(R.string.advance_repeat_desc),

@@ -1,5 +1,11 @@
 package com.zlip.app.ui.settings
 
+import android.app.AppOpsManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Process
+import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -9,6 +15,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.AddToHomeScreen
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AutoMode
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.CheckCircle
@@ -29,6 +37,7 @@ import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,6 +54,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -60,6 +70,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.zlip.app.R
 import com.zlip.app.cover.coverHoverSupported
 import com.zlip.app.data.AdvanceMode
@@ -68,6 +79,7 @@ import com.zlip.app.data.PowerMode
 import com.zlip.app.ui.components.AutoAdvanceControls
 import com.zlip.app.ui.components.AutoShowControl
 import com.zlip.app.ui.components.ChoiceChips
+import com.zlip.app.ui.components.CoverGesturesSheet
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.IconBadge
 import com.zlip.app.ui.components.MirrorFitChips
@@ -79,8 +91,8 @@ import com.zlip.app.ui.components.durationLabel
 import com.zlip.app.ui.home.BrightnessRow
 
 /**
- * Settings in five sections: the cover's look, the folded cover, the ways to control it, a collapsed
- * "Gelişmiş" for what most people never need, and About.
+ * Settings: first the cover gestures to look up, then the cover's look, the cover while the phone is open, the
+ * folded cover, the ways to control it, a collapsed "Gelişmiş" for what most people never need, and About.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +108,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var advancedOpen by rememberSaveable { mutableStateOf(false) }
+    var gesturesOpen by rememberSaveable { mutableStateOf(false) }
+    if (gesturesOpen) CoverGesturesSheet(onDismiss = { gesturesOpen = false })
 
     Scaffold(
         topBar = {
@@ -117,7 +131,9 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SectionTitle(R.string.settings_section_cover)
+            GesturesRow(onClick = { gesturesOpen = true })
+
+            SectionTitle(R.string.settings_section_cover, modifier = Modifier.padding(top = 8.dp))
             SectionCard {
                 Text(stringResource(R.string.settings_brightness), style = MaterialTheme.typography.bodyLarge)
                 BrightnessRow(settings, onSettingsChange)
@@ -151,6 +167,9 @@ fun SettingsScreen(
                 }
             }
 
+            SectionTitle(R.string.settings_section_open_phone, modifier = Modifier.padding(top = 8.dp))
+            OpenPhoneCard(settings, onSettingsChange)
+
             SectionTitle(R.string.settings_section_folded, modifier = Modifier.padding(top = 8.dp))
             SectionCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -175,6 +194,10 @@ fun SettingsScreen(
                 Spacer(Modifier.height(16.dp))
                 AutoShowControl(settings, onSettingsChange)
                 Spacer(Modifier.height(16.dp))
+                // Still usable, so they can be set up ahead; only nothing reads them yet.
+                if (foldedSettingsIdle(widgetPlaced, settings.autoShowOnCover)) {
+                    HintText(stringResource(R.string.settings_folded_inactive), modifier = Modifier.padding(bottom = 8.dp))
+                }
                 Text(stringResource(R.string.settings_stay_on), style = MaterialTheme.typography.bodyLarge)
                 HintText(stringResource(R.string.settings_stay_on_desc))
                 Spacer(Modifier.height(8.dp))
@@ -233,16 +256,6 @@ fun SettingsScreen(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.settings_tile_add))
                 }
-                if (coverHoverSupported) {
-                    Spacer(Modifier.height(12.dp))
-                    SwitchRow(
-                        title = stringResource(R.string.settings_keep_outside),
-                        description = stringResource(R.string.settings_keep_outside_desc),
-                        checked = settings.keepCoverInOtherApps,
-                        onCheckedChange = { onSettingsChange(settings.copy(keepCoverInOtherApps = it)) },
-                        icon = Icons.Filled.PictureInPictureAlt,
-                    )
-                }
             }
 
             AdvancedHeader(open = advancedOpen, onToggle = { advancedOpen = !advancedOpen })
@@ -267,6 +280,89 @@ fun SettingsScreen(
             }
             Spacer(Modifier.height(32.dp))
         }
+    }
+}
+
+/** "Kapak hareketleri": the first row, opening the gesture sheet, so a skipped intro is never the only guide. */
+@Composable
+private fun GesturesRow(onClick: () -> Unit) {
+    SectionCard(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.small)
+                .clickable(role = Role.Button, onClick = onClick)
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconBadge(Icons.Filled.TouchApp)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_gestures), style = MaterialTheme.typography.bodyLarge)
+                HintText(stringResource(R.string.settings_gestures_desc))
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+        }
+    }
+}
+
+/**
+ * What keeps the open-phone cover on or turns it off, in one place: starting with Zlip, the Mini kapak, the
+ * idle cutoff and the dimmed inner screen. The Mini kapak notes when the system has picture-in-picture off for
+ * Zlip (looked up again on every return, since it is changed on a system page).
+ */
+@Composable
+private fun OpenPhoneCard(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit) {
+    val context = LocalContext.current
+    var pipMode by remember { mutableIntStateOf(AppOpsManager.MODE_ALLOWED) }
+    LifecycleResumeEffect(Unit) {
+        pipMode = pictureInPictureMode(context)
+        onPauseOrDispose { }
+    }
+    SectionCard {
+        SwitchRow(
+            title = stringResource(R.string.settings_auto_start),
+            description = stringResource(R.string.settings_auto_start_desc),
+            checked = settings.autoStart,
+            onCheckedChange = { onSettingsChange(settings.copy(autoStart = it)) },
+            icon = Icons.Filled.AutoMode,
+        )
+        if (coverHoverSupported) {
+            Spacer(Modifier.height(12.dp))
+            SwitchRow(
+                title = stringResource(R.string.settings_keep_outside),
+                description = stringResource(R.string.settings_keep_outside_desc),
+                checked = settings.keepCoverInOtherApps,
+                onCheckedChange = { onSettingsChange(settings.copy(keepCoverInOtherApps = it)) },
+                icon = Icons.Filled.PictureInPictureAlt,
+            )
+            if (pipBlocked(pipMode, settings.keepCoverInOtherApps)) {
+                HintText(stringResource(R.string.settings_pip_off))
+                TextButton(onClick = { openAppDetails(context) }) { Text(stringResource(R.string.settings_pip_open)) }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+
+        Text(stringResource(R.string.settings_auto_off), style = MaterialTheme.typography.bodyLarge)
+        HintText(stringResource(R.string.settings_auto_off_desc))
+        Spacer(Modifier.height(8.dp))
+        ChoiceChips(
+            options = CoverSettings.AUTO_OFF_OPTIONS,
+            selected = settings.autoOffMinutes,
+            label = { minutes -> if (minutes == 0) stringResource(R.string.auto_off_never) else durationLabel(minutes * 60) },
+            onSelect = { onSettingsChange(settings.copy(autoOffMinutes = it)) },
+        )
+        Spacer(Modifier.height(16.dp))
+
+        Text(stringResource(R.string.settings_standby), style = MaterialTheme.typography.bodyLarge)
+        HintText(stringResource(R.string.settings_standby_desc))
+        Spacer(Modifier.height(8.dp))
+        ChoiceChips(
+            options = CoverSettings.STANDBY_OPTIONS,
+            selected = settings.standbySeconds,
+            label = { durationLabel(it) },
+            onSelect = { onSettingsChange(settings.copy(standbySeconds = it)) },
+        )
     }
 }
 
@@ -369,37 +465,6 @@ private fun AdvancedCard(settings: CoverSettings, onSettingsChange: (CoverSettin
         HintText(stringResource(settings.powerMode.description()))
         Spacer(Modifier.height(16.dp))
 
-        Text(stringResource(R.string.settings_standby), style = MaterialTheme.typography.bodyLarge)
-        HintText(stringResource(R.string.settings_standby_desc))
-        Spacer(Modifier.height(8.dp))
-        ChoiceChips(
-            options = CoverSettings.STANDBY_OPTIONS,
-            selected = settings.standbySeconds,
-            label = { durationLabel(it) },
-            onSelect = { onSettingsChange(settings.copy(standbySeconds = it)) },
-        )
-        Spacer(Modifier.height(16.dp))
-
-        Text(stringResource(R.string.settings_auto_off), style = MaterialTheme.typography.bodyLarge)
-        HintText(stringResource(R.string.settings_auto_off_desc))
-        Spacer(Modifier.height(8.dp))
-        ChoiceChips(
-            options = CoverSettings.AUTO_OFF_OPTIONS,
-            selected = settings.autoOffMinutes,
-            label = { minutes -> if (minutes == 0) stringResource(R.string.auto_off_never) else durationLabel(minutes * 60) },
-            onSelect = { onSettingsChange(settings.copy(autoOffMinutes = it)) },
-        )
-        Spacer(Modifier.height(12.dp))
-
-        SwitchRow(
-            title = stringResource(R.string.settings_auto_start),
-            description = stringResource(R.string.settings_auto_start_desc),
-            checked = settings.autoStart,
-            onCheckedChange = { onSettingsChange(settings.copy(autoStart = it)) },
-            icon = Icons.Filled.AutoMode,
-        )
-        Spacer(Modifier.height(12.dp))
-
         Text(stringResource(R.string.settings_rotation), style = MaterialTheme.typography.bodyLarge)
         HintText(stringResource(R.string.settings_rotation_desc))
         Spacer(Modifier.height(8.dp))
@@ -438,4 +503,27 @@ private fun PowerMode.description(): Int = when (this) {
     PowerMode.SAVER -> R.string.power_saver_desc
     PowerMode.BALANCED -> R.string.power_balanced_desc
     PowerMode.SMOOTH -> R.string.power_smooth_desc
+}
+
+/** Whether the folded-cover settings are waiting on a placed widget or "Katlayınca kendiliğinden aç". */
+internal fun foldedSettingsIdle(widgetPlaced: Boolean, autoShowOnCover: Boolean): Boolean = !widgetPlaced && !autoShowOnCover
+
+/**
+ * Whether the Mini kapak is on but cannot open: the system's picture-in-picture switch for Zlip is off. Turning
+ * it off in system settings sets the op to errored; ignored is treated the same. Allowed and default are fine.
+ */
+internal fun pipBlocked(pipMode: Int, miniCoverOn: Boolean): Boolean =
+    miniCoverOn && (pipMode == AppOpsManager.MODE_ERRORED || pipMode == AppOpsManager.MODE_IGNORED)
+
+// Deprecated in the Android 16 QPR SDK for a flagged overload; this one works on every Android Zlip runs on.
+@Suppress("DEPRECATION")
+private fun pictureInPictureMode(context: Context): Int {
+    val appOps = context.getSystemService(AppOpsManager::class.java) ?: return AppOpsManager.MODE_ALLOWED
+    return appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, Process.myUid(), context.packageName)
+}
+
+/** Zlip's App info page, where picture-in-picture is turned back on. */
+private fun openAppDetails(context: Context) {
+    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+    runCatching { context.startActivity(intent) }
 }

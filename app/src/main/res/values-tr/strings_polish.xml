@@ -2,11 +2,11 @@
 <resources>
     <!-- Ayarlar: daraltılabilir Gelişmiş bölümü -->
     <string name="settings_section_advanced">Gelişmiş</string>
-    <string name="settings_advanced_summary">Güç modu, iç ekran bekleme, boşta kapanma ve fazlası</string>
+    <string name="settings_advanced_summary">Güç modu ve döndürme</string>
     <string name="settings_advanced_expanded">Genişletildi</string>
     <string name="settings_advanced_collapsed">Daraltıldı</string>
 
-    <!-- Kapakta hep göster: kapalıyken ne olacağı -->
+    <!-- Katlayınca kendiliğinden aç: kapalıyken ne olacağı -->
     <string name="auto_show_off_hint">Açmazsan katlayınca kapakta yalnızca Zlip widget\'ı görünür.</string>
 
     <!-- Ana sayfa -->
@@ -14,7 +14,7 @@
     <string name="action_cover_off">Kapağı kapat</string>
     <string name="home_widget_tip_dismiss">İpucunu kapat</string>
     <string name="home_sort">Sırala</string>
-    <string name="sort_title">Oynatma sırası</string>
+    <string name="sort_title">Liste sırası</string>
     <string name="sort_hint">Sürükle ya da oklarla taşı. Kapak bu sırayla oynar.</string>
     <string name="sort_to_top">En başa</string>
     <string name="sort_to_bottom">En sona</string>

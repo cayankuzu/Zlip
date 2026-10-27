@@ -6,21 +6,21 @@
     <string name="pip_cover_off">Turn cover off</string>
     <string name="pip_cover_on">Turn cover on</string>
     <string name="settings_keep_outside">Mini cover</string>
-    <string name="settings_keep_outside_desc">Switch to another app and Zlip shrinks to a small window, so the cover stays on; turn the cover on and off from there.</string>
+    <string name="settings_keep_outside_desc">When you switch apps, Zlip becomes a small window and the cover stays on. Tap the window to return; closing it turns the cover off.</string>
 
     <!-- Idle cutoff -->
     <string name="auto_off_warning">Cover turns off in %1$d s</string>
     <string name="settings_auto_off">Turn off when idle</string>
-    <string name="settings_auto_off_desc">If neither screen is touched for this long while Zlip is open, the cover turns off. A notice comes 15 seconds before; one touch keeps it on.</string>
+    <string name="settings_auto_off_desc">If neither screen is touched for this long while Zlip is open, the cover turns off. The inner screen warns 15 s before; a touch keeps it on.</string>
     <string name="auto_off_never">Never</string>
 
     <!-- Screen mirroring -->
     <string name="cover_mirroring">Mirroring</string>
     <string name="mirror_mode_content">My content</string>
     <string name="mirror_mode_screen">Mirror screen</string>
-    <string name="mirror_consent_hint">Shows your screen on the cover. Android asks for permission every time.</string>
-    <string name="mirror_active_body_leave">Your screen is on the cover until you leave Zlip. Protected apps such as banking or Netflix show black, and mirroring uses more battery.</string>
-    <string name="mirror_active_body">Your screen is on the cover, in other apps too while Zlip is the Mini cover. Protected apps such as banking or Netflix show black, and mirroring uses more battery.</string>
+    <string name="mirror_consent_hint">Mirror screen: Android asks to record or cast; tap Start. Zlip records nothing.</string>
+    <string name="mirror_active_body_leave">Your screen is on the cover until you leave Zlip. Protected apps show black.</string>
+    <string name="mirror_active_body">Your screen is on the cover. Protected apps show black.</string>
     <string name="mirror_stop">Stop mirroring</string>
     <string name="mirror_failed">Mirroring could not start. Try again.</string>
     <string name="mirror_fit_title">Mirror view</string>

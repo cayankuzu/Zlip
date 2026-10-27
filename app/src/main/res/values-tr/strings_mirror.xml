@@ -6,21 +6,21 @@
     <string name="pip_cover_off">Kapağı kapat</string>
     <string name="pip_cover_on">Kapağı aç</string>
     <string name="settings_keep_outside">Mini kapak</string>
-    <string name="settings_keep_outside_desc">Başka uygulamaya geçince Zlip küçük bir pencere olur ve kapak açık kalır; kapağı o pencereden açıp kapatırsın.</string>
+    <string name="settings_keep_outside_desc">Başka uygulamaya geçince Zlip küçük bir pencere olur, kapak açık kalır. Pencereye dokun: Zlip\'e dön. Pencereyi kapatırsan kapak da kapanır.</string>
 
     <!-- Boşta kapanma -->
     <string name="auto_off_warning">Kapak %1$d sn içinde kapanacak</string>
     <string name="settings_auto_off">Boşta kalınca kapat</string>
-    <string name="settings_auto_off_desc">Zlip açıkken iki ekrana da bu süre dokunulmazsa kapak kapanır. 15 saniye önce uyarır; tek dokunuş açık tutar.</string>
+    <string name="settings_auto_off_desc">Zlip açıkken iki ekrana da bu süre dokunulmazsa kapak kapanır. İç ekranda 15 sn önce uyarır; bir dokunuş açık tutar.</string>
     <string name="auto_off_never">Asla</string>
 
     <!-- Ekran yansıtma -->
     <string name="cover_mirroring">Yansıtılıyor</string>
     <string name="mirror_mode_content">İçeriğim</string>
     <string name="mirror_mode_screen">Ekranı yansıt</string>
-    <string name="mirror_consent_hint">İç ekranı kapakta gösterir. Android her seferinde izin ister.</string>
-    <string name="mirror_active_body_leave">İç ekranın kapakta; Zlip\'ten çıkınca durur. Bankacılık ya da Netflix gibi korumalı uygulamalar siyah görünür ve yansıtma daha çok pil harcar.</string>
-    <string name="mirror_active_body">İç ekranın kapakta; Zlip Mini kapak olunca diğer uygulamalarda da sürer. Bankacılık ya da Netflix gibi korumalı uygulamalar siyah görünür ve yansıtma daha çok pil harcar.</string>
+    <string name="mirror_consent_hint">Ekranı yansıt: Android kayıt ya da yayın izni sorar, Başla\'ya dokun. Zlip hiçbir şey kaydetmez.</string>
+    <string name="mirror_active_body_leave">İç ekranın kapakta; Zlip\'ten çıkınca durur. Korumalı uygulamalar siyah görünür.</string>
+    <string name="mirror_active_body">İç ekranın kapakta. Korumalı uygulamalar siyah görünür.</string>
     <string name="mirror_stop">Yansıtmayı durdur</string>
     <string name="mirror_failed">Yansıtma başlatılamadı. Tekrar dene.</string>
     <string name="mirror_fit_title">Yansıtma görünümü</string>

@@ -2,11 +2,11 @@
 <resources>
     <!-- Settings: the collapsible Advanced section -->
     <string name="settings_section_advanced">Advanced</string>
-    <string name="settings_advanced_summary">Power mode, inner screen standby, idle cutoff and more</string>
+    <string name="settings_advanced_summary">Power mode and rotation</string>
     <string name="settings_advanced_expanded">Expanded</string>
     <string name="settings_advanced_collapsed">Collapsed</string>
 
-    <!-- Always show on the cover: what happens while it is off -->
+    <!-- Open when folded: what happens while it is off -->
     <string name="auto_show_off_hint">While off, the folded cover only shows the Zlip widget.</string>
 
     <!-- Home -->
@@ -14,7 +14,7 @@
     <string name="action_cover_off">Turn cover off</string>
     <string name="home_widget_tip_dismiss">Dismiss tip</string>
     <string name="home_sort">Reorder</string>
-    <string name="sort_title">Play order</string>
+    <string name="sort_title">Playlist order</string>
     <string name="sort_hint">Drag, or use the arrows. The cover plays in this order.</string>
     <string name="sort_to_top">Move to top</string>
     <string name="sort_to_bottom">Move to bottom</string>

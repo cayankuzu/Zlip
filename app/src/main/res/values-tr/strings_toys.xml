@@ -75,7 +75,7 @@
     <!-- Oyuncak düzenleyici -->
     <string name="toy_editor_title_new">Yeni kapak oyuncağı</string>
     <string name="toy_editor_title_edit">Kapak oyuncağını düzenle</string>
-    <string name="toy_editor_try">Burada dene. Katlıyken kilidi açmadan kapak ekranına dokunman yeterli. Diğer öğelerin için yana kaydır.</string>
+    <string name="toy_editor_try">Burada dene. Katlıyken kilidi açmadan kapak ekranına dokunman yeterli. Diğer içeriklerin için yana kaydır.</string>
     <string name="toy_editor_pick">Oyuncak</string>
     <string name="toy_editor_colors">Renkler</string>
     <string name="toy_editor_color">Oyuncak rengi</string>

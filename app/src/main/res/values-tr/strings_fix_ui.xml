@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Ana sayfa, kapak açık: Mini kapak olmayan yerde (Android 14, resim içinde resim yok ya da Mini kapak kapalı) -->
-    <string name="status_active_body_leave">Dokunmayı açmak için kapağa iki kez dokun; 3 saniye sonra yeniden kilitlenir. Zlip\'ten çıkınca kapak kapanır.</string>
+    <string name="status_active_body_leave">Kapakta iki kez dokun: kontroller açılır. Zlip\'ten çıkınca kapak kapanır.</string>
 
     <!-- Tanıtım karşılaması, Mini kapak olmayan yerde -->
-    <string name="intro_welcome_body_no_mini">Fotoğrafların, videoların, yazıların ve çizimlerin kapakta oynar. Avucun değince bir şey olmaz; kapağı kullanmak için ona iki kez dokun.</string>
+    <string name="intro_welcome_body_no_mini">Fotoğrafların, videoların, yazıların ve çizimlerin kapakta oynar.</string>
 
     <!-- Kaydedilmemiş değişiklikler, henüz kaydedilemiyorken (yalnızca Kaydetme / İptal) -->
     <string name="discard_title_unsavable">Değişiklikler silinsin mi?</string>
