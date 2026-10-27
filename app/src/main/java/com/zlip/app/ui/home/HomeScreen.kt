@@ -13,9 +13,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,6 +24,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,13 +45,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.ScreenShare
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Dashboard
@@ -63,6 +67,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistRemove
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -75,20 +80,26 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -98,6 +109,10 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -110,6 +125,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -125,6 +141,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -132,6 +149,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
@@ -141,6 +159,7 @@ import androidx.compose.ui.unit.dp
 import com.zlip.app.R
 import com.zlip.app.cover.CoverError
 import com.zlip.app.cover.CoverStatus
+import com.zlip.app.cover.GroupProgress
 import com.zlip.app.cover.coverHoverSupported
 import com.zlip.app.cover.mirror.MirrorState
 import com.zlip.app.data.CoverItem
@@ -168,11 +187,13 @@ import com.zlip.app.ui.components.SectionTitle
 import com.zlip.app.ui.components.SegmentLabel
 import com.zlip.app.ui.components.StatusPill
 import com.zlip.app.ui.components.badgeLabel
+import com.zlip.app.ui.components.durationLabel
 import com.zlip.app.ui.components.miniCoverSupported
 import com.zlip.app.ui.components.wakesStandby
 import com.zlip.app.ui.theme.BrandBlue
 import com.zlip.app.ui.theme.BrandGradient
 import com.zlip.app.ui.theme.BrandMint
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Brush as GradientBrush
 
 /**
@@ -223,14 +244,32 @@ class LibraryActions(
     val onAddToPlaylist: (Set<String>) -> Unit,
     val onRemoveFromPlaylist: (Set<String>) -> Unit,
     val onMoveInPlaylist: (id: String, delta: Int) -> Unit,
+    val onClearPlaylist: () -> Unit,
+    /** Makes the playlist exactly these ids, in order: how a change to it is undone. */
+    val onSetPlaylist: (List<String>) -> Unit,
 )
 
+/**
+ * A message for Home's snackbar from outside it ("Added to your library"), shown once: Home reports it taken with
+ * `onSnackTaken`. [onAction] runs when its [actionLabel] (if any) is tapped.
+ */
+class HomeSnack(val message: String, val actionLabel: String?, val onAction: () -> Unit = {})
+
+/**
+ * Home: the cover's preview and switch, its controls while it is on, and the library. [rotation] is what the cover
+ * moves through; [shownOnCover] what it shows right now (a group's current step); [groupProgress] where a group on the
+ * cover is, and [itemSkip] whether the rotation has another item to leave it for.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     items: List<CoverItem>,
     playlist: List<String>,
+    rotation: List<CoverItem>,
     selectedId: String?,
+    shownOnCover: CoverItem?,
+    groupProgress: GroupProgress?,
+    itemSkip: Boolean,
     status: CoverStatus,
     settings: CoverSettings,
     paused: Boolean,
@@ -243,18 +282,47 @@ fun HomeScreen(
     loaded: Boolean,
     filter: LibraryFilter,
     onFilterChange: (LibraryFilter) -> Unit,
+    snack: HomeSnack?,
+    onSnackTaken: () -> Unit,
     onStartCover: () -> Unit,
     onStopCover: () -> Unit,
+    onShrinkToMini: () -> Unit,
     onMirrorChange: (Boolean) -> Unit,
     onTogglePause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
+    onNextItem: () -> Unit,
+    onPreviousItem: () -> Unit,
     onSettingsChange: (CoverSettings) -> Unit,
     onAdd: (AddKind) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
+    var showFoldedSteps by rememberSaveable { mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
+    // Not the composition's own effects: a snackbar must outlive the state change that started it.
+    val snackScope = rememberCoroutineScope()
+
+    /** Shows [message] now (the newest one is the one worth acting on), with [action] behind [actionLabel]. */
+    fun showSnack(message: String, actionLabel: String? = null, action: () -> Unit = {}) {
+        snackScope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            // With an action there is something to read and decide, so it stays longer.
+            val result = snackbar.showSnackbar(
+                message = message,
+                actionLabel = actionLabel,
+                withDismissAction = actionLabel == null,
+                duration = if (actionLabel != null) SnackbarDuration.Long else SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) action()
+        }
+    }
+    LaunchedEffect(snack) {
+        val incoming = snack ?: return@LaunchedEffect
+        onSnackTaken()
+        showSnack(incoming.message, incoming.actionLabel, incoming.onAction)
+    }
     // The playlist chip disappears with the last playlist item; never strand the user on an empty filter.
     val activeFilter = if (filter == LibraryFilter.PLAYLIST && playlist.isEmpty()) LibraryFilter.ALL else filter
     // Make the fallback stick, so refilling the playlist does not jump the grid away from "All".
@@ -276,7 +344,9 @@ fun HomeScreen(
     // Sheets and dialogs are windows of their own: as the small window they stay away, still open for later.
     val hovering = LocalHovering.current
     val context = LocalContext.current
+    val resources = LocalResources.current
     val miniCover = remember(context) { miniCoverSupported(context) }
+    val undoLabel = stringResource(R.string.action_undo)
 
     BackHandler(enabled = selecting) { checked = emptyList() }
     // Drop ids that no longer exist (deleted elsewhere) so the selection never points at nothing. Not
@@ -309,7 +379,36 @@ fun HomeScreen(
     val reportSlider: (Rect) -> Unit = remember { { bounds -> sliderBounds = bounds } }
     val addLabel = stringResource(R.string.home_add)
 
+    // Changing the playlist changes what the cover rotates, so each change says so, and can be taken back.
+    fun addToPlaylist(ids: Set<String>) {
+        val added = ids.count { it !in playlist }
+        library.onAddToPlaylist(ids)
+        if (added > 0) {
+            showSnack(
+                message = resources.getQuantityString(R.plurals.home_list_added, added, added),
+                actionLabel = resources.getString(R.string.home_list_show),
+                action = { onFilterChange(LibraryFilter.PLAYLIST) },
+            )
+        }
+    }
+
+    fun removeFromPlaylist(ids: Set<String>) {
+        val before = playlist
+        val removed = ids.count { it in before }
+        library.onRemoveFromPlaylist(ids)
+        if (removed > 0) {
+            showSnack(resources.getQuantityString(R.plurals.home_list_removed, removed, removed), undoLabel) { library.onSetPlaylist(before) }
+        }
+    }
+
+    fun clearPlaylist() {
+        val before = playlist
+        library.onClearPlaylist()
+        showSnack(resources.getString(R.string.home_list_cleared), undoLabel) { library.onSetPlaylist(before) }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             if (selecting) {
                 SelectionBar(
@@ -318,11 +417,11 @@ fun HomeScreen(
                     onClose = { checked = emptyList() },
                     onSelectAll = { checked = visibleItems.map { it.id } },
                     onAddToPlaylist = {
-                        library.onAddToPlaylist(checked.toSet())
+                        addToPlaylist(checked.toSet())
                         checked = emptyList()
                     },
                     onRemoveFromPlaylist = {
-                        library.onRemoveFromPlaylist(checked.toSet())
+                        removeFromPlaylist(checked.toSet())
                         checked = emptyList()
                     },
                     onDelete = { pendingDelete = checked.toSet() },
@@ -390,11 +489,14 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "hero") {
+                // With the cover on, exactly what it shows: a group's current step, not always its first.
+                val previewItem = if (status == CoverStatus.ACTIVE) shownOnCover ?: selectedItem else selectedItem
                 HeroSection(
-                    item = selectedItem,
+                    item = previewItem,
+                    title = selectedItem?.name,
                     loaded = loaded,
                     playback = heroPlayback,
-                    led = LedStyle.of(settings).takeUnless { selectedItem?.showsQr() == true },
+                    led = LedStyle.of(settings).takeUnless { previewItem?.showsQr() == true },
                     status = status,
                     lastError = lastError,
                     mirror = mirror,
@@ -407,6 +509,7 @@ fun HomeScreen(
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onStopCover()
                     },
+                    onShrinkToMini = onShrinkToMini,
                     onMirrorChange = onMirrorChange,
                 )
             }
@@ -422,13 +525,24 @@ fun HomeScreen(
                     if (mirror == MirrorState.ON) {
                         MirrorControlsCard(settings, onSettingsChange, onBrightnessBounds = reportSlider, sliderEndRoom = fabOverSlider)
                     } else {
+                        val position = rotationPosition(rotation.map { it.id }, selectedItem?.id)
                         ControlsCard(
                             settings = settings,
                             paused = paused,
-                            position = positionLabel(items, playlist, selectedItem),
+                            // "Tatil · Adım 3/8" while a group is on the cover.
+                            groupStep = groupProgress?.takeIf { it.groupId == selectedItem?.id }?.let { progress ->
+                                selectedItem?.name + " · " + stringResource(R.string.cover_group_step, progress.step, progress.count)
+                            },
+                            itemSkip = itemSkip,
+                            // "Liste · 2/5" or "Tümü · 2/12": where the cover is, and in what.
+                            position = position?.let { (at, of) ->
+                                stringResource(if (playlist.isEmpty()) R.string.home_position_all else R.string.home_position_list, at, of)
+                            },
                             onTogglePause = onTogglePause,
                             onNext = onNext,
                             onPrevious = onPrevious,
+                            onNextItem = onNextItem,
+                            onPreviousItem = onPreviousItem,
                             onSettingsChange = onSettingsChange,
                             onBrightnessBounds = reportSlider,
                             sliderEndRoom = fabOverSlider,
@@ -447,7 +561,8 @@ fun HomeScreen(
             if (loaded && !widgetPlaced && !settings.widgetTipDismissed && items.isNotEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "widget-tip") {
                     WidgetTipCard(
-                        onHow = onOpenSettings,
+                        // The steps right here: Settings opened at its top, far from them.
+                        onHow = { showFoldedSteps = true },
                         onDismiss = { onSettingsChange(settings.copy(widgetTipDismissed = true)) },
                     )
                 }
@@ -472,12 +587,20 @@ fun HomeScreen(
                                 Text(stringResource(R.string.home_sort))
                             }
                         }
+                        // One tap back to "the whole library rotates", with Undo.
+                        if (activeFilter == LibraryFilter.PLAYLIST && playlist.isNotEmpty() && !selecting) {
+                            TextButton(onClick = ::clearPlaylist) {
+                                Icon(Icons.Filled.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(stringResource(R.string.home_list_clear))
+                            }
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
+                    // Wraps rather than scrolls (as ChoiceChips does): a sideways row hid its last chips with nothing to
+                    // show they were there.
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         LibraryFilter.entries.forEach { entry ->
@@ -497,23 +620,52 @@ fun HomeScreen(
                             )
                         }
                     }
-                    if (playlist.isEmpty() && items.size >= 2 && !selecting) {
-                        HintText(stringResource(R.string.home_playlist_tip))
+                    if (playlist.isEmpty() && items.size >= 2 && !selecting && !settings.playlistTipDismissed) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            HintText(stringResource(R.string.home_playlist_tip), Modifier.weight(1f))
+                            IconButton(onClick = { onSettingsChange(settings.copy(playlistTipDismissed = true)) }) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.home_widget_tip_dismiss),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
             // Not before the library has loaded: an empty grid then only means "not read yet".
             if (loaded && visibleItems.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "empty") {
-                    Text(
-                        text = stringResource(if (items.isEmpty()) R.string.home_library_empty else R.string.home_filter_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 32.dp),
-                    )
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = stringResource(if (items.isEmpty()) R.string.home_library_empty else R.string.home_filter_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        // Nothing at all yet: the two ways in, right here rather than a pointer to a button elsewhere.
+                        if (items.isEmpty()) {
+                            Spacer(Modifier.height(16.dp))
+                            Button(onClick = { onAdd(AddKind.GALLERY) }, modifier = Modifier.fillMaxWidth(0.8f)) {
+                                Icon(Icons.Filled.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.home_empty_gallery))
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(onClick = { showAddSheet = true }, modifier = Modifier.fillMaxWidth(0.8f)) {
+                                Icon(Icons.Filled.Brush, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.home_empty_create))
+                            }
+                        }
+                    }
                 }
             }
             items(visibleItems, key = { it.id }) { item ->
@@ -521,6 +673,7 @@ fun HomeScreen(
                 LibraryCard(
                     item = item,
                     onCover = item.id == selectedItem?.id,
+                    coverOn = status == CoverStatus.ACTIVE,
                     selectionMode = selecting,
                     checked = item.id in checked,
                     playlistNumber = if (playlistIndex >= 0) playlistIndex + 1 else null,
@@ -535,13 +688,22 @@ fun HomeScreen(
                         } else {
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             library.onSelect(item.id)
+                            // Picked, but nothing shows it: the cover is off (and the hero scrolled away). Say so, and
+                            // offer to turn it on with this item.
+                            if (status == CoverStatus.AVAILABLE) {
+                                showSnack(
+                                    message = resources.getString(R.string.home_cover_off_snack),
+                                    actionLabel = resources.getString(R.string.home_cover_on_action),
+                                    action = onStartCover,
+                                )
+                            }
                         }
                     },
                     // combinedClickable already gives the long-press haptic.
                     onLongClick = { toggleChecked(item.id) },
                     onEdit = { library.onEdit(item) },
                     onTogglePlaylist = {
-                        if (playlistIndex >= 0) library.onRemoveFromPlaylist(setOf(item.id)) else library.onAddToPlaylist(setOf(item.id))
+                        if (playlistIndex >= 0) removeFromPlaylist(setOf(item.id)) else addToPlaylist(setOf(item.id))
                     },
                     onMove = { delta -> library.onMoveInPlaylist(item.id, delta) },
                     onDelete = { pendingDelete = setOf(item.id) },
@@ -558,11 +720,7 @@ fun HomeScreen(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
-            Text(
-                text = stringResource(R.string.home_add_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-            )
+            SheetTitle(R.string.home_add_title, onDone = { showAddSheet = false })
             val pick: (AddKind) -> Unit = { kind ->
                 showAddSheet = false
                 onAdd(kind)
@@ -596,8 +754,29 @@ fun HomeScreen(
         PlaylistSortSheet(
             items = playlist.mapNotNull { id -> items.firstOrNull { it.id == id } },
             onMove = library.onMoveInPlaylist,
+            onRemove = { id -> removeFromPlaylist(setOf(id)) },
             onDismiss = { showSortSheet = false },
         )
+    }
+
+    // "Nasıl?" on the widget tip: the three steps right here, with a way out.
+    if (showFoldedSteps && !hovering) {
+        ModalBottomSheet(
+            onDismissRequest = { showFoldedSteps = false },
+            modifier = Modifier.wakesStandby(),
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ) {
+            SheetTitle(R.string.home_widget_tip_title, onDone = { showFoldedSteps = false })
+            Text(
+                text = stringResource(R.string.folded_steps),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 32.dp),
+            )
+        }
     }
 
     pendingDelete?.takeUnless { hovering }?.let { ids ->
@@ -642,11 +821,29 @@ internal fun fabCoversSlider(fab: Rect?, slider: Rect?, margin: Float): Boolean 
 private fun Modifier.reportBounds(onBounds: ((Rect) -> Unit)?): Modifier =
     if (onBounds == null) this else onGloballyPositioned { onBounds(it.boundsInRoot()) }
 
-/** "2 / 5" for the item on the cover within what auto-advance moves through, or null if not useful. */
-private fun positionLabel(items: List<CoverItem>, playlist: List<String>, current: CoverItem?): String? {
-    val sequence = if (playlist.isEmpty()) items.map { it.id } else playlist
-    val index = sequence.indexOf(current?.id)
-    return if (index >= 0 && sequence.size > 1) "${index + 1} / ${sequence.size}" else null
+/**
+ * Where [current] is in the cover's [rotation] (ids, in order), as (1-based place, count), or null when that says
+ * nothing: it is not in the rotation, or the rotation has only one item.
+ */
+internal fun rotationPosition(rotation: List<String>, current: String?): Pair<Int, Int>? {
+    val index = rotation.indexOf(current)
+    return if (index >= 0 && rotation.size > 1) index + 1 to rotation.size else null
+}
+
+/** A sheet's title with a visible way out on the right: not everyone knows a sheet closes with a swipe. */
+@Composable
+private fun SheetTitle(@StringRes title: Int, onDone: () -> Unit) {
+    Row(
+        modifier = Modifier.padding(start = 24.dp, end = 12.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(title),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onDone) { Text(stringResource(R.string.action_done)) }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -666,19 +863,26 @@ private fun SelectionBar(
                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_cancel))
             }
         },
-        title = { Text(pluralStringResource(R.plurals.selection_count, count, count)) },
+        title = { Text(pluralStringResource(R.plurals.selection_count, count, count), maxLines = 1, overflow = TextOverflow.Ellipsis) },
         actions = {
             IconButton(onClick = onSelectAll) {
                 Icon(Icons.Filled.SelectAll, contentDescription = stringResource(R.string.action_select_all))
             }
-            if (allInPlaylist) {
-                IconButton(onClick = onRemoveFromPlaylist) {
-                    Icon(Icons.Filled.PlaylistRemove, contentDescription = stringResource(R.string.action_playlist_remove))
-                }
-            } else {
-                IconButton(onClick = onAddToPlaylist) {
-                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = stringResource(R.string.action_playlist_add))
-                }
+            // What selecting is mostly for, so it is a labelled button rather than one more icon.
+            FilledTonalButton(
+                onClick = if (allInPlaylist) onRemoveFromPlaylist else onAddToPlaylist,
+                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            ) {
+                Icon(
+                    imageVector = if (allInPlaylist) Icons.Filled.PlaylistRemove else Icons.AutoMirrored.Filled.PlaylistAdd,
+                    contentDescription = null,
+                    modifier = Modifier.size(ButtonDefaults.IconSize),
+                )
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                Text(
+                    text = stringResource(if (allInPlaylist) R.string.action_playlist_remove else R.string.action_playlist_add),
+                    maxLines = 1,
+                )
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete))
@@ -687,9 +891,15 @@ private fun SelectionBar(
     )
 }
 
+/**
+ * The cover's preview, state and switch. [item] is what the preview shows (with the cover on, what the cover shows);
+ * [title] names the item on the cover (a group's name while it shows one of its steps). While mirroring, the cover
+ * shows the inner screen, so the preview shows a mirroring sign instead.
+ */
 @Composable
 private fun HeroSection(
     item: CoverItem?,
+    title: String?,
     loaded: Boolean,
     playback: Playback,
     led: LedStyle?,
@@ -699,9 +909,11 @@ private fun HeroSection(
     staysOnElsewhere: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onShrinkToMini: () -> Unit,
     onMirrorChange: (Boolean) -> Unit,
 ) {
     val active = status == CoverStatus.ACTIVE
+    val mirroring = active && mirror == MirrorState.ON
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -709,8 +921,19 @@ private fun HeroSection(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         CoverPreviewFrame(Modifier.fillMaxWidth(0.74f), glowing = active) {
-            // Still while the cover is on (the real thing is on the back), in standby and in the background.
-            CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize().ledMatrix(led), playback = playback) }
+            if (mirroring) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ScreenShare,
+                    contentDescription = null,
+                    tint = BrandMint,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxSize(0.34f),
+                )
+            } else {
+                // Still while the cover is on (the real thing is on the back), in standby and in the background.
+                CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize().ledMatrix(led), playback = playback) }
+            }
         }
         Spacer(Modifier.height(16.dp))
         val (label, color) = when (status) {
@@ -724,7 +947,11 @@ private fun HeroSection(
         Spacer(Modifier.height(10.dp))
         Text(
             // Blank (but keeping its line) until the library is read, rather than a wrong "nothing selected".
-            text = if (loaded) item?.name ?: stringResource(R.string.home_nothing_selected) else "",
+            text = when {
+                !loaded -> ""
+                mirroring -> stringResource(R.string.cover_mirroring)
+                else -> title ?: stringResource(R.string.home_nothing_selected)
+            },
             style = MaterialTheme.typography.titleLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -775,6 +1002,20 @@ private fun HeroSection(
                 Text(stringResource(R.string.home_cover_stop), style = MaterialTheme.typography.titleMedium)
             }
             else -> Unit
+        }
+        // The Mini kapak was only ever a side effect of leaving Zlip; this offers it, and says what it is.
+        if (active && staysOnElsewhere) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onShrinkToMini,
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .heightIn(min = 48.dp),
+            ) {
+                Icon(Icons.Filled.PictureInPictureAlt, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.home_shrink_mini))
+            }
         }
         // What the cover shows: the playlist, or the inner screen mirrored. Only where the cover can stay on
         // in other apps; otherwise a mirror could only ever show Zlip itself.
@@ -830,18 +1071,28 @@ private fun MirrorControlsCard(
     }
 }
 
+/**
+ * The cover's transport while it plays the playlist. For a single item: ⏮ ⏯ ⏭ move between items. For a group
+ * ([groupStep] is its "Tatil · Adım 3/8"): ‹ › step inside it, and with [itemSkip] a second row leaves it for the
+ * previous or next item in one tap, the same two kinds of move as on the cover and in the notification.
+ */
 @Composable
 private fun ControlsCard(
     settings: CoverSettings,
     paused: Boolean,
+    groupStep: String?,
+    itemSkip: Boolean,
     position: String?,
     onTogglePause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
+    onNextItem: () -> Unit,
+    onPreviousItem: () -> Unit,
     onSettingsChange: (CoverSettings) -> Unit,
     onBrightnessBounds: ((Rect) -> Unit)? = null,
     sliderEndRoom: Boolean = false,
 ) {
+    val stepping = groupStep != null
     SectionCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -849,7 +1100,11 @@ private fun ControlsCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onPrevious) {
-                Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.action_previous))
+                if (stepping) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.action_previous_step))
+                } else {
+                    Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.action_previous))
+                }
             }
             FilledTonalIconButton(onClick = onTogglePause, modifier = Modifier.size(56.dp)) {
                 Icon(
@@ -858,29 +1113,51 @@ private fun ControlsCard(
                 )
             }
             IconButton(onClick = onNext) {
-                Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.action_next))
+                if (stepping) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.action_next_step))
+                } else {
+                    Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.action_next))
+                }
             }
         }
-        if (position != null) {
+        // Out of the group in one tap; a group alone in the rotation goes round instead, so there is nowhere to go.
+        if (stepping && itemSkip) {
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ItemSkipButton(Icons.Filled.SkipPrevious, R.string.action_previous_item, iconFirst = true, onClick = onPreviousItem)
+                ItemSkipButton(Icons.Filled.SkipNext, R.string.action_next_item, iconFirst = false, onClick = onNextItem)
+            }
+        }
+        listOfNotNull(groupStep, position).forEach { line ->
             Text(
-                text = position,
+                text = line,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
             )
         }
         Spacer(Modifier.height(8.dp))
         BrightnessRow(settings, onSettingsChange, Modifier.reportBounds(onBrightnessBounds), endRoom = sliderEndRoom)
         Spacer(Modifier.height(8.dp))
-        // Quick auto-advance: off/on chips plus shuffle/repeat toggles; photo time and videos live in Settings.
+        // Quick auto-advance: off/on, then shuffle, loop and photo time, each saying its state in words; videos live in
+        // Settings.
         Text(
             text = stringResource(R.string.advance_title),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
-        // Wraps rather than scrolls: shuffle and repeat move to the next line instead of hiding off the edge.
+        // Wraps rather than scrolls: the options move to the next line instead of hiding off the edge.
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -894,26 +1171,76 @@ private fun ControlsCard(
                 )
             }
             if (settings.autoAdvance) {
-                IconToggleButton(
-                    checked = settings.shuffle,
-                    onCheckedChange = { onSettingsChange(settings.copy(shuffle = it)) },
-                ) {
-                    Icon(
-                        Icons.Filled.Shuffle,
-                        contentDescription = stringResource(R.string.advance_shuffle),
-                        tint = if (settings.shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconToggleButton(
-                    checked = settings.repeat,
-                    onCheckedChange = { onSettingsChange(settings.copy(repeat = it)) },
-                ) {
-                    Icon(
-                        Icons.Filled.Repeat,
-                        contentDescription = stringResource(R.string.advance_repeat),
-                        tint = if (settings.repeat) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                FilterChip(
+                    selected = settings.shuffle,
+                    onClick = { onSettingsChange(settings.copy(shuffle = !settings.shuffle)) },
+                    label = { Text(stringResource(R.string.advance_shuffle)) },
+                    leadingIcon = { Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) },
+                )
+                FilterChip(
+                    selected = settings.repeat,
+                    onClick = { onSettingsChange(settings.copy(repeat = !settings.repeat)) },
+                    label = { Text(stringResource(R.string.advance_repeat)) },
+                    leadingIcon = { Icon(Icons.Filled.Repeat, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) },
+                )
+                AdvanceSecondsChip(settings, onSettingsChange)
+            }
+        }
+    }
+}
+
+/** One of the two "leave the group" buttons: the icon on the outer side, the words always whole (two lines if need be). */
+@Composable
+private fun RowScope.ItemSkipButton(icon: ImageVector, @StringRes label: Int, iconFirst: Boolean, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight(),
+    ) {
+        if (iconFirst) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        }
+        Text(stringResource(label), textAlign = TextAlign.Center)
+        if (!iconFirst) {
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+        }
+    }
+}
+
+/** "Süre: 10 sn": photo time, right where auto-advance is turned on; a tap lists the choices. */
+@Composable
+private fun AdvanceSecondsChip(settings: CoverSettings, onSettingsChange: (CoverSettings) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        AssistChip(
+            onClick = { open = true },
+            label = { Text(stringResource(R.string.home_advance_seconds, durationLabel(settings.advanceSeconds))) },
+            leadingIcon = { Icon(Icons.Filled.Timer, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize)) },
+        )
+        DropdownMenu(
+            // Kept open, but not drawn as the small window (a menu is a window of its own).
+            expanded = open && !LocalHovering.current,
+            onDismissRequest = { open = false },
+            modifier = Modifier.wakesStandby(),
+        ) {
+            CoverSettings.ADVANCE_SECONDS_OPTIONS.forEach { seconds ->
+                DropdownMenuItem(
+                    text = { Text(durationLabel(seconds)) },
+                    leadingIcon = if (seconds == settings.advanceSeconds) {
+                        { Icon(Icons.Filled.Check, contentDescription = null) }
+                    } else {
+                        null
+                    },
+                    onClick = {
+                        open = false
+                        onSettingsChange(settings.copy(advanceSeconds = seconds))
+                    },
+                    modifier = Modifier.semantics { selected = seconds == settings.advanceSeconds },
+                )
             }
         }
     }
@@ -957,6 +1284,7 @@ fun BrightnessRow(
 private fun LibraryCard(
     item: CoverItem,
     onCover: Boolean,
+    coverOn: Boolean,
     selectionMode: Boolean,
     checked: Boolean,
     playlistNumber: Int?,
@@ -1019,7 +1347,8 @@ private fun LibraryCard(
                     )
                     onCover -> Icon(
                         imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = stringResource(R.string.home_on_cover),
+                        // "On the cover screen" only while it really is.
+                        contentDescription = stringResource(if (coverOn) R.string.home_on_cover else R.string.home_selected),
                         tint = BrandMint,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -1149,11 +1478,16 @@ private fun WidgetTipCard(onHow: () -> Unit, onDismiss: () -> Unit) {
 /**
  * Puts the playlist in order: drag a row by its handle (or long-press it), tap its arrows, or send it to
  * the top or bottom from its menu; TalkBack offers all of these as actions. [onMove] takes an item's id and
- * how many places it moves.
+ * how many places it moves; [onRemove] takes an item out of the playlist (its menu).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PlaylistSortSheet(items: List<CoverItem>, onMove: (id: String, delta: Int) -> Unit, onDismiss: () -> Unit) {
+private fun PlaylistSortSheet(
+    items: List<CoverItem>,
+    onMove: (id: String, delta: Int) -> Unit,
+    onRemove: (id: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val scrollState = rememberScrollState()
     val toTopLabel = stringResource(R.string.sort_to_top)
     val toBottomLabel = stringResource(R.string.sort_to_bottom)
@@ -1166,11 +1500,7 @@ private fun PlaylistSortSheet(items: List<CoverItem>, onMove: (id: String, delta
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Text(
-            text = stringResource(R.string.sort_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp),
-        )
+        SheetTitle(R.string.sort_title, onDone = onDismiss)
         HintText(stringResource(R.string.sort_hint), modifier = Modifier.padding(horizontal = 24.dp))
         Spacer(Modifier.height(12.dp))
         Column(
@@ -1193,15 +1523,15 @@ private fun PlaylistSortSheet(items: List<CoverItem>, onMove: (id: String, delta
                     }
                 },
             ) { item ->
-                SortRow(item = item, onToTop = { toTop(item) }, onToBottom = { toBottom(item) })
+                SortRow(item = item, onToTop = { toTop(item) }, onToBottom = { toBottom(item) }, onRemove = { onRemove(item.id) })
             }
         }
     }
 }
 
-/** One playlist entry in [PlaylistSortSheet]: handle, thumbnail, name and type, arrows and a top/bottom menu. */
+/** One playlist entry in [PlaylistSortSheet]: handle, thumbnail, name and type, arrows and a top/bottom/remove menu. */
 @Composable
-private fun ReorderableRowScope.SortRow(item: CoverItem, onToTop: () -> Unit, onToBottom: () -> Unit) {
+private fun ReorderableRowScope.SortRow(item: CoverItem, onToTop: () -> Unit, onToBottom: () -> Unit, onRemove: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
@@ -1247,6 +1577,10 @@ private fun ReorderableRowScope.SortRow(item: CoverItem, onToTop: () -> Unit, on
                         menuOpen = false
                         onToBottom()
                     }
+                }
+                MenuItem(Icons.Filled.PlaylistRemove, R.string.action_playlist_remove) {
+                    menuOpen = false
+                    onRemove()
                 }
             }
         }

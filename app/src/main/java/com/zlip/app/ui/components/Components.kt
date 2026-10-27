@@ -39,14 +39,22 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -276,7 +284,22 @@ fun StatusPill(text: String, color: Color, modifier: Modifier = Modifier) {
     }
 }
 
-/** Horizontally scrolling row of color dots; [selected] gets a ring. */
+/** Space between two swatches' touch targets in [ColorSwatchRow]. */
+private val SWATCH_GAP = 4.dp
+
+/** How far the row's end fades out while more colours wait past it. */
+private val SWATCH_FADE = 24.dp
+
+/**
+ * Where [ColorSwatchRow] starts scrolled so the swatch at [index] is in view, one swatch of context before it:
+ * [stride] is a swatch plus the gap. The scroll state clamps a value past the end.
+ */
+internal fun swatchScrollTarget(index: Int, stride: Int): Int = (index - 1).coerceAtLeast(0) * stride
+
+/**
+ * Horizontally scrolling row of color dots; [selected] gets a ring. It opens scrolled to the selected colour (an item
+ * saved in blue showed no ring at all), and its end fades while more colours are hidden past it.
+ */
 @Composable
 fun ColorSwatchRow(
     colors: List<Int>,
@@ -285,10 +308,33 @@ fun ColorSwatchRow(
     modifier: Modifier = Modifier,
     swatchSize: Dp = 44.dp,
 ) {
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    LaunchedEffect(Unit) {
+        val index = colors.indexOf(selected)
+        if (index > 0) {
+            val stride = with(density) { (maxOf(swatchSize, 48.dp) + SWATCH_GAP).roundToPx() }
+            scrollState.scrollTo(swatchScrollTarget(index, stride))
+        }
+    }
     Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
+        modifier = modifier
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawWithContent {
+                drawContent()
+                if (scrollState.canScrollForward) {
+                    val fade = SWATCH_FADE.toPx()
+                    drawRect(
+                        brush = Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = size.width - fade, endX = size.width),
+                        topLeft = Offset(size.width - fade, 0f),
+                        size = Size(fade, size.height),
+                        blendMode = BlendMode.DstOut,
+                    )
+                }
+            }
+            .horizontalScroll(scrollState),
         // The 48 dp touch targets add 2 dp around each 44 dp swatch, so the visible gap stays 8 dp.
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(SWATCH_GAP),
     ) {
         colors.forEach { argb ->
             val isSelected = argb == selected

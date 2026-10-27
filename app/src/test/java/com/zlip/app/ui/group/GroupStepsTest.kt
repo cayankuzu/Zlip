@@ -45,4 +45,39 @@ class GroupStepsTest {
         // More would be cut without a word when the library is read again.
         assertFalse(canSaveSteps(max + 1))
     }
+
+    private val format = { first: String, count: Int -> "$first · $count" }
+
+    @Test
+    fun anUnnamedGroupIsNamedAfterItsFirstStepAndItsSize() {
+        assertEquals("Tatil · 8", defaultGroupName(listOf("Tatil") + List(7) { "IMG_$it" }, "Grup", format))
+    }
+
+    @Test
+    fun aGroupWithoutStepsIsCalledByItsType() {
+        assertEquals("Grup", defaultGroupName(emptyList(), "Grup", format))
+    }
+
+    @Test
+    fun aBlankFirstNameIsSkippedButStillCounted() {
+        assertEquals("Deniz · 3", defaultGroupName(listOf(" ", " Deniz ", "Kum"), "Grup", format))
+        assertEquals("Grup", defaultGroupName(listOf("", " "), "Grup", format))
+    }
+
+    @Test
+    fun anUndoneRemovalPutsTheStepBackWhereItWas() {
+        assertEquals(listOf("a", "b", "c"), withStepRestored(listOf("a", "c"), "b", 1))
+        assertEquals(listOf("b", "a", "c"), withStepRestored(listOf("a", "c"), "b", 0))
+    }
+
+    @Test
+    fun anUndoneRemovalGoesLastWhenTheGroupGotShorterMeanwhile() {
+        assertEquals(listOf("a", "z"), withStepRestored(listOf("a"), "z", 5))
+    }
+
+    @Test
+    fun anUndoneRemovalNeverAddsAStepTwiceOrPastTheLimit() {
+        assertEquals(listOf("a", "b"), withStepRestored(listOf("a", "b"), "b", 0))
+        assertEquals(ids(1..max), withStepRestored(ids(1..max), "extra", 0))
+    }
 }

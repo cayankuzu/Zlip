@@ -86,6 +86,7 @@ import com.zlip.app.ui.qr.QrEditorScreen
 import com.zlip.app.ui.toy.ToyEditorScreen
 import com.zlip.app.ui.home.AddKind
 import com.zlip.app.ui.home.HomeScreen
+import com.zlip.app.ui.home.HomeSnack
 import com.zlip.app.ui.home.LibraryActions
 import com.zlip.app.ui.home.LibraryFilter
 import com.zlip.app.ui.media.MediaEditorScreen
@@ -110,7 +111,7 @@ private sealed interface Screen {
     /** [prefill]: the text a new item starts with (shared from another app). */
     data class TextEditor(val initial: CoverItem.Text?, val prefill: String = "") : Screen
 
-    /** [fresh]: just imported, so leaving it unchanged asks whether to keep it at all. */
+    /** [fresh]: just imported, so leaving it unchanged keeps it and Home offers to undo the import. */
     data class MediaEditor(val initial: CoverItem.Media, val fresh: Boolean = false) : Screen
     data class CollageEditor(val initial: CoverItem.Collage?) : Screen
 
@@ -222,6 +223,10 @@ fun ZlipRoot(
     val selected by repository.selectedItem.collectAsState()
     // What the cover shows: for a group the step it is on, as the small window's Fit / Fill acts on that.
     val shownOnCover by app.playback.shownItem.collectAsState()
+    // Where a group on the cover is ("Adım 2/5"), and whether there is another item to leave it for.
+    val groupProgress by app.playback.groupProgress.collectAsState()
+    val itemSkip by app.playback.itemSkipAvailable.collectAsState()
+    val rotation by repository.sequence.collectAsState()
     val settings by repository.settings.collectAsState()
     val loaded by repository.loaded.collectAsState()
     val saveFailed by repository.saveFailed.collectAsState()
@@ -242,8 +247,8 @@ fun ZlipRoot(
     // Whether the open editor's state could be saved as it is (Save is offered when leaving only then).
     var editorCanSave by rememberSaveable { mutableStateOf(false) }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
-    // Leaving a just-imported file unchanged: keep it, or was it the wrong pick?
-    var confirmRemove by remember { mutableStateOf(false) }
+    // A message for Home to show once it is there (Home owns the snackbar), e.g. "Added to your library · Undo".
+    var homeSnack by remember { mutableStateOf<HomeSnack?>(null) }
     var importProgress by remember { mutableStateOf<Float?>(null) }
     // Which file of how many, while several picked files come in one after another.
     var importCount by remember { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -332,6 +337,12 @@ fun ZlipRoot(
         if (saveFailed) Toast.makeText(context, R.string.save_failed, Toast.LENGTH_LONG).show()
     }
 
+    // The system page alone does not say what to turn on there; a line first does.
+    fun openNotificationSettings() {
+        Toast.makeText(context, R.string.notif_settings_toast, Toast.LENGTH_LONG).show()
+        context.startActivity(app.notifier.settingsIntent())
+    }
+
     var permissionInFlight by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionInFlight = false
@@ -339,13 +350,11 @@ fun ZlipRoot(
         // An instant "denied" means the system did not even show its dialog (denied for good), and a grant
         // that still cannot post means the channel is switched off: both are fixed in system settings.
         val answeredInstantly = SystemClock.uptimeMillis() - permissionAskedAt < INSTANT_ANSWER_MS
-        if ((!granted && answeredInstantly) || (granted && !notificationsAllowed)) {
-            context.startActivity(app.notifier.settingsIntent())
-        }
+        if ((!granted && answeredInstantly) || (granted && !notificationsAllowed)) openNotificationSettings()
     }
     val requestNotifications: () -> Unit = {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-            context.startActivity(app.notifier.settingsIntent())
+            openNotificationSettings()
         } else if (!permissionInFlight) {
             // A second launch while the dialog is pending is cancelled instantly; never read that as "denied".
             permissionInFlight = true
@@ -483,16 +492,25 @@ fun ZlipRoot(
     val goHome = {
         editorDirty = false
         confirmDiscard = false
-        confirmRemove = false
         // Every way out of the group editor comes through here: files it did not take never reach another group.
         pendingGroupAdds = null
         screen = Screen.Home
     }
     val requestBack: () -> Unit = {
+        val freshImport = (screen as? Screen.MediaEditor)?.takeIf { it.fresh }?.initial
         when {
             isStandby -> onWake()
             screen.isEditor && editorDirty -> confirmDiscard = true
-            (screen as? Screen.MediaEditor)?.fresh == true -> confirmRemove = true
+            // Back on a just-imported file means "done": it is already in the library and on the cover. No question;
+            // Home says so and offers Undo in case it was the wrong pick.
+            freshImport != null -> {
+                goHome()
+                homeSnack = HomeSnack(
+                    message = context.getString(R.string.home_added),
+                    actionLabel = context.getString(R.string.action_undo),
+                    onAction = { repository.delete(freshImport.id) },
+                )
+            }
             else -> goHome()
         }
     }
@@ -504,7 +522,7 @@ fun ZlipRoot(
 
     // Shared to Zlip or asked for by a shortcut. An editor with unsaved changes is never replaced: this waits
     // until the user has left it, and so does an import, the batch dialog, and what they just opened (a fresh
-    // import's editor with its keep/remove question, a group being filled from the gallery or from "Grup yap").
+    // import's editor, a group being filled from the gallery or from "Grup yap").
     // Anything else gives way, so the shared content opens right away.
     LaunchedEffect(shared, loaded, screen, editorDirty, importJob, batchResult, pendingGroupAdds) {
         // The flow itself, not [shared]: that may still hold what was just taken when going Home restarts this.
@@ -590,7 +608,11 @@ fun ZlipRoot(
                 Screen.Home -> HomeScreen(
                     items = items,
                     playlist = playlist,
+                    rotation = rotation,
                     selectedId = selected?.id,
+                    shownOnCover = shownOnCover,
+                    groupProgress = groupProgress,
+                    itemSkip = itemSkip,
                     status = status,
                     settings = settings,
                     paused = paused,
@@ -622,14 +644,21 @@ fun ZlipRoot(
                             onAddToPlaylist = repository::addToPlaylist,
                             onRemoveFromPlaylist = repository::removeFromPlaylist,
                             onMoveInPlaylist = repository::movePlaylistItem,
+                            onClearPlaylist = repository::clearPlaylist,
+                            onSetPlaylist = repository::setPlaylist,
                         )
                     },
+                    snack = homeSnack,
+                    onSnackTaken = { homeSnack = null },
                     onStartCover = onStartCover,
                     onStopCover = onStopCover,
+                    onShrinkToMini = onEnterHover,
                     onMirrorChange = onMirrorChange,
                     onTogglePause = app.playback::togglePause,
                     onNext = app.playback::next,
                     onPrevious = app.playback::previous,
+                    onNextItem = app.playback::nextItem,
+                    onPreviousItem = app.playback::previousItem,
                     onSettingsChange = { updated -> repository.updateSettings { updated } },
                     onAdd = { kind ->
                         editorDirty = false
@@ -696,8 +725,9 @@ fun ZlipRoot(
                 is Screen.CollageEditor -> CollageEditorScreen(
                     initial = current.initial,
                     library = items,
-                    // The cover already plays the draft; the preview's tap targets work over a still.
-                    previewPlayback = if (coverActive) Playback.STILL else editorPlayback,
+                    // Plays even while the cover does: the cover faces away while the phone is open, and changing the
+                    // interval must show here. Mostly photos, so it costs little.
+                    previewPlayback = editorPlayback,
                     onDraftChange = onDraftChange,
                     onDirtyChange = onDirtyChange,
                     onSave = save,
@@ -707,8 +737,10 @@ fun ZlipRoot(
                     initial = current.initial,
                     prefill = current.prefill,
                     library = items,
-                    // The cover already plays the draft; a second set of decoders here would only cost battery.
-                    previewPlayback = if (coverActive) Playback.STILL else editorPlayback,
+                    hasPlaylist = playlist.isNotEmpty(),
+                    // Plays even while the cover does: the cover faces away while the phone is open, and its ‹ › and
+                    // the step rows step this preview. Mostly photos, so it costs little.
+                    previewPlayback = editorPlayback,
                     onAddFromGallery = { room ->
                         pickingForGroup = room
                         onOpeningPicker()
@@ -800,10 +832,15 @@ fun ZlipRoot(
                 } else {
                     null
                 },
+                // Every button says what it does, and the one that throws work away never reads like "Kaydet" next to it
+                // ("Kaydetme" did): [Düzenlemeye dön] [Kaydetmeden çık] [Kaydet], or [Düzenlemeye dön] [Sil ve çık].
                 confirmButton = {
                     Row {
                         TextButton(onClick = goHome) {
-                            Text(stringResource(R.string.discard_confirm), color = MaterialTheme.colorScheme.error)
+                            Text(
+                                text = stringResource(if (draft != null) R.string.discard_leave else R.string.discard_delete_leave),
+                                color = MaterialTheme.colorScheme.error,
+                            )
                         }
                         if (draft != null) {
                             TextButton(onClick = { save(draft) }) { Text(stringResource(R.string.action_save)) }
@@ -811,25 +848,7 @@ fun ZlipRoot(
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { confirmDiscard = false }) { Text(stringResource(R.string.action_cancel)) }
-                },
-            )
-        }
-
-        (screen as? Screen.MediaEditor)?.takeIf { confirmRemove && !hovering }?.let { editor ->
-            AlertDialog(
-                onDismissRequest = { confirmRemove = false },
-                modifier = Modifier.wakesStandby(),
-                title = { Text(stringResource(R.string.media_remove_title)) },
-                text = { Text(stringResource(R.string.media_remove_body, editor.initial.name)) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        goHome()
-                        repository.delete(editor.initial.id)
-                    }) { Text(stringResource(R.string.media_remove_confirm), color = MaterialTheme.colorScheme.error) }
-                },
-                dismissButton = {
-                    TextButton(onClick = goHome) { Text(stringResource(R.string.media_remove_keep)) }
+                    TextButton(onClick = { confirmDiscard = false }) { Text(stringResource(R.string.discard_keep_editing)) }
                 },
             )
         }
@@ -896,8 +915,9 @@ fun ZlipRoot(
                         TextButton(onClick = keepSeparate) { Text(stringResource(R.string.action_done)) }
                     }
                 },
+                // "Tamam" did not say that it means "keep them as separate items".
                 dismissButton = if (added >= 2) {
-                    { TextButton(onClick = keepSeparate) { Text(stringResource(R.string.action_done)) } }
+                    { TextButton(onClick = keepSeparate) { Text(stringResource(R.string.batch_keep_separate)) } }
                 } else {
                     null
                 },

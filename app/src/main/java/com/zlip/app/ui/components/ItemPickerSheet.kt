@@ -55,8 +55,9 @@ import kotlinx.coroutines.launch
 /**
  * Picks library items in order (a collage cell, a group's steps): tap order is play order, shown as
  * numbers. Items of [current] that are no longer in the library (deleted after they were added) stay
- * available. Nothing here is destructive, so closing the sheet any way (swipe, scrim, Back) keeps the
- * picks, exactly like "Done". At most [maxCount] can be picked. While Zlip is the Mini kapak the sheet is
+ * available. Closing the sheet any way (swipe, scrim, Back) keeps the picks, exactly like "Done"; "Clear"
+ * is the one sweeping change, so it can be undone until the next pick. At most [maxCount] can be picked.
+ * While Zlip is the Mini kapak the sheet is
  * not shown, but its picks wait for it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,6 +72,9 @@ fun ItemPickerSheet(
 ) {
     val options = remember(current, choices) { current.filter { kept -> choices.none { it.id == kept.id } } + choices }
     var picked by rememberSaveable { mutableStateOf(current.map { it.id }) }
+    // The picks "Clear" just took away: until the next pick its button reads "Undo" and brings them back, because any way
+    // of closing the sheet commits (a 20-step group wiped by Clear and then Done was gone for good).
+    var cleared by rememberSaveable { mutableStateOf<List<String>?>(null) }
     var committed by remember { mutableStateOf(false) }
     val commit = {
         // The Done button and a dismissal can both arrive while the sheet goes away; report once.
@@ -88,8 +92,20 @@ fun ItemPickerSheet(
         Column(Modifier.padding(horizontal = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                TextButton(onClick = { picked = emptyList() }, enabled = picked.isNotEmpty()) {
-                    Text(stringResource(R.string.picker_clear))
+                val undo = cleared
+                if (undo != null) {
+                    TextButton(onClick = {
+                        picked = undo
+                        cleared = null
+                    }) { Text(stringResource(R.string.action_undo)) }
+                } else {
+                    TextButton(
+                        onClick = {
+                            cleared = picked
+                            picked = emptyList()
+                        },
+                        enabled = picked.isNotEmpty(),
+                    ) { Text(stringResource(R.string.picker_clear)) }
                 }
                 Spacer(Modifier.width(4.dp))
                 // Slides away like a swipe would, then hands over the picks.
@@ -117,6 +133,7 @@ fun ItemPickerSheet(
                             .semantics { this.selected = selected }
                             .clickable(role = Role.Checkbox, enabled = selected || !full) {
                                 picked = if (selected) picked - option.id else picked + option.id
+                                cleared = null
                             },
                     ) {
                         Box {

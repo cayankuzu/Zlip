@@ -1,6 +1,11 @@
 package com.zlip.app.ui.text
 
 import android.icu.text.BreakIterator
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -12,19 +17,13 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,6 +52,7 @@ import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
+import com.zlip.app.ui.components.EditorTopBar
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SwitchRow
 import kotlin.math.roundToInt
@@ -131,18 +131,11 @@ fun TextEditorScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(if (initial == null) R.string.text_title_new else R.string.text_title_edit)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { onSave(item) }, enabled = text.isNotBlank()) {
-                        Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.action_save))
-                    }
-                },
+            EditorTopBar(
+                title = stringResource(if (initial == null) R.string.text_title_new else R.string.text_title_edit),
+                onBack = onBack,
+                onSave = { onSave(item) },
+                saveEnabled = text.isNotBlank(),
             )
         },
     ) { padding ->
@@ -168,20 +161,26 @@ fun TextEditorScreen(
                 value = textValue,
                 onValueChange = { textValue = limitInsertion(textValue, it, MAX_TEXT) },
                 label = { Text(stringResource(R.string.text_field)) },
-                supportingText = { Text("${text.length} / $MAX_TEXT") },
+                // Save stays off until there is something to show; say why rather than leave it greyed out.
+                supportingText = { Text(if (text.isBlank()) stringResource(R.string.text_required) else "${text.length} / $MAX_TEXT") },
                 minLines = 2,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            // One tap for the signs people show most: name the moment, hold the phone up.
-            Label(R.string.text_presets_title)
-            // Wraps rather than scrolls, so no preset hides off-screen.
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                stringArrayResource(R.array.text_presets).forEach { preset ->
-                    SuggestionChip(
-                        onClick = { textValue = TextFieldValue(preset, TextRange(preset.length)) },
-                        label = { Text(preset) },
-                    )
+            // One tap for the signs people show most: name the moment, hold the phone up. Only while the field is empty,
+            // so a stray tap can never replace what the user typed.
+            AnimatedVisibility(visible = text.isEmpty(), enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+                Column {
+                    Label(R.string.text_presets_title)
+                    // Wraps rather than scrolls, so no preset hides off-screen.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        stringArrayResource(R.array.text_presets).forEach { preset ->
+                            SuggestionChip(
+                                onClick = { textValue = TextFieldValue(preset, TextRange(preset.length)) },
+                                label = { Text(preset) },
+                            )
+                        }
+                    }
                 }
             }
 

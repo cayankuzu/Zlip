@@ -27,9 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -44,7 +42,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,6 +79,7 @@ import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
+import com.zlip.app.ui.components.EditorTopBar
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SectionTitle
@@ -175,18 +173,10 @@ fun ToyEditorScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(if (initial == null) R.string.toy_editor_title_new else R.string.toy_editor_title_edit)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { onSave(item) }) {
-                        Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.action_save))
-                    }
-                },
+            EditorTopBar(
+                title = stringResource(if (initial == null) R.string.toy_editor_title_new else R.string.toy_editor_title_edit),
+                onBack = onBack,
+                onSave = { onSave(item) },
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },

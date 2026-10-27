@@ -21,12 +21,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BeachAccess
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Celebration
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Keyboard
@@ -44,6 +42,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -52,7 +54,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -62,6 +63,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -94,12 +96,14 @@ import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
+import com.zlip.app.ui.components.EditorTopBar
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.IconBadge
 import com.zlip.app.ui.components.LocalHovering
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SegmentLabel
 import com.zlip.app.ui.components.SwitchRow
+import kotlinx.coroutines.launch
 import java.time.ZoneId
 
 private const val MAX_TITLE = 32
@@ -123,6 +127,9 @@ private enum class Preset(@StringRes val label: Int, val icon: ImageVector, val 
 }
 
 private enum class EditorDialog { NONE, DATE, TIME }
+
+/** What a preset replaces, kept so its snackbar can undo it. */
+private data class PresetSnapshot(val title: String, val target: Long, val countUp: Boolean, val repeat: Repeat)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -205,8 +212,15 @@ fun CountdownEditorScreen(
         onDirtyChange(item != baseline, title.isNotBlank())
     }
 
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val changedLabel = stringResource(R.string.editor_changed)
+    val undoLabel = stringResource(R.string.action_undo)
+
     fun applyPreset(preset: Preset, presetTitle: String) {
         val now = System.currentTimeMillis()
+        // What the preset replaces, so a mis-tap can be taken back from the snackbar.
+        val before = PresetSnapshot(title, target, countUp, repeat)
         repeat = preset.repeat
         when (preset) {
             Preset.NEW_YEAR, Preset.WEEKEND -> {
@@ -229,24 +243,34 @@ fun CountdownEditorScreen(
                 titleFocus.requestFocus()
             }
         }
+        // A new card nobody has touched yet loses nothing; anything else (a typed title, a picked date, a saved card) can
+        // be brought back.
+        val untouched = initial == null && before == PresetSnapshot("", defaultTarget, false, Repeat.NONE)
+        if (untouched || before == PresetSnapshot(title, target, countUp, repeat)) return
+        scope.launch {
+            // The newest replacement is the one worth undoing; an older snackbar would only hold it in the queue.
+            snackbar.currentSnackbarData?.dismiss()
+            val result = snackbar.showSnackbar(changedLabel, actionLabel = undoLabel, duration = SnackbarDuration.Short)
+            if (result == SnackbarResult.ActionPerformed) {
+                title = before.title
+                target = before.target
+                countUp = before.countUp
+                repeat = before.repeat
+                dialog = EditorDialog.NONE
+            }
+        }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(if (initial == null) R.string.countdown_title_new else R.string.countdown_title_edit)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { onSave(item) }, enabled = title.isNotBlank()) {
-                        Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.action_save))
-                    }
-                },
+            EditorTopBar(
+                title = stringResource(if (initial == null) R.string.countdown_title_new else R.string.countdown_title_edit),
+                onBack = onBack,
+                onSave = { onSave(item) },
+                saveEnabled = title.isNotBlank(),
             )
         },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -284,7 +308,8 @@ fun CountdownEditorScreen(
                 onValueChange = { title = it.replace('\n', ' ').takeSafe(MAX_TITLE) },
                 label = { Text(stringResource(R.string.countdown_field_title)) },
                 placeholder = { Text(stringResource(if (countUp) R.string.countdown_field_title_hint_up else R.string.countdown_field_title_hint)) },
-                supportingText = { Text("${title.length} / $MAX_TITLE") },
+                // Save stays off without a title; say why rather than leave it greyed out.
+                supportingText = { Text(if (title.isBlank()) stringResource(R.string.countdown_title_required) else "${title.length} / $MAX_TITLE") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),

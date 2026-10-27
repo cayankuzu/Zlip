@@ -24,20 +24,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +45,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -56,6 +57,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -76,11 +78,13 @@ import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
+import com.zlip.app.ui.components.EditorTopBar
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.ItemPickerSheet
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SwitchRow
 import com.zlip.app.ui.components.durationLabel
+import kotlinx.coroutines.launch
 
 private val INTERVALS = listOf(3, 5, 10, 15, 30, 60)
 private val GAPS = listOf(0, 4, 10)
@@ -108,8 +112,9 @@ fun CollageEditorScreen(
     val id = rememberSaveable { initial?.id ?: ContentRepository.newId() }
     var name by rememberSaveable { mutableStateOf(initial?.name.orEmpty()) }
     var layout by rememberSaveable { mutableStateOf(initial?.layout ?: CollageLayout.GRID) }
+    // Room for the biggest layout whatever the layout is, so trying a smaller one and coming back keeps every pick.
     var cellIds by rememberSaveable(stateSaver = CellIdsSaver) {
-        mutableStateOf(initial?.cells?.map { cell -> cell.map { it.id } } ?: List(CollageLayout.GRID.cells.size) { emptyList() })
+        mutableStateOf(withRoomForEveryLayout(initial?.cells?.map { cell -> cell.map { it.id } }.orEmpty()))
     }
     // A collage keeps its own copies. Saved edits reach them anyway (ContentRepository.upsert), so they match the
     // library; they win so the baseline stays exact and items deleted from the library since stay in their cell.
@@ -125,19 +130,29 @@ fun CollageEditorScreen(
     val choices = remember(library) { library.filter { it !is CoverItem.Collage && it !is CoverItem.Group } }
     // Dealt out automatically: toys are dead tiles in a cell and QR codes too small to scan there.
     val autoFillChoices = remember(choices) { choices.filter { it !is CoverItem.Toy && it !is CoverItem.Qr } }
-    val fallbackName = stringResource(R.string.type_collage)
+    val typeName = stringResource(R.string.type_collage)
+    val resources = LocalResources.current
+    val nameFormat = { first: String, count: Int -> resources.getString(R.string.group_default_name, first, count) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val changedLabel = stringResource(R.string.editor_changed)
+    val undoLabel = stringResource(R.string.action_undo)
 
-    fun collage(name: String, layout: CollageLayout, cells: List<List<CoverItem>>, interval: Int, gap: Int, rounded: Boolean, background: Int) =
-        CoverItem.Collage(
+    // Only the cells the layout shows count; picks kept for a bigger layout wait in the others.
+    fun collage(name: String, layout: CollageLayout, cells: List<List<CoverItem>>, interval: Int, gap: Int, rounded: Boolean, background: Int): CoverItem.Collage {
+        val shown = List(layout.cells.size) { cells.getOrElse(it) { emptyList() } }
+        return CoverItem.Collage(
             id = id,
-            name = name.ifBlank { fallbackName },
+            // "Kolaj · 3": several collages stay apart in the library and the notification.
+            name = name.ifBlank { defaultCollageName(typeName, shown.count { it.isNotEmpty() }, nameFormat) },
             layout = layout,
-            cells = List(layout.cells.size) { cells.getOrElse(it) { emptyList() } },
+            cells = shown,
             intervalSeconds = interval,
             gapDp = gap,
             rounded = rounded,
             background = background,
         )
+    }
 
     val item = collage(name, layout, cells, interval, gap, rounded, background)
     val baseline = remember {
@@ -156,17 +171,17 @@ fun CollageEditorScreen(
         onDirtyChange(item != baseline, item.cells.any { it.isNotEmpty() })
     }
 
+    // Only the layout changes: every cell keeps its picks (see [cellIds]), so switching back brings them back.
     fun setLayout(next: CollageLayout) {
         layout = next
-        // Keep what the user already chose; a smaller layout keeps the first cells, a bigger one adds empty ones.
-        cellIds = List(next.cells.size) { cellIds.getOrElse(it) { emptyList() } }
     }
 
     /**
      * Deals the library out over the cells, so every cell gets its own rotation. With fewer items than
-     * cells it picks a layout that fits them, so no cell is left empty.
+     * cells it picks a layout that fits them, so no cell is left empty. What it replaced can be undone.
      */
     fun autoFill() {
+        val before = layout to cellIds
         val fitting = when {
             autoFillChoices.size >= layout.cells.size || autoFillChoices.size < 2 -> layout
             autoFillChoices.size == 2 -> if (layout == CollageLayout.STACKED) CollageLayout.STACKED else CollageLayout.SIDE_BY_SIDE
@@ -174,25 +189,29 @@ fun CollageEditorScreen(
         }
         layout = fitting
         val count = fitting.cells.size
-        cellIds = List(count) { cell -> autoFillChoices.filterIndexed { index, _ -> index % count == cell }.map { it.id } }
+        cellIds = withRoomForEveryLayout(List(count) { cell -> autoFillChoices.filterIndexed { index, _ -> index % count == cell }.map { it.id } })
+        // Empty cells lose nothing; picks the user made can be brought back.
+        if (before.second.all { it.isEmpty() }) return
+        scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            val result = snackbar.showSnackbar(changedLabel, actionLabel = undoLabel, duration = SnackbarDuration.Short)
+            if (result == SnackbarResult.ActionPerformed) {
+                layout = before.first
+                cellIds = before.second
+            }
+        }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(if (initial == null) R.string.collage_title_new else R.string.collage_title_edit)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { onSave(item) }, enabled = item.cells.any { it.isNotEmpty() }) {
-                        Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.action_save))
-                    }
-                },
+            EditorTopBar(
+                title = stringResource(if (initial == null) R.string.collage_title_new else R.string.collage_title_edit),
+                onBack = onBack,
+                onSave = { onSave(item) },
+                saveEnabled = item.cells.any { it.isNotEmpty() },
             )
         },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -273,6 +292,8 @@ fun CollageEditorScreen(
                 value = name,
                 onValueChange = { if (it.length <= ContentRepository.MAX_NAME) name = it },
                 label = { Text(stringResource(R.string.field_name)) },
+                // The name it gets when this stays empty.
+                placeholder = { Text(item.name) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -288,13 +309,23 @@ fun CollageEditorScreen(
                 current = item.cells.getOrElse(index) { emptyList() },
                 choices = choices,
                 onCommit = { picked ->
-                    cellIds = List(layout.cells.size) { if (it == index) picked.map { item -> item.id } else cellIds.getOrElse(it) { emptyList() } }
+                    cellIds = cellIds.mapIndexed { cell, ids -> if (cell == index) picked.map { it.id } else ids }
                     pickingCell = null
                 },
             )
         }
     }
 }
+
+/** [cells] padded with empty ones up to the biggest layout's count (never cut), so every layout finds its picks there. */
+internal fun withRoomForEveryLayout(cells: List<List<String>>): List<List<String>> {
+    val room = CollageLayout.entries.maxOf { it.cells.size }
+    return if (cells.size >= room) cells else cells + List(room - cells.size) { emptyList() }
+}
+
+/** A collage with no name of its own: "Kolaj · 3" once cells are filled ([format] joins the two), plain "Kolaj" before. */
+internal fun defaultCollageName(typeName: String, filledCells: Int, format: (String, Int) -> String): String =
+    if (filledCells > 0) format(typeName, filledCells) else typeName
 
 /** Invisible tap areas over the preview, one per cell, with a "+" on empty cells. */
 @Composable

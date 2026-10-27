@@ -105,6 +105,8 @@ data class CoverSettings(
     val onboardingDone: Boolean = false,
     /** The user closed Home's "add the cover widget" tip; it stays away even while no widget is placed. */
     val widgetTipDismissed: Boolean = false,
+    /** The user closed Home's "make a playlist" tip; it stays away for good. */
+    val playlistTipDismissed: Boolean = false,
 ) {
     /** The auto-advance settings as one value (see [AdvanceMode]). */
     val advanceMode: AdvanceMode
@@ -139,6 +141,7 @@ data class CoverSettings(
         put("ledTint", ledTint)
         put("onboardingDone", onboardingDone)
         put("widgetTipDismissed", widgetTipDismissed)
+        put("playlistTipDismissed", playlistTipDismissed)
     }
 
     companion object {
@@ -202,6 +205,7 @@ data class CoverSettings(
                 ledTint = json.optInt("ledTint", 0),
                 onboardingDone = json.optBoolean("onboardingDone", false),
                 widgetTipDismissed = json.optBoolean("widgetTipDismissed", false),
+                playlistTipDismissed = json.optBoolean("playlistTipDismissed", false),
             )
         }
     }
