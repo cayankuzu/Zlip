@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cover gestures: one line per gesture, the same rows in onboarding and Settings' sheet -->
+    <string name="settings_gestures">Cover gestures</string>
+    <string name="settings_gestures_desc">What taps and swipes do</string>
+    <string name="gestures_open_title">While open</string>
+    <string name="gestures_folded_title">While folded</string>
+    <string name="gesture_open_double_tap">Double-tap: controls appear, then lock again after 3 s</string>
+    <string name="gesture_close">×: turn the cover off</string>
+    <string name="gesture_swipe">Swipe sideways: previous / next. In a group, its steps first</string>
+    <string name="gesture_leave_group">To leave a group: Next item / Previous item</string>
+    <string name="gesture_pause">Middle button: pause / play</string>
+    <string name="gesture_open_tap_done">Tap empty space: hide the controls</string>
+    <string name="gesture_folded_tap">Tap: controls and ×</string>
+    <string name="gesture_folded_up">Swipe up: menu</string>
+    <string name="gesture_folded_down">Swipe down: lock screen</string>
+
+    <!-- Onboarding -->
+    <string name="intro_welcome_mini">Switch apps and Zlip becomes the Mini cover, so the cover stays on.</string>
+    <string name="intro_cover_title">Using the cover</string>
+    <string name="intro_cover_body">Your palm can\'t set anything off: the cover stays locked.</string>
+    <string name="intro_notifications_line">Pause, skip or turn off the cover from the notification shade too.</string>
+    <string name="intro_folded_add">To add it: folded, touch and hold the cover → Edit → \'Zlip cover\'.</string>
+    <string name="intro_folded_auto">To open it every time you fold, turn on \'Open when folded\' on Home.</string>
+    <string name="intro_mirror_where">Tap \'Mirror screen\' on Home.</string>
+
+    <!-- Settings -->
+    <string name="settings_section_open_phone">While open</string>
+    <string name="settings_pip_off">Picture-in-picture is off for this app, so the Mini cover can\'t open.</string>
+    <string name="settings_pip_open">Turn on</string>
+    <string name="settings_folded_inactive">These apply once the widget is added or \'Open when folded\' is on.</string>
+    <string name="advance_shuffle_auto_only">Next / previous always follow list order.</string>
+</resources>
