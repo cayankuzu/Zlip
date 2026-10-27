@@ -14,6 +14,7 @@
     <string name="gesture_folded_tap">Dokun: kontroller ve ×</string>
     <string name="gesture_folded_up">Yukarı kaydır: menü</string>
     <string name="gesture_folded_down">Aşağı kaydır: kilit ekranı</string>
+    <string name="gesture_folded_unlock">Kilidi aç (parmak izi, şifre): kendiliğinden kapanır</string>
 
     <!-- Tanıtım -->
     <string name="intro_welcome_mini">Başka uygulamaya geçince Zlip Mini kapak olur, kapak açık kalır.</string>

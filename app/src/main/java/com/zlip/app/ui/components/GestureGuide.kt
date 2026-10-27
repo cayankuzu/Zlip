@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SwipeDown
@@ -52,7 +53,8 @@ fun GestureRow(icon: ImageVector, @StringRes text: Int, modifier: Modifier = Mod
     ) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(16.dp))
-        Text(stringResource(text), style = MaterialTheme.typography.bodyMedium)
+        // An explicit colour: onboarding draws these straight on the black page, where the inherited one is black.
+        Text(stringResource(text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -69,7 +71,7 @@ fun OpenPhoneGestures(modifier: Modifier = Modifier) {
     }
 }
 
-/** The screen saver on the folded cover: tap for the controls, swipe to move, up for the menu, down to leave. */
+/** The screen saver on the folded cover: tap for the controls, swipe to move, up for the menu, down to leave; unlocking closes it. */
 @Composable
 fun FoldedGestures(modifier: Modifier = Modifier) {
     Column(modifier) {
@@ -77,6 +79,7 @@ fun FoldedGestures(modifier: Modifier = Modifier) {
         GestureRow(Icons.Filled.SwipeLeft, R.string.gesture_swipe)
         GestureRow(Icons.Filled.SwipeUp, R.string.gesture_folded_up)
         GestureRow(Icons.Filled.SwipeDown, R.string.gesture_folded_down)
+        GestureRow(Icons.Filled.Fingerprint, R.string.gesture_folded_unlock)
     }
 }
 

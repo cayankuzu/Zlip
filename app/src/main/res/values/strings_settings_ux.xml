@@ -14,6 +14,7 @@
     <string name="gesture_folded_tap">Tap: controls and ×</string>
     <string name="gesture_folded_up">Swipe up: menu</string>
     <string name="gesture_folded_down">Swipe down: lock screen</string>
+    <string name="gesture_folded_unlock">Unlock (fingerprint, PIN): it closes by itself</string>
 
     <!-- Onboarding -->
     <string name="intro_welcome_mini">Switch apps and Zlip becomes the Mini cover, so the cover stays on.</string>
