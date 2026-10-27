@@ -219,7 +219,7 @@
     <string name="folded_desc">Katlıyken içeriklerin, Zlip kapalı olsa bile kapakta görünür. Widget\'a dokun: ekran koruyucu kilit ekranının önünde açılır. Yana kaydırarak gez, yukarı kaydırınca menü açılır, aşağı kaydırınca kilit ekranına dönersin.</string>
     <string name="folded_steps">1. Ayarlar → Kapak ekranı → Widget\'lar (ya da katlıyken kapak ekranına basılı tut → Düzenle).\n2. \"Zlip kapak\" widget\'ını ekle.\n3. Telefonu katla: içeriklerin orada.</string>
     <string name="settings_cover_clock">Kapakta saat</string>
-    <string name="settings_cover_clock_desc">Katlıyken widget\'ta ve ekran koruyucuda.</string>
+    <string name="settings_cover_clock_desc">Katlıyken widget\'ta ve ekran koruyucuda. QR kodu okunsun diye onun üstünde görünmez.</string>
     <string name="home_widget_tip_title">Katlıyken de göster</string>
     <string name="home_widget_tip_body">Zlip widget\'ını kapak ekranına ekle; Zlip kapalıyken bile içeriklerin orada döner.</string>
     <string name="home_widget_tip_action">Nasıl?</string>

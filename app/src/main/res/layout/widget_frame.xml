@@ -1,10 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The content description is the item's name, set per frame from CoverWidgets. -->
-<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- One frame of the cover widget; the image's content description is the item's name, set per frame from
+     CoverWidgets. The clock belongs to the frame rather than to the widget, so a frame showing a QR code can leave
+     it out: drawn over the code it hid part of it, and the code no longer scanned. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/widget_image"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/black"
-    android:scaleType="fitCenter"
-    tools:ignore="ContentDescription" />
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/widget_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:scaleType="fitCenter"
+        tools:ignore="ContentDescription" />
+
+    <!-- Optional screen-saver clock; the host keeps it current with no work from Zlip. -->
+    <LinearLayout
+        android:id="@+id/widget_frame_clock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextClock
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="h:mm"
+            android:format24Hour="HH:mm"
+            android:shadowColor="#CC000000"
+            android:shadowRadius="8"
+            android:textColor="#FFFFFFFF"
+            android:textSize="34sp" />
+
+        <TextClock
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="EEE d MMM"
+            android:format24Hour="EEE d MMM"
+            android:shadowColor="#CC000000"
+            android:shadowRadius="8"
+            android:textColor="#DDFFFFFF"
+            android:textSize="14sp" />
+    </LinearLayout>
+</FrameLayout>

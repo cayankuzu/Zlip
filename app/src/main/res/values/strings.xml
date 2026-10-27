@@ -221,7 +221,7 @@
     <string name="folded_desc">When folded, your content shows on the cover even while Zlip is closed. Tap the widget for the screen saver in front of the lock screen: swipe sideways to browse, swipe up for the menu, swipe down for the lock screen.</string>
     <string name="folded_steps">1. Settings → Cover screen → Widgets (or, folded, touch and hold the cover screen → Edit).\n2. Add \"Zlip cover\".\n3. Fold the phone: your content is there.</string>
     <string name="settings_cover_clock">Clock on the cover</string>
-    <string name="settings_cover_clock_desc">When folded: in the widget and the screen saver.</string>
+    <string name="settings_cover_clock_desc">When folded: in the widget and the screen saver. Never over a QR code, so it still scans.</string>
     <string name="home_widget_tip_title">Show it when folded too</string>
     <string name="home_widget_tip_body">Add the Zlip widget to your cover screen and your content plays there even when Zlip is closed.</string>
     <string name="home_widget_tip_action">How?</string>
