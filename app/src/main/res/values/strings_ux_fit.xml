@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Media editor, under Fit / Fill while Fill crops the picture: dragging the preview picks the part that shows -->
-    <string name="media_frame_hint">Drag the preview to frame it · double-tap to center</string>
+    <!-- Media editor, under Fit / Fill: two fingers zoom the preview, dragging picks the part that shows -->
+    <string name="media_frame_hint">Pinch the preview to zoom · drag to frame · double-tap to reset</string>
 
-    <!-- Media editor, TalkBack actions on the preview while Fill crops the picture -->
+    <!-- Media editor, TalkBack actions on the preview while the picture is larger than the cover on that axis -->
     <string name="media_frame_top">Show more of the top</string>
     <string name="media_frame_bottom">Show more of the bottom</string>
     <string name="media_frame_left">Show more of the left</string>

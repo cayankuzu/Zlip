@@ -18,10 +18,11 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverItemJson
-import com.zlip.app.data.MediaFit
 import com.zlip.app.data.MediaFocus
 import com.zlip.app.data.MediaKind
+import com.zlip.app.data.MediaPlacement
 import com.zlip.app.data.MediaStorage
+import com.zlip.app.data.framing
 import com.zlip.app.data.leaves
 import com.zlip.app.data.showsQr
 import com.zlip.app.render.LedStyle
@@ -228,8 +229,8 @@ internal object CoverFrames {
     }
 
     private fun drawImage(file: File, item: CoverItem.Media, canvas: Canvas, box: RectF, badge: Boolean) {
-        // First frame of GIFs/animated WebP; already EXIF-rotated photos; video posters.
-        val limit = (max(box.width(), box.height()) * 2).toInt().coerceAtLeast(1)
+        // First frame of GIFs/animated WebP; already EXIF-rotated photos; video posters. Zoomed in, more of it shows.
+        val limit = (max(box.width(), box.height()) * 2 * MediaFocus.clampZoom(item.zoom)).toInt().coerceAtLeast(1)
         val source = ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, info, _ ->
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
             val edge = max(info.size.width, info.size.height)
@@ -240,17 +241,12 @@ internal object CoverFrames {
         }
         canvas.withClip(box) {
             drawColor(item.background)
-            val scale = if (item.fit == MediaFit.FILL) {
-                max(box.width() / source.width, box.height() / source.height)
-            } else {
-                min(box.width() / source.width, box.height() / source.height)
-            }
-            val w = source.width * scale
-            val h = source.height * scale
-            // A cropped picture shows the part the user framed, like the live cover; a fitted one is centred.
-            val left = if (item.fit == MediaFit.FILL) box.left + MediaFocus.offset(w - box.width(), item.focusX) else box.centerX() - w / 2f
-            val top = if (item.fit == MediaFit.FILL) box.top + MediaFocus.offset(h - box.height(), item.focusY) else box.centerY() - h / 2f
-            val target = RectF(left, top, left + w, top + h)
+            // Fit or fill, zoomed and framed exactly like the live cover shows it.
+            val placement = MediaFocus.place(source.width.toFloat() / source.height, box.width(), box.height(), item.framing)
+                ?: MediaPlacement(0f, 0f, box.width(), box.height())
+            val left = box.left + placement.left
+            val top = box.top + placement.top
+            val target = RectF(left, top, left + placement.width, top + placement.height)
             // Nearest-neighbour for pixel art, smooth for photos.
             val paint = Paint().apply { isFilterBitmap = !item.crisp }
             drawBitmap(source, Rect(0, 0, source.width, source.height), target, paint)

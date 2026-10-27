@@ -146,6 +146,27 @@ class CoverItemJsonTest {
     }
 
     @Test
+    fun zoomSurvivesARoundTripAndIsWrittenOnlyWhenZoomed() {
+        val zoomed = photo.copy(zoom = 2.5f, focusX = 0.5f, focusY = -0.25f)
+        assertEquals(zoomed, roundTrip(zoomed))
+        assertEquals(2.5, CoverItemJson.encode(zoomed).getDouble("zoom"), 0.0001)
+        // Not zoomed: the old JSON, so the widget's cached frames stay valid.
+        assertFalse(CoverItemJson.encode(photo).has("zoom"))
+        assertFalse(CoverItemJson.encode(photo.copy(zoom = Float.NaN)).has("zoom"))
+        assertEquals(MediaFocus.MAX_ZOOM.toDouble(), CoverItemJson.encode(photo.copy(zoom = 99f)).getDouble("zoom"), 0.0001)
+    }
+
+    @Test
+    fun zoomDefaultsToOneAndIsClamped() {
+        fun mediaOf(extra: String) = CoverItemJson.decode(JSONObject("""{"id":"m","name":"M","type":"media","fileName":"a.webp"$extra}""")) as CoverItem.Media
+        assertEquals(1f, mediaOf("").zoom)
+        assertEquals(MediaFocus.MAX_ZOOM, mediaOf(""","zoom":40""").zoom)
+        assertEquals(1f, mediaOf(""","zoom":0.2""").zoom)
+        assertEquals(1f, mediaOf(""","zoom":"close"""").zoom)
+        assertEquals(1.75f, mediaOf(""","zoom":1.75""").zoom)
+    }
+
+    @Test
     fun leavesAreThePlainItemsInside() {
         assertEquals(listOf(photo, video, photo, video, qr, text), group.leaves())
         assertEquals(listOf(text), text.leaves())

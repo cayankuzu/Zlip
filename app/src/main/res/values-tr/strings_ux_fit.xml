@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="media_frame_hint">Önizlemeyi sürükleyerek kadrajla · çift dokun: ortala</string>
+    <string name="media_frame_hint">İki parmakla yakınlaştır · sürükleyerek kadrajla · çift dokun: sıfırla</string>
 
     <string name="media_frame_top">Üst tarafı daha çok göster</string>
     <string name="media_frame_bottom">Alt tarafı daha çok göster</string>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="media_zoom_in">Yakınlaştır</string>
+    <string name="media_zoom_out">Uzaklaştır</string>
+
+    <string name="media_frame_reset">Sıfırla</string>
+    <string name="media_frame_reset_desc">Yakınlaştırmayı ve kadrajı sıfırla</string>
+</resources>

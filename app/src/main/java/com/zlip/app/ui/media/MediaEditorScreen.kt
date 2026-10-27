@@ -2,9 +2,12 @@ package com.zlip.app.ui.media
 
 import android.content.Context
 import android.graphics.BitmapFactory
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Repeat
@@ -35,6 +40,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,25 +55,31 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.zlip.app.R
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.MediaFit
 import com.zlip.app.data.MediaFocus
+import com.zlip.app.data.MediaFraming
 import com.zlip.app.data.MediaKind
 import com.zlip.app.data.MediaStorage
+import com.zlip.app.data.framed
+import com.zlip.app.data.framing
 import com.zlip.app.render.CoverContent
 import com.zlip.app.render.Playback
-import com.zlip.app.ui.components.COVER_ASPECT_RATIO
 import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
@@ -80,7 +92,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
-/** Below this (1 %), Fill crops too little of the picture for framing it to be worth offering. */
+/** Below this (1 % of the preview), the picture reaches too little past it for moving it to be worth offering. */
 private const val MIN_FRAMING_CROP = 0.01f
 
 /** Display options for an imported photo, GIF or video. The file itself is already in the library. */
@@ -102,18 +114,22 @@ fun MediaEditorScreen(
     var background by rememberSaveable { mutableIntStateOf(initial.background) }
     var focusX by rememberSaveable { mutableFloatStateOf(initial.focusX) }
     var focusY by rememberSaveable { mutableFloatStateOf(initial.focusY) }
+    var zoom by rememberSaveable { mutableFloatStateOf(initial.zoom) }
 
     val fallbackName = stringResource(R.string.default_media_name)
     val item = initial.copy(
         name = name.ifBlank { fallbackName },
-        fit = fit,
         crisp = crisp,
         loop = loop,
         background = background,
         muted = muted,
-        focusX = focusX,
-        focusY = focusY,
-    )
+    ).framed(MediaFraming(fit, zoom, focusX, focusY))
+    val onFramingChange = { framing: MediaFraming ->
+        fit = framing.fit
+        zoom = framing.zoom
+        focusX = framing.focusX
+        focusY = framing.focusY
+    }
     val baseline = remember { initial.copy(name = initial.name.ifBlank { fallbackName }) }
     LaunchedEffect(item) {
         onDraftChange(item)
@@ -126,13 +142,11 @@ fun MediaEditorScreen(
         MediaKind.VIDEO -> R.string.media_title_video
     }
 
-    // Fill crops the picture; the user drags it to choose what shows. Only along the axis that is cropped,
-    // so the other way still scrolls the page.
+    // Two fingers zoom the preview; one drags the picture to choose what shows, only along an axis where it is
+    // larger than the cover, so the other way still scrolls the page.
     val context = LocalContext.current
     val aspect by produceState(0f, initial.fileName) { value = withContext(Dispatchers.IO) { pictureAspect(context, initial) } }
-    // A picture of the cover's own shape loses nothing to Fill: no drag, no hint saying there is one.
-    val framing = fit == MediaFit.FILL && aspect > 0f && abs(aspect / COVER_ASPECT_RATIO - 1f) > MIN_FRAMING_CROP
-    val horizontal = aspect > COVER_ASPECT_RATIO
+    val framable = aspect > 0f
 
     Scaffold(
         topBar = {
@@ -168,16 +182,11 @@ fun MediaEditorScreen(
                 // Silent, like every inner-screen preview: the cover (showing this draft) is where the clip is heard,
                 // and a preview that blares the moment an editor opens would only startle.
                 CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback) }
-                if (framing) {
+                if (framable) {
                     FramingSurface(
                         aspect = aspect,
-                        horizontal = horizontal,
-                        focus = { if (horizontal) focusX else focusY },
-                        onFocusChange = { if (horizontal) focusX = it else focusY = it },
-                        onCenter = {
-                            focusX = 0f
-                            focusY = 0f
-                        },
+                        framing = item.framing,
+                        onFramingChange = onFramingChange,
                         modifier = Modifier.matchParentSize(),
                     )
                 }
@@ -222,7 +231,23 @@ fun MediaEditorScreen(
                         }
                     }
                 }
-                if (framing) HintText(stringResource(R.string.media_frame_hint))
+                if (framable) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        HintText(stringResource(R.string.media_frame_hint), Modifier.weight(1f))
+                        // Back to the picture as its fit shows it: not zoomed, centred.
+                        if (item.framing.adjusted) {
+                            val resetDescription = stringResource(R.string.media_frame_reset_desc)
+                            TextButton(
+                                onClick = { onFramingChange(MediaFraming(fit)) },
+                                modifier = Modifier.semantics { contentDescription = resetDescription },
+                            ) {
+                                Icon(Icons.Filled.CenterFocusStrong, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(stringResource(R.string.media_frame_reset))
+                            }
+                        }
+                    }
+                }
                 if (initial.kind != MediaKind.IMAGE) {
                     Spacer(Modifier.height(12.dp))
                     SwitchRow(
@@ -273,54 +298,122 @@ fun MediaEditorScreen(
 }
 
 /**
- * Lies over the preview while Fill crops the picture: a drag along the cropped axis ([horizontal] or not)
- * moves the picture with the finger, a double tap centres it, and TalkBack gets the same as actions.
+ * Lies over the preview: two fingers zoom the picture around their midpoint (and move it along), one finger drags it
+ * along an axis where it is larger than the preview, a double tap resets it ([MediaFraming] of the same fit), and
+ * TalkBack gets the same as actions.
  */
 @Composable
 private fun FramingSurface(
     aspect: Float,
-    horizontal: Boolean,
-    focus: () -> Float,
-    onFocusChange: (Float) -> Unit,
-    onCenter: () -> Unit,
+    framing: MediaFraming,
+    onFramingChange: (MediaFraming) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val currentFocus by rememberUpdatedState(focus)
-    val currentOnFocusChange by rememberUpdatedState(onFocusChange)
-    val currentOnCenter by rememberUpdatedState(onCenter)
+    val currentFraming by rememberUpdatedState(framing)
+    val currentOnFramingChange by rememberUpdatedState(onFramingChange)
+    var surfaceSize by remember { mutableStateOf(IntSize.Zero) }
     val hint = stringResource(R.string.media_frame_hint)
-    val towardsStart = stringResource(if (horizontal) R.string.media_frame_left else R.string.media_frame_top)
-    val towardsEnd = stringResource(if (horizontal) R.string.media_frame_right else R.string.media_frame_bottom)
+    val left = stringResource(R.string.media_frame_left)
+    val right = stringResource(R.string.media_frame_right)
+    val top = stringResource(R.string.media_frame_top)
+    val bottom = stringResource(R.string.media_frame_bottom)
+    val zoomIn = stringResource(R.string.media_zoom_in)
+    val zoomOut = stringResource(R.string.media_zoom_out)
     val center = stringResource(R.string.media_frame_center)
+    val reset = stringResource(R.string.media_frame_reset_desc)
+    val width = surfaceSize.width.toFloat()
+    val height = surfaceSize.height.toFloat()
+    val (movableX, movableY) = movable(aspect, width, height, framing)
+    // Around the preview's centre, as the reset and the step actions keep the picture centred too.
+    val zoomBy = { change: Float -> currentOnFramingChange(MediaFocus.zoomedAround(currentFraming, aspect, width, height, change, width / 2f, height / 2f)) }
+    val step = { dx: Float, dy: Float ->
+        val now = currentFraming
+        currentOnFramingChange(now.copy(focusX = MediaFocus.clamp(now.focusX + dx), focusY = MediaFocus.clamp(now.focusY + dy)))
+    }
     Box(
         modifier
-            .pointerInput(aspect, horizontal) {
-                val onDrag = { change: PointerInputChange, delta: Float ->
-                    change.consume()
-                    val (overflowX, overflowY) = MediaFocus.overflow(aspect, size.width.toFloat(), size.height.toFloat())
-                    currentOnFocusChange(MediaFocus.dragged(currentFocus(), delta, if (horizontal) overflowX else overflowY))
+            .onSizeChanged { surfaceSize = it }
+            .pointerInput(aspect) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    // Undecided until the fingers moved past the touch slop: then either the picture moves (a pinch,
+                    // or a drag along an axis it can move on) or the page scrolls, for the rest of the gesture.
+                    var steering = false
+                    var lost = false
+                    var slop = Offset.Zero
+                    do {
+                        val event = awaitPointerEvent()
+                        val fingers = event.changes.count { it.pressed }
+                        val boxWidth = size.width.toFloat()
+                        val boxHeight = size.height.toFloat()
+                        if (fingers >= 2 && !lost) {
+                            steering = true
+                            val zoom = event.calculateZoom()
+                            val pan = event.calculatePan()
+                            if (zoom != 1f || pan != Offset.Zero) {
+                                val pivot = event.calculateCentroid(useCurrent = false)
+                                currentOnFramingChange(
+                                    MediaFocus.zoomedAround(currentFraming, aspect, boxWidth, boxHeight, zoom, pivot.x, pivot.y, pan.x, pan.y),
+                                )
+                            }
+                            event.changes.forEach { if (it.positionChanged()) it.consume() }
+                        } else if (fingers == 1 && !lost) {
+                            val change = event.changes.first { it.pressed }
+                            val delta = change.positionChange()
+                            val now = currentFraming
+                            val (canX, canY) = movable(aspect, boxWidth, boxHeight, now)
+                            if (!steering) {
+                                slop += delta
+                                if (slop.getDistance() > viewConfiguration.touchSlop) {
+                                    val sideways = abs(slop.x) >= abs(slop.y)
+                                    steering = (sideways && canX) || (!sideways && canY)
+                                    lost = !steering
+                                    // Claimed on the very move that decided it, so the page does not start scrolling too.
+                                    if (steering) change.consume()
+                                }
+                            } else if (delta != Offset.Zero) {
+                                val (overflowX, overflowY) = MediaFocus.overflow(aspect, boxWidth, boxHeight, now.fit, now.zoom)
+                                currentOnFramingChange(
+                                    now.copy(
+                                        focusX = if (canX) MediaFocus.dragged(now.focusX, delta.x, overflowX) else now.focusX,
+                                        focusY = if (canY) MediaFocus.dragged(now.focusY, delta.y, overflowY) else now.focusY,
+                                    ),
+                                )
+                                change.consume()
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
                 }
-                if (horizontal) detectHorizontalDragGestures(onHorizontalDrag = onDrag) else detectVerticalDragGestures(onVerticalDrag = onDrag)
             }
-            .pointerInput(Unit) { detectTapGestures(onDoubleTap = { currentOnCenter() }) }
+            .pointerInput(Unit) { detectTapGestures(onDoubleTap = { currentOnFramingChange(MediaFraming(currentFraming.fit)) }) }
             .semantics {
                 contentDescription = hint
-                customActions = listOf(
-                    CustomAccessibilityAction(towardsStart) {
-                        currentOnFocusChange(MediaFocus.clamp(currentFocus() - MediaFocus.STEP))
-                        true
-                    },
-                    CustomAccessibilityAction(towardsEnd) {
-                        currentOnFocusChange(MediaFocus.clamp(currentFocus() + MediaFocus.STEP))
-                        true
-                    },
-                    CustomAccessibilityAction(center) {
-                        currentOnCenter()
-                        true
-                    },
-                )
+                customActions = buildList {
+                    if (framing.zoom < MediaFocus.MAX_ZOOM) add(CustomAccessibilityAction(zoomIn) { zoomBy(MediaFocus.ZOOM_STEP); true })
+                    if (framing.zoom > MediaFocus.MIN_ZOOM) add(CustomAccessibilityAction(zoomOut) { zoomBy(1f / MediaFocus.ZOOM_STEP); true })
+                    if (movableX) {
+                        add(CustomAccessibilityAction(left) { step(-MediaFocus.STEP, 0f); true })
+                        add(CustomAccessibilityAction(right) { step(MediaFocus.STEP, 0f); true })
+                    }
+                    if (movableY) {
+                        add(CustomAccessibilityAction(top) { step(0f, -MediaFocus.STEP); true })
+                        add(CustomAccessibilityAction(bottom) { step(0f, MediaFocus.STEP); true })
+                    }
+                    if (framing.adjusted) {
+                        add(CustomAccessibilityAction(if (framing.zoom > MediaFocus.MIN_ZOOM) reset else center) { currentOnFramingChange(MediaFraming(currentFraming.fit)); true })
+                    }
+                }
             },
     )
+}
+
+/**
+ * Whether the picture can move sideways and up/down in a [width] x [height] preview: only where it is larger than
+ * the preview, and by more than [MIN_FRAMING_CROP] (a picture of the cover's own shape loses nothing to Fill).
+ */
+private fun movable(aspect: Float, width: Float, height: Float, framing: MediaFraming): Pair<Boolean, Boolean> {
+    val (overflowX, overflowY) = MediaFocus.overflow(aspect, width, height, framing.fit, framing.zoom)
+    return (overflowX > width * MIN_FRAMING_CROP) to (overflowY > height * MIN_FRAMING_CROP)
 }
 
 /** Width / height of the picture as stored (a video's from its poster frame), or 0 when it cannot be read. */

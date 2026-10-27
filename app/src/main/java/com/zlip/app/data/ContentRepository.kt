@@ -178,6 +178,16 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
         if (index >= 0) updated else updated.withInPlaylist(listOf(item.id))
     }
 
+    /**
+     * Frames media item [id] as [framing] (fit, zoom, focus) in the library and in every copy of it inside collages
+     * and groups, as an edit in the editor would. An item that was deleted from the library is not brought back:
+     * then only the copies that still hold it change.
+     */
+    fun setMediaFraming(id: String, framing: MediaFraming) = mutate { s ->
+        val items = s.items.map { it.withMediaFraming(id, framing) }
+        if (items == s.items) s else s.copy(items = items)
+    }
+
     fun delete(id: String) = deleteAll(setOf(id))
 
     /** Removes items (and their files) from the library and the playlist. */

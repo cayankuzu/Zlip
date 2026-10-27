@@ -25,8 +25,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
@@ -52,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.BiasAbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -63,6 +60,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -73,7 +71,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.ResolvedTextDirection
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,7 +92,9 @@ import com.zlip.app.data.CoverItem
 import com.zlip.app.data.MediaFit
 import com.zlip.app.data.MediaFocus
 import com.zlip.app.data.MediaKind
+import com.zlip.app.data.MediaPlacement
 import com.zlip.app.data.MediaStorage
+import com.zlip.app.data.framing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -301,27 +301,35 @@ private fun ImageCover(item: CoverItem.Media, modifier: Modifier, playback: Play
 private fun StillImage(item: CoverItem.Media, modifier: Modifier) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    BoxWithConstraints(modifier.background(Color(item.background)), contentAlignment = Alignment.Center) {
+    // Clipped: a cropped or zoomed picture is laid out larger than the box (see placedAt).
+    BoxWithConstraints(modifier.background(Color(item.background)).clipToBounds(), contentAlignment = Alignment.Center) {
         val boxWidth = with(density) { maxWidth.roundToPx() }
         val boxHeight = with(density) { maxHeight.roundToPx() }
-        val still by produceState<Any?>(null, boxWidth, boxHeight, item.fit) {
+        val decodeZoom = decodeZoom(item.zoom)
+        val still by produceState<Any?>(null, boxWidth, boxHeight, item.fit, decodeZoom) {
             value = withContext(Dispatchers.IO) {
                 runCatching {
                     ImageDecoder.decodeBitmap(ImageDecoder.createSource(MediaStorage.file(context, item.fileName))) { decoder, info, _ ->
-                        decodeForBox(decoder, info.size.width, info.size.height, boxWidth, boxHeight, item.fit)
+                        decodeForBox(decoder, info.size.width, info.size.height, boxWidth, boxHeight, item.fit, decodeZoom)
                     }.asImageBitmap()
                 }.getOrElse { Decoded.Failed }
             }
         }
         when (val state = still) {
-            is ImageBitmap -> Image(
-                bitmap = state,
-                contentDescription = null,
-                contentScale = if (item.fit == MediaFit.FILL) ContentScale.Crop else ContentScale.Fit,
-                alignment = item.cropAlignment(),
-                filterQuality = if (item.crisp) FilterQuality.None else FilterQuality.Low,
-                modifier = Modifier.fillMaxSize(),
-            )
+            is ImageBitmap -> {
+                val placement = item.placementIn(state.width.toFloat() / state.height.coerceAtLeast(1), boxWidth, boxHeight)
+                Image(
+                    bitmap = state,
+                    contentDescription = null,
+                    contentScale = when {
+                        placement != null -> ContentScale.FillBounds
+                        item.fit == MediaFit.FILL -> ContentScale.Crop
+                        else -> ContentScale.Fit
+                    },
+                    filterQuality = if (item.crisp) FilterQuality.None else FilterQuality.Low,
+                    modifier = Modifier.fillMaxSize().placedAt(placement),
+                )
+            }
             Decoded.Failed -> Icon(Icons.Filled.BrokenImage, contentDescription = null, tint = Color.Gray)
             else -> Unit
         }
@@ -329,35 +337,60 @@ private fun StillImage(item: CoverItem.Media, modifier: Modifier) {
 }
 
 /**
- * Where a picture sits in its box: a cropped (FILL) one shows the part the user framed ([MediaFocus]),
- * a fitted one is centred. Absolute, so a right-to-left language never mirrors the framing.
+ * Where a picture of [aspect] (width / height) lands in a [boxWidth] x [boxHeight] px box, framed like [this] item
+ * ([MediaFocus]); null if unknown or too large to lay out (a layout size is limited; such a picture is simply
+ * scaled into the box, centred).
  */
-private fun CoverItem.Media.cropAlignment(): Alignment =
-    if (fit == MediaFit.FILL) BiasAbsoluteAlignment(MediaFocus.clamp(focusX), MediaFocus.clamp(focusY)) else Alignment.Center
+private fun CoverItem.Media.placementIn(aspect: Float, boxWidth: Int, boxHeight: Int): MediaPlacement? =
+    MediaFocus.place(aspect, boxWidth.toFloat(), boxHeight.toFloat(), framing)
+        ?.takeIf { max(it.width, it.height) <= MAX_PLACED_EDGE }
 
 /**
- * The size (px) at which a [width] x [height] picture covers a [boxWidth] x [boxHeight] box, or null if unknown or
- * too long a strip to lay out (a layout size is limited; such a picture is simply centre-cropped).
+ * Lays the picture out at [placement] (px, relative to the box), however much larger than the box it is: the
+ * same for photos, GIFs, videos and their posters, so all of them show the part the user framed. The box clips
+ * it (a hardware video overlay cannot be clipped; the cover window crops it instead). Rounded outwards, so the
+ * picture never leaves a hairline of the box uncovered. Null leaves the content to fill the box.
  */
-private fun coverSize(width: Int, height: Int, boxWidth: Int, boxHeight: Int): IntSize? {
-    if (width <= 0 || height <= 0 || boxWidth <= 0 || boxHeight <= 0) return null
-    val scale = max(boxWidth.toFloat() / width, boxHeight.toFloat() / height)
-    val size = IntSize(ceil(width * scale).toInt(), ceil(height * scale).toInt())
-    return size.takeIf { max(it.width, it.height) <= MAX_CROP_EDGE }
+private fun Modifier.placedAt(placement: MediaPlacement?): Modifier = if (placement == null) {
+    this
+} else {
+    layout { measurable, constraints ->
+        val left = floor(placement.left).toInt()
+        val top = floor(placement.top).toInt()
+        val width = (ceil(placement.left + placement.width).toInt() - left).coerceAtLeast(1)
+        val height = (ceil(placement.top + placement.height).toInt() - top).coerceAtLeast(1)
+        val placeable = measurable.measure(Constraints.fixed(width, height))
+        layout(
+            if (constraints.hasBoundedWidth) constraints.maxWidth else width,
+            if (constraints.hasBoundedHeight) constraints.maxHeight else height,
+        ) { placeable.place(left, top) }
+    }
 }
 
-/** Longest side a cropped picture is laid out at; far inside what layout constraints can hold. */
-private const val MAX_CROP_EDGE = 32_768
+/** Longest side a placed picture is laid out at: both sides then fit in layout constraints, which cannot hold two very long ones. */
+private const val MAX_PLACED_EDGE = 32_000
+
+/**
+ * The zoom a picture is decoded for: in a few steps, so a pinch decodes again at most twice on its way in, and
+ * a zoomed-in photo is sharp rather than a stretched cover-sized bitmap.
+ */
+private fun decodeZoom(zoom: Float): Float = when {
+    zoom <= MediaFocus.MIN_ZOOM -> MediaFocus.MIN_ZOOM
+    zoom <= 2f -> 2f
+    else -> MediaFocus.MAX_ZOOM
+}
 
 /**
  * Decodes exactly as many pixels as the box shows: FIT must cover the box's limiting side, FILL (crop)
- * the other one. Only ever scales down, so nothing is decoded small and stretched up afterwards.
+ * the other one, both [zoom] times closer. Only ever scales down, so nothing is decoded small and stretched up
+ * afterwards.
  */
-private fun decodeForBox(decoder: ImageDecoder, width: Int, height: Int, boxWidth: Int, boxHeight: Int, fit: MediaFit) {
+private fun decodeForBox(decoder: ImageDecoder, width: Int, height: Int, boxWidth: Int, boxHeight: Int, fit: MediaFit, zoom: Float) {
     if (boxWidth <= 0 || boxHeight <= 0) return
     val sx = boxWidth.toFloat() / width
     val sy = boxHeight.toFloat() / height
-    val scale = minOf(if (fit == MediaFit.FILL) max(sx, sy) else min(sx, sy), MAX_DECODE_EDGE.toFloat() / max(width, height).coerceAtLeast(1))
+    val shown = (if (fit == MediaFit.FILL) max(sx, sy) else min(sx, sy)) * MediaFocus.clampZoom(zoom)
+    val scale = minOf(shown, MAX_DECODE_EDGE.toFloat() / max(width, height).coerceAtLeast(1))
     if (scale < 1f) {
         decoder.setTargetSize(ceil(width * scale).toInt().coerceAtLeast(1), ceil(height * scale).toInt().coerceAtLeast(1))
     }
@@ -367,7 +400,7 @@ private fun decodeForBox(decoder: ImageDecoder, width: Int, height: Int, boxWidt
 private fun LiveImage(item: CoverItem.Media, modifier: Modifier, playback: Playback, events: PlaybackEvents?) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    // Clipped: a cropped picture is laid out larger than the box (see LiveImageContent).
+    // Clipped: a cropped or zoomed picture is laid out larger than the box (see placedAt).
     BoxWithConstraints(modifier.background(Color(item.background)).clipToBounds(), contentAlignment = Alignment.Center) {
         val boxWidth = with(density) { maxWidth.roundToPx() }
         val boxHeight = with(density) { maxHeight.roundToPx() }
@@ -384,12 +417,18 @@ private fun LiveImageContent(
     boxWidth: Int,
     boxHeight: Int,
 ) {
-    val decoded by produceState<Decoded>(Decoded.Loading, item.fit, boxWidth, boxHeight) {
+    // A photo is decoded for the way it is framed (a new decode simply replaces the old picture). An animation is
+    // decoded once for any framing (as large as Fill needs), since decoding it again would start it over: changing
+    // its framing, live with two fingers too, never restarts a GIF.
+    val animation = item.kind == MediaKind.ANIMATION
+    val decodeFit = if (animation) MediaFit.FILL else item.fit
+    val decodeZoom = if (animation) MediaFocus.MIN_ZOOM else decodeZoom(item.zoom)
+    val decoded by produceState<Decoded>(Decoded.Loading, decodeFit, decodeZoom, boxWidth, boxHeight) {
         value = withContext(Dispatchers.IO) {
             runCatching {
                 val source = ImageDecoder.createSource(MediaStorage.file(context, item.fileName))
                 ImageDecoder.decodeDrawable(source) { decoder, info, _ ->
-                    decodeForBox(decoder, info.size.width, info.size.height, boxWidth, boxHeight, item.fit)
+                    decodeForBox(decoder, info.size.width, info.size.height, boxWidth, boxHeight, decodeFit, decodeZoom)
                 }.also { drawable ->
                     // One play per start, so the end of every loop is seen (see the callback below); the file's
                     // own loop count does not matter, the item's setting decides.
@@ -438,32 +477,24 @@ private fun LiveImageContent(
                         currentEvents?.onEnded(false)
                     }
                 }
-                // A cropped picture is laid out at its full covering size and placed where the user framed it;
-                // an ImageView's CENTER_CROP could only ever show the middle.
-                val cropSize = if (item.fit == MediaFit.FILL) coverSize(drawable.intrinsicWidth, drawable.intrinsicHeight, boxWidth, boxHeight) else null
-                val density = LocalDensity.current
+                // The view is laid out at the picture's framed size and place (fit, zoom, focus); an ImageView's
+                // CENTER_CROP could only ever show the middle, and nothing of it zooms.
+                val aspect = drawable.intrinsicWidth.toFloat() / drawable.intrinsicHeight.coerceAtLeast(1)
+                val placement = if (drawable.intrinsicWidth > 0) item.placementIn(aspect, boxWidth, boxHeight) else null
                 AndroidView(
                     factory = { ImageView(it) },
-                    update = { view -> showDrawable(view, drawable, item, playback, cropped = cropSize != null) },
-                    modifier = if (cropSize != null) {
-                        with(density) {
-                            Modifier
-                                .wrapContentSize(item.cropAlignment(), unbounded = true)
-                                .requiredSize(cropSize.width.toDp(), cropSize.height.toDp())
-                        }
-                    } else {
-                        Modifier.fillMaxSize()
-                    },
+                    update = { view -> showDrawable(view, drawable, item, playback, placed = placement != null) },
+                    modifier = Modifier.fillMaxSize().placedAt(placement),
                 )
             }
         }
     }
 }
 
-/** [cropped]: the view already has the picture's covering size and position, so the picture just fills it. */
-private fun showDrawable(view: ImageView, drawable: Drawable, item: CoverItem.Media, playback: Playback, cropped: Boolean) {
+/** [placed]: the view already has the picture's framed size and position, so the picture just fills it. */
+private fun showDrawable(view: ImageView, drawable: Drawable, item: CoverItem.Media, playback: Playback, placed: Boolean) {
     view.scaleType = when {
-        cropped -> ImageView.ScaleType.FIT_XY
+        placed -> ImageView.ScaleType.FIT_XY
         item.fit == MediaFit.FILL -> ImageView.ScaleType.CENTER_CROP
         else -> ImageView.ScaleType.FIT_CENTER
     }
@@ -699,15 +730,10 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
             Icon(Icons.Filled.BrokenImage, contentDescription = null, tint = Color.Gray)
             return@BoxWithConstraints
         }
-        val videoModifier = if (aspect > 0f && maxHeight.value > 0f) {
-            val containerAspect = maxWidth / maxHeight
-            val widthBound = (aspect > containerAspect) != (item.fit == MediaFit.FILL)
-            val size = if (widthBound) Modifier.requiredSize(maxWidth, maxWidth / aspect) else Modifier.requiredSize(maxHeight * aspect, maxHeight)
-            // An oversized child is always centred; this places a cropped video where the user framed it.
-            Modifier.wrapContentSize(item.cropAlignment(), unbounded = true).then(size)
-        } else {
-            Modifier.fillMaxSize()
-        }
+        // Laid out at the video's framed size and place (fit, zoom, focus), exactly like a photo and the poster
+        // over it; only the view moves, so a new framing never touches the player.
+        val placement = if (aspect > 0f) item.placementIn(aspect, constraints.maxWidth, constraints.maxHeight) else null
+        val videoModifier = Modifier.fillMaxSize().placedAt(placement)
         // Keyed so that switching between overlay and texture (e.g. the user rotates the cover) builds the
         // right kind of view and detaches the old one from the player.
         key(overlay) {

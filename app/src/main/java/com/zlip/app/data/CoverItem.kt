@@ -70,11 +70,14 @@ sealed interface CoverItem {
          */
         val muted: Boolean = false,
         /**
-         * [MediaFit.FILL] only: which part of the cropped picture stays in view, -1 (left / top edge) .. 1
-         * (right / bottom edge), 0 = centre. See [MediaFocus].
+         * Which part of the picture stays in view on an axis where it is larger than its box (FILL's cropped axis,
+         * or any axis once [zoom]ed in far enough), -1 (left / top edge) .. 1 (right / bottom edge), 0 = centre.
+         * An axis that fits is centred whatever this says. See [MediaFocus].
          */
         val focusX: Float = 0f,
         val focusY: Float = 0f,
+        /** How much closer than its [fit] the picture is shown, 1 .. [MediaFocus.MAX_ZOOM]. See [MediaFocus]. */
+        val zoom: Float = MediaFocus.MIN_ZOOM,
     ) : CoverItem {
         /** A clip the cover may play with sound: a video that kept its audio and is not [muted]. */
         val playsSound: Boolean get() = kind == MediaKind.VIDEO && hasAudio && !muted
@@ -229,6 +232,23 @@ fun CoverItem.replacingCopies(edited: CoverItem): CoverItem = when (this) {
     else -> this
 }
 
+/**
+ * [this] with media item [id] framed as [framing] wherever it is: the item itself, collage cells, group steps and
+ * cells of a collage in a group. Returns [this] itself when nothing changed.
+ */
+fun CoverItem.withMediaFraming(id: String, framing: MediaFraming): CoverItem = when (this) {
+    is CoverItem.Media -> if (this.id != id) this else framed(framing).let { if (it == this) this else it }
+    is CoverItem.Collage -> {
+        val updated = cells.map { cell -> cell.map { it.withMediaFraming(id, framing) } }
+        if (updated == cells) this else copy(cells = updated)
+    }
+    is CoverItem.Group -> {
+        val updated = items.map { it.withMediaFraming(id, framing) }
+        if (updated == items) this else copy(items = updated)
+    }
+    else -> this
+}
+
 /** File names of the videos in [this] item (collage cells and group steps too) whose length is not known yet. */
 fun CoverItem.videosWithoutDuration(): Set<String> =
     leaves().filter { it is CoverItem.Media && it.kind == MediaKind.VIDEO && it.durationMs <= 0 }
@@ -317,6 +337,7 @@ internal object CoverItemJson {
                 // (keyed by it) are not all redrawn after an update. Clamped: JSON cannot hold NaN.
                 MediaFocus.clamp(item.focusX).let { if (it != 0f) put("focusX", it.toDouble()) }
                 MediaFocus.clamp(item.focusY).let { if (it != 0f) put("focusY", it.toDouble()) }
+                MediaFocus.clampZoom(item.zoom).let { if (it != MediaFocus.MIN_ZOOM) put("zoom", it.toDouble()) }
             }
             is CoverItem.Text -> {
                 put("type", "text")
@@ -417,6 +438,7 @@ internal object CoverItemJson {
                 muted = json.optBoolean("muted", false),
                 focusX = MediaFocus.clamp(json.optDouble("focusX", 0.0).toFloat()),
                 focusY = MediaFocus.clamp(json.optDouble("focusY", 0.0).toFloat()),
+                zoom = MediaFocus.clampZoom(json.optDouble("zoom", 1.0).toFloat()),
             )
             "text" -> CoverItem.Text(
                 id = id,

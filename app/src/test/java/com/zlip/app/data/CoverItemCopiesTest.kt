@@ -29,6 +29,43 @@ class CoverItemCopiesTest {
     }
 
     @Test
+    fun aNewFramingReachesTheItemAndEveryCopy() {
+        val framing = MediaFraming(MediaFit.FILL, zoom = 2f, focusX = 0.5f, focusY = -1f)
+        val framed = photo.framed(framing)
+        assertEquals(framing, framed.framing)
+        assertEquals(framed, photo.withMediaFraming("photo", framing))
+        assertEquals(listOf(listOf(note), listOf(framed)), (collage.withMediaFraming("photo", framing) as CoverItem.Collage).cells)
+        val updated = group.withMediaFraming("photo", framing) as CoverItem.Group
+        assertEquals(framed, updated.items[2])
+        assertEquals(listOf(framed), (updated.items[1] as CoverItem.Collage).cells[1])
+        assertSame(note, updated.items[0])
+    }
+
+    @Test
+    fun aFramingIsKeptInRange() {
+        val framed = photo.framed(MediaFraming(MediaFit.FIT, zoom = 50f, focusX = Float.NaN, focusY = -9f))
+        assertEquals(MediaFraming(MediaFit.FIT, zoom = MediaFocus.MAX_ZOOM, focusX = 0f, focusY = -1f), framed.framing)
+    }
+
+    @Test
+    fun aFramingOfAnotherIdOrTheSameFramingChangesNothing() {
+        val framing = MediaFraming(MediaFit.FILL, zoom = 3f)
+        assertSame(group, group.withMediaFraming("elsewhere", framing))
+        assertSame(note, note.withMediaFraming("note", framing))
+        assertSame(group, group.withMediaFraming("photo", photo.framing))
+    }
+
+    @Test
+    fun aDeletedItemsCopiesAreFramedWithoutBringingItBack() {
+        // The library as ContentRepository.setMediaFraming maps it: the photo itself is gone, a group still holds it.
+        val library = listOf<CoverItem>(note, group)
+        val framing = MediaFraming(MediaFit.FILL, zoom = 2f)
+        val updated = library.map { it.withMediaFraming("photo", framing) }
+        assertEquals(listOf("note", "group"), updated.map { it.id })
+        assertEquals(photo.framed(framing), (updated[1] as CoverItem.Group).items[2])
+    }
+
+    @Test
     fun otherItemsStayAsTheyAre() {
         assertSame(note, note.replacingCopies(note.copy(text = "x")))
         assertSame(collage, collage.replacingCopies(group.copy(name = "B")))
