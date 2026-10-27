@@ -153,10 +153,9 @@
     <string name="media_background_hint">Shown around the image when it does not fill the screen.</string>
     <string name="media_video_note">Zlip stored an optimized copy, so the original stays untouched.</string>
 
-    <!-- Unsaved-changes dialog (Save / Don't save / Cancel) -->
+    <!-- Unsaved-changes dialog (Keep editing / Leave without saving / Save); the buttons are in strings_app_ux -->
     <string name="discard_title">Save changes?</string>
     <string name="discard_body">It can\'t be saved yet. If you leave, your changes are lost.</string>
-    <string name="discard_confirm">Don\'t save</string>
 
     <!-- Onboarding -->
     <string name="intro_welcome_title">On the cover, even while open</string>
@@ -173,7 +172,6 @@
     <string name="notif_channel">Cover controls</string>
     <string name="notif_channel_desc">Cover controls while Zlip plays on the cover screen (pause, next, turn off).</string>
     <string name="notif_title">Cover screen on</string>
-    <string name="notif_text_paused">%1$s · paused</string>
     <string name="notif_text_editing">Showing your edit live</string>
     <string name="widget_label">Zlip cover</string>
     <string name="widget_description">Your Zlip playlist on the cover screen, even when folded. Tap for the screen saver.</string>

@@ -29,5 +29,5 @@
     <string name="settings_pip_off">Picture-in-picture is off for this app, so the Mini cover can\'t open.</string>
     <string name="settings_pip_open">Turn on</string>
     <string name="settings_folded_inactive">These apply once the widget is added or \'Open when folded\' is on.</string>
-    <string name="advance_shuffle_auto_only">Next / previous always follow list order.</string>
+    <string name="advance_shuffle_auto_only">Next / previous always follow playlist order.</string>
 </resources>

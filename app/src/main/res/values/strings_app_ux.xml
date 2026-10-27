@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Home, controls card: where the cover is in what it rotates through -->
-    <string name="home_position_list">List · %1$d/%2$d</string>
+    <string name="home_position_list">Playlist · %1$d/%2$d</string>
     <string name="home_position_all">All · %1$d/%2$d</string>
 
     <!-- Home, snackbars after changing the playlist -->
     <plurals name="home_list_added">
-        <item quantity="one">%d item added to the list. The cover now shows only the list.</item>
-        <item quantity="other">%d items added to the list. The cover now shows only the list.</item>
+        <item quantity="one">%d item added to the playlist. The cover now shows only the playlist.</item>
+        <item quantity="other">%d items added to the playlist. The cover now shows only the playlist.</item>
     </plurals>
     <plurals name="home_list_removed">
-        <item quantity="one">%d item removed from the list</item>
-        <item quantity="other">%d items removed from the list</item>
+        <item quantity="one">%d item removed from the playlist</item>
+        <item quantity="other">%d items removed from the playlist</item>
     </plurals>
-    <string name="home_list_show">View list</string>
+    <string name="home_list_show">View playlist</string>
     <string name="home_list_clear">Clear</string>
-    <string name="home_list_cleared">List cleared. The cover shows your whole library.</string>
+    <string name="home_list_cleared">Playlist cleared. The cover shows your whole library.</string>
 
     <!-- Home, a card tapped while the cover is off -->
     <string name="home_cover_off_snack">The cover is off</string>

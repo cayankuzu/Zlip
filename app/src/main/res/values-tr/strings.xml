@@ -151,10 +151,9 @@
     <string name="media_background_hint">Görsel ekranı doldurmadığında etrafında görünür.</string>
     <string name="media_video_note">Zlip optimize edilmiş bir kopya sakladı, orijinal dosyan değişmedi.</string>
 
-    <!-- Unsaved-changes dialog (Kaydet / Kaydetme / İptal) -->
+    <!-- Unsaved-changes dialog (Düzenlemeye dön / Kaydetmeden çık / Kaydet); the buttons are in strings_app_ux -->
     <string name="discard_title">Değişiklikler kaydedilsin mi?</string>
     <string name="discard_body">Henüz kaydedilemiyor. Çıkarsan değişikliklerin kaybolur.</string>
-    <string name="discard_confirm">Kaydetme</string>
 
     <!-- Onboarding -->
     <string name="intro_welcome_title">Telefon açıkken de kapakta</string>
@@ -171,7 +170,6 @@
     <string name="notif_channel">Kapak kontrolleri</string>
     <string name="notif_channel_desc">Zlip kapak ekranında oynarken kontroller (duraklat, sonraki, kapat).</string>
     <string name="notif_title">Kapak ekranı açık</string>
-    <string name="notif_text_paused">%1$s · duraklatıldı</string>
     <string name="notif_text_editing">Düzenlemen canlı gösteriliyor</string>
     <string name="widget_label">Zlip kapak</string>
     <string name="widget_description">Zlip oynatma listen kapak ekranında, katlıyken bile. Ekran koruyucu için dokun.</string>

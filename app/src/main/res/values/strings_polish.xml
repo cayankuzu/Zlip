@@ -19,20 +19,11 @@
     <string name="sort_to_top">Move to top</string>
     <string name="sort_to_bottom">Move to bottom</string>
 
-    <!-- A file just imported, left again without changes -->
-    <string name="media_remove_title">Remove it?</string>
-    <string name="media_remove_body">\"%1$s\" was just added. It will be removed from your library.</string>
-    <string name="media_remove_confirm">Remove</string>
-    <string name="media_remove_keep">Keep</string>
-
     <!-- Onboarding: the mirroring and sequences pages -->
     <string name="intro_mirror_title">Mirror your screen to the cover</string>
     <string name="intro_mirror_body">Whatever is on the inner screen shows on the cover too: a camera viewfinder, a photo or a map, for the person opposite. Nothing is recorded and nothing leaves your phone.</string>
     <string name="intro_groups_title">Sequences, collages and your gallery</string>
     <string name="intro_groups_body">Pick several photos and videos from your gallery at once and make a sequence: they play one after another, full screen. A collage shows several at once.</string>
-
-    <!-- Notification: the step of the sequence on the cover -->
-    <string name="notif_group_step">Sequence · %1$d/%2$d</string>
 
     <!-- Launcher shortcuts (touch and hold the app icon) -->
     <string name="shortcut_cover_short">Cover on</string>

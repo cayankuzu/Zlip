@@ -19,20 +19,11 @@
     <string name="sort_to_top">En başa</string>
     <string name="sort_to_bottom">En sona</string>
 
-    <!-- Az önce içe aktarılan dosya, değiştirilmeden geri çıkılınca -->
-    <string name="media_remove_title">Kaldırılsın mı?</string>
-    <string name="media_remove_body">Az önce eklediğin \"%1$s\" kitaplığından kaldırılır.</string>
-    <string name="media_remove_confirm">Kaldır</string>
-    <string name="media_remove_keep">Kalsın</string>
-
     <!-- Tanıtım: yansıtma ve gruplar sayfaları -->
     <string name="intro_mirror_title">Ekranını kapağa yansıt</string>
     <string name="intro_mirror_body">İç ekranda ne varsa kapakta da görünür: kameranın vizörü, bir fotoğraf ya da harita, karşındaki görsün diye. Hiçbir şey kaydedilmez, telefondan çıkmaz.</string>
     <string name="intro_groups_title">Gruplar, kolajlar ve galerin</string>
     <string name="intro_groups_body">Galeriden birkaç fotoğraf ve videoyu birden seç, grup yap: sırayla, tam ekran oynarlar. Kolaj ise birkaçını aynı anda gösterir.</string>
-
-    <!-- Bildirim: kapaktaki grubun adımı -->
-    <string name="notif_group_step">Grup · %1$d/%2$d</string>
 
     <!-- Başlatıcı kısayolları (uygulama simgesine basılı tutunca) -->
     <string name="shortcut_cover_short">Kapağı aç</string>
