@@ -26,7 +26,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 ## İçerik
 
 - **Galeriden**: tek seçicide fotoğraf, GIF ve video; birkaçı birden seçilebilir. Tek dosya düzenleyicide açılır (hiçbir şey değiştirmeden geri çıkınca "Kaldırılsın mı?" diye sorar); birkaç dosya birlikte gelir ve tek dokunuşla **grup** yapılabilir.
-- **Grup**: seçilen içerikler sırayla, tam ekran oynar. Seçenekler: fotoğraf süresi (3 sn-1 dk), videolar sonuna kadar ya da süre dolunca, karışık sıra, tekrarla (kapalıyken son adımda durur), yumuşak geçiş. Düzenleyici toplam süreyi ve her adımın süresini gösterir. Sıra sürükleyerek, oklarla ya da TalkBack eylemleriyle değişir.
+- **Grup**: seçilen içerikler sırayla, tam ekran oynar. Seçenekler: fotoğraf süresi (3 sn-1 dk), videolar sonuna kadar ya da süre dolunca, karışık sıra, tekrarla (kapalıyken son adımda durur), yumuşak geçiş. Düzenleyici toplam süreyi ve her adımın süresini gösterir. Sıra sürükleyerek, oklarla ya da TalkBack eylemleriyle değişir. Düzenleyicinin önizlemesi video oynatmaz: kapakta oynayan adımın durağan karesidir ve o satır işaretlidir. Bir adıma ya da ‹ › oklarına dokununca o adım **kapakta** açılır; sıra değişse, başka bir adım silinse de kapaktaki adım kesilmeden sürer.
 - **Video**: ne kadar uzunsa o kadar; içe aktarırken kesilmez. Kapak için 720p'ye dönüştürülür (dakikada yaklaşık 16 MB); yer yetmezse ne kadar gerektiği söylenir. Dönüştürme sürerken ekran açık kalır.
 - **Kolaj**: 2-4 hücre, her hücre kendi içeriklerini döngüde oynatır.
 - **Geri sayım**: tek seferlik, her hafta ya da her yıl tekrarlayan (doğum günü, hafta sonu, yılbaşı); ileri sayım da var.
@@ -58,7 +58,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 | Videolar içe aktarılırken kesilmeden 720p / 30 fps H.264 (yaklaşık 2 Mbps) + 128 kbps AAC'ye dönüştürülür | Hafif donanım kod çözme, dakikada yaklaşık 16 MB |
 | Fotoğraflar 1440 px WebP'ye küçültülür | Her gösterimde daha az kod çözme |
 | Kitaplık küçük resimleri durağan; videolar için önizleme karesi | Listede hiç kod çözücü çalışmaz |
-| Kapak açıkken iç ekrandaki önizleme durur; Mini kapak penceresi durağan bir karedir | Aynı içerik iki kez çizilmez |
+| Kapak açıkken iç ekrandaki önizleme durur (grup düzenleyicisinde kapaktaki adımın karesi); Mini kapak penceresi durağan bir karedir | Aynı içerik iki kez çizilmez, önizleme kapaktan ayrışmaz |
 | Yansıtılan görüntü iç ekran boyutunda değil, kapakta gösterilen boyutta üretilir | Daha küçük görüntü, daha az GPU işi |
 | İç ekran bekleme modu, her ekranda (düzenleyiciler ve açık sayfalar dahil) | Boşta kalınca iç ekran OLED siyahı + en düşük parlaklık |
 | Saf siyah arayüz | OLED piksellerini kapatır |

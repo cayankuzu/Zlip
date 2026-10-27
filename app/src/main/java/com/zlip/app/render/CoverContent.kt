@@ -197,10 +197,10 @@ interface GroupStepper {
     fun previous(wrap: Boolean): Boolean
 
     /**
-     * Jumps to the group's item at [itemIndex] (in the group's list), at its place in this pass's play order.
-     * False when there is no such item, or the group cannot jump.
+     * Jumps to the group's step [childId] (by item id, so a reordered list cannot send it to another step), at its
+     * place in this pass's play order. False when the group has no such step, or cannot jump.
      */
-    fun showItem(itemIndex: Int): Boolean = false
+    fun showStep(childId: String): Boolean = false
 }
 
 /** Renders any [CoverItem]. Used on the cover screen and for previews/thumbnails on the inner screen. */

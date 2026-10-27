@@ -225,6 +225,7 @@ fun ZlipRoot(
     val shownOnCover by app.playback.shownItem.collectAsState()
     // Where a group on the cover is ("Adım 2/5"), and whether there is another item to leave it for.
     val groupProgress by app.playback.groupProgress.collectAsState()
+    val liveGroupStep by app.playback.liveGroupStep.collectAsState()
     val itemSkip by app.playback.itemSkipAvailable.collectAsState()
     val rotation by repository.sequence.collectAsState()
     val settings by repository.settings.collectAsState()
@@ -738,9 +739,10 @@ fun ZlipRoot(
                     prefill = current.prefill,
                     library = items,
                     hasPlaylist = playlist.isNotEmpty(),
-                    // Plays even while the cover does: the cover faces away while the phone is open, and its ‹ › and
-                    // the step rows step this preview. Mostly photos, so it costs little.
-                    previewPlayback = editorPlayback,
+                    // A still of the step the cover shows, never a second player that drifts apart from it (and decodes
+                    // the same videos twice); the step rows and ‹ › move the cover itself.
+                    coverStep = liveGroupStep.takeIf { coverActive },
+                    onShowOnCover = { groupId, stepId -> coverActive && app.playback.showGroupStep(groupId, stepId) },
                     onAddFromGallery = { room ->
                         pickingForGroup = room
                         onOpeningPicker()

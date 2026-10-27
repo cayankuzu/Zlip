@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -80,7 +81,9 @@ interface ReorderableRowScope {
  * its up/down buttons, or use TalkBack's "Move up" / "Move down" actions. A drag changes the order once,
  * on drop, through [onMove]; the other rows make room while it moves. Not lazy, so it can sit inside a
  * scrolling screen: pass that screen's [scrollState] and dragging near the visible edge scrolls it.
- * [actions] adds TalkBack actions of the caller's own (remove...) to each row.
+ * [actions] adds TalkBack actions of the caller's own (remove...) to each row, and [rowSemantics] anything else TalkBack
+ * should find on the row itself (a tap, a selected state): each row is one TalkBack element, so a row that reacts to a
+ * tap takes it without semantics of its own and declares it here.
  */
 @Composable
 fun <T> ReorderableList(
@@ -91,6 +94,7 @@ fun <T> ReorderableList(
     scrollState: ScrollState? = null,
     spacing: Dp = 8.dp,
     actions: (T) -> List<CustomAccessibilityAction> = { emptyList() },
+    rowSemantics: SemanticsPropertyReceiver.(T) -> Unit = {},
     row: @Composable ReorderableRowScope.(item: T) -> Unit,
 ) {
     val density = LocalDensity.current
@@ -253,7 +257,10 @@ fun <T> ReorderableList(
                                 },
                             )
                         }
-                        .semantics(mergeDescendants = true) { customActions = rowActions },
+                        .semantics(mergeDescendants = true) {
+                            customActions = rowActions
+                            rowSemantics(item)
+                        },
                 ) {
                     rowScope.row(item)
                 }

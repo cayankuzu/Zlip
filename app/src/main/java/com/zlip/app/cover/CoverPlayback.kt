@@ -117,8 +117,19 @@ class CoverPlayback(
     /** The group on screen (by item id) and how to step through it; main thread only. */
     private var groupStepper: Pair<String, GroupStepper>? = null
 
+    /** The id of [groupStepper]'s group, as state: the group playing on a cover right now. */
+    private val steppedGroup = MutableStateFlow<String?>(null)
+
     /** The step a group on the cover shows, and where it is in the group's play order. */
     private val stepShown = MutableStateFlow<StepShown?>(null)
+
+    /**
+     * The group playing on a cover right now and the step it shows, as (group id, step id); null while no group plays
+     * on one. The group editor's preview is a still of this step, so it never shows something else than the cover.
+     */
+    val liveGroupStep: StateFlow<Pair<String, String>?> = combine(steppedGroup, stepShown) { groupId, shown ->
+        shown?.takeIf { it.groupId == groupId }?.let { it.groupId to it.child.id }
+    }.stateIn(scope, SharingStarted.Eagerly, null)
 
     /** The step a group on the cover shows, as (group id, step item id), for "Grup · 2/4" in the notification. */
     val groupStep: StateFlow<Pair<String, String>?> = stepShown.map { shown -> shown?.let { it.groupId to it.child.id } }
@@ -282,6 +293,17 @@ class CoverPlayback(
         _manualMoves.tryEmit(if (stayed) CoverMove.STEP else CoverMove.ITEM)
     }
 
+    /**
+     * Shows the step [stepId] of the group [groupId] on the cover, and plays it: a tap on a step in the group editor,
+     * whose draft the cover shows. False when that group is not playing on a cover or has no such step.
+     */
+    fun showGroupStep(groupId: String, stepId: String): Boolean {
+        val (playingId, stepper) = groupStepper ?: return false
+        if (playingId != groupId || !stepper.showStep(stepId)) return false
+        _paused.value = false
+        return true
+    }
+
     /** Moves inside the group on the cover; false when there is no group or no step that way. */
     private fun stepGroup(forward: Boolean): Boolean {
         val (groupId, stepper) = groupStepper ?: return false
@@ -355,10 +377,14 @@ class CoverPlayback(
 
         override fun attachStepper(stepper: GroupStepper) {
             groupStepper = itemId to stepper
+            steppedGroup.value = itemId
         }
 
         override fun detachStepper(stepper: GroupStepper) {
-            if (groupStepper?.second === stepper) groupStepper = null
+            if (groupStepper?.second === stepper) {
+                groupStepper = null
+                steppedGroup.value = null
+            }
         }
     }
 

@@ -1,7 +1,13 @@
 package com.zlip.app.ui.group
 
+import android.view.ViewConfiguration
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +49,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +57,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -57,11 +65,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,9 +81,7 @@ import com.zlip.app.data.CoverItem
 import com.zlip.app.data.GroupTiming
 import com.zlip.app.data.MediaKind
 import com.zlip.app.render.CoverContent
-import com.zlip.app.render.GroupStepper
 import com.zlip.app.render.Playback
-import com.zlip.app.render.PlaybackEvents
 import com.zlip.app.ui.components.ChoiceChips
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
@@ -93,6 +101,8 @@ import com.zlip.app.ui.components.clipLengthLabel
 import com.zlip.app.ui.components.durationLabel
 import com.zlip.app.ui.components.totalDurationLabel
 import com.zlip.app.ui.components.wakesStandby
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Photo time choices: the same rhythm as a collage's interval. */
@@ -127,6 +137,13 @@ internal fun looksLikeFileName(name: String): Boolean = FILE_NAME.containsMatchI
 
 private val FILE_NAME = Regex("""\d{6,}|^[A-Za-z]{2,5}[_-]?\d{3,}$""")
 
+/** Where the step [id] is among [ids]: the preview shows it. The first step when it is gone (or none was picked yet). */
+internal fun shownStepIndex(ids: List<String>, id: String?): Int = ids.indexOf(id).takeIf { it >= 0 } ?: 0
+
+/** The step after (or before) [index] in a list of [size], going round; -1 in an empty list. */
+internal fun stepBeside(index: Int, size: Int, forward: Boolean): Int =
+    if (size <= 0) -1 else (index + if (forward) 1 else -1).mod(size)
+
 /** [ids] with [id] put back at [index] (or at the end, if the list got shorter), unless it is there already or full. */
 internal fun withStepRestored(ids: List<String>, id: String, index: Int): List<String> {
     if (id in ids || ids.size >= CoverItem.Group.MAX_ITEMS) return ids
@@ -147,6 +164,10 @@ private val ItemIdsSaver = Saver<List<String>, String>(
  * [pendingAdds], which this editor takes and then reports with [onPendingAddsConsumed]. They are state, not a
  * callback, so files picked while the activity was recreated still reach the group. [hasPlaylist]: the user has a
  * custom playlist; without one a group's steps play only inside the group (see [com.zlip.app.data.Rotation]).
+ *
+ * The preview is a still of one step, never a second player: while the cover plays this draft, [coverStep] (group id,
+ * step id) is what it shows, and a tap on a step row or ‹ › opens that step there through [onShowOnCover] (false
+ * when the cover does not play this group). Without the cover they pick the step the preview shows.
  */
 @Composable
 fun GroupEditorScreen(
@@ -154,7 +175,8 @@ fun GroupEditorScreen(
     prefill: List<String>,
     library: List<CoverItem>,
     hasPlaylist: Boolean,
-    previewPlayback: Playback,
+    coverStep: Pair<String, String>?,
+    onShowOnCover: (groupId: String, stepId: String) -> Boolean,
     onAddFromGallery: (room: Int) -> Unit,
     pendingAdds: List<String>?,
     onPendingAddsConsumed: () -> Unit,
@@ -216,39 +238,28 @@ fun GroupEditorScreen(
         }
     }
 
-    // The playing preview reports where it is ("Adım 2/4", in play order) and hands over its stepper, so ‹ › under it
-    // and a tap on a step row can move it. Gone while the preview is a still (standby, the small window).
-    var previewStepper by remember { mutableStateOf<GroupStepper?>(null) }
-    var shownPosition by remember { mutableIntStateOf(0) }
-    var shownCount by remember { mutableIntStateOf(0) }
-    val previewEvents = remember {
-        object : PlaybackEvents {
-            override fun onCycle() = Unit
+    // The step the preview shows, by id so reordering keeps it: the cover's while it plays this draft (followed as it
+    // moves on), or the one tapped last. A tap shows here at once, without waiting for the cover to report it.
+    var shownId by rememberSaveable { mutableStateOf<String?>(null) }
+    val coverStepId = coverStep?.takeIf { it.first == id }?.second
+    LaunchedEffect(coverStepId) { if (coverStepId != null) shownId = coverStepId }
+    val shownIndex = shownStepIndex(items.map { it.id }, shownId)
+    val shownStep = items.getOrNull(shownIndex)
 
-            override fun onEnded(ended: Boolean) = Unit
-
-            override fun onFailed(failed: Boolean) = Unit
-
-            override fun onStepAt(child: CoverItem, position: Int, count: Int) {
-                shownPosition = position
-                shownCount = count
-            }
-
-            override fun attachStepper(stepper: GroupStepper) {
-                previewStepper = stepper
-            }
-
-            override fun detachStepper(stepper: GroupStepper) {
-                if (previewStepper === stepper) previewStepper = null
-            }
-        }
+    /** Shows [step] in the preview and, while the cover plays this group, on the cover. */
+    fun showStep(step: CoverItem) {
+        shownId = step.id
+        onShowOnCover(id, step.id)
     }
-    // Live only while it plays: a still preview shows the first step and cannot be stepped.
-    val stepper = previewStepper.takeIf { previewPlayback == Playback.LIVE && items.size > 1 }
+
+    fun showBeside(forward: Boolean) {
+        items.getOrNull(stepBeside(shownIndex, items.size, forward))?.let(::showStep)
+    }
 
     val full = items.size >= CoverItem.Group.MAX_ITEMS
     val scrollState = rememberScrollState()
     val removeLabel = stringResource(R.string.group_remove)
+    val showLabel = stringResource(R.string.group_step_show)
     val untilEnd = stringResource(R.string.group_until_end)
     val stepLabel = durationLabel(stepSeconds)
     val atLeastStep = stringResource(R.string.group_at_least, stepLabel)
@@ -296,17 +307,19 @@ fun GroupEditorScreen(
                     .fillMaxWidth(0.72f)
                     .align(Alignment.CenterHorizontally),
             ) {
-                CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback, events = previewEvents) }
+                // A still, like the step rows: the cover is where the group plays (and is heard).
+                CoverScale { CoverContent(item = shownStep ?: item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
             }
-            // "Adım 2/4" while it plays (in play order, so a shuffled group still counts 1, 2, 3), otherwise "4 içerik".
-            val count = if (stepper != null && shownCount == items.size && shownPosition in 1..shownCount) {
-                stringResource(R.string.cover_group_step, shownPosition, shownCount)
+            // "Adım 2/4": the shown step's row, the one marked in the list. "1 içerik" while there is nothing to step.
+            val count = if (items.size > 1) {
+                stringResource(R.string.cover_group_step, shownIndex + 1, items.size)
             } else {
                 pluralStringResource(R.plurals.group_items, items.size, items.size)
             }
+            val canStep = items.size > 1
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Step through the preview to check any step, without waiting for it to come round.
-                IconButton(onClick = { stepper?.previous(wrap = true) }, enabled = stepper != null) {
+                // The step above or below in the list, on the cover too, without waiting for it to come round.
+                IconButton(onClick = { showBeside(forward = false) }, enabled = canStep) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.action_previous_step))
                 }
                 Text(
@@ -325,7 +338,7 @@ fun GroupEditorScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = { stepper?.next(wrap = true) }, enabled = stepper != null) {
+                IconButton(onClick = { showBeside(forward = true) }, enabled = canStep) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.action_next_step))
                 }
             }
@@ -343,13 +356,21 @@ fun GroupEditorScreen(
                         onMove = { from, to -> itemIds = items.map { it.id }.toMutableList().apply { add(to, removeAt(from)) } },
                         scrollState = scrollState,
                         actions = { step -> listOf(CustomAccessibilityAction(removeLabel) { removeStep(step); true }) },
+                        // The row's tap and state, on the same TalkBack element as its name and its actions.
+                        rowSemantics = { step ->
+                            selected = step.id == shownStep?.id
+                            onClick(label = showLabel) {
+                                showStep(step)
+                                true
+                            }
+                        },
                     ) { step ->
                         val video = step is CoverItem.Media && step.kind == MediaKind.VIDEO
-                        val index = items.indexOf(step)
                         StepRow(
                             step = step,
-                            // Shows this step in the preview, so any step can be checked at once.
-                            onShow = stepper?.let { live -> { live.showItem(index) } },
+                            shown = step.id == shownStep?.id,
+                            // Opens this step on the cover (and in the preview), so any step can be checked at once.
+                            onShow = { showStep(step) },
                             timing = when {
                                 // A video playing to its end stays its own length (the Playback card says "to the end");
                                 // cut, it stays the photo time.
@@ -458,11 +479,17 @@ fun GroupEditorScreen(
 /**
  * One step: drag handle, thumbnail, name, type and how long it stays, and a ⋮ menu (move up, move down, remove). The
  * moves and the removal sit in the menu so the name keeps its room and a slightly wrong tap cannot remove a step.
- * [onShow] (while the preview plays) shows the step there when the row is tapped.
+ * A tap on the row calls [onShow] (TalkBack finds that tap on the whole row, see ReorderableList's rowSemantics); the
+ * row the preview (and the cover) shows is [shown]: filled and outlined, so it stands out by more than its colour.
  */
 @Composable
-private fun ReorderableRowScope.StepRow(step: CoverItem, timing: String, onShow: (() -> Unit)?, onRemove: () -> Unit) {
+private fun ReorderableRowScope.StepRow(step: CoverItem, shown: Boolean, timing: String, onShow: () -> Unit, onRemove: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
+    val currentOnShow by rememberUpdatedState(onShow)
+    // Lifted by a long-press to drag: letting go without moving puts it back, it does not open the step.
+    val lifted by rememberUpdatedState(isDragging)
+    val presses = remember { MutableInteractionSource() }
+    val shape = MaterialTheme.shapes.small
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -473,14 +500,44 @@ private fun ReorderableRowScope.StepRow(step: CoverItem, timing: String, onShow:
         Row(
             modifier = Modifier
                 .weight(1f)
-                .clip(MaterialTheme.shapes.small)
+                .clip(shape)
                 .then(
-                    if (onShow != null) {
-                        Modifier.clickable(onClickLabel = stringResource(R.string.group_step_show), role = Role.Button, onClick = onShow)
+                    if (shown) {
+                        Modifier
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, shape)
                     } else {
                         Modifier
                     },
-                ),
+                )
+                .indication(presses, ripple())
+                // A plain tap with a ripple; its semantics are the row's own.
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onPress = { offset ->
+                            coroutineScope {
+                                // Like a button in a scrolling screen, the ripple waits a moment: a scroll that starts
+                                // on a row does not flash it, a quick tap still shows it.
+                                val press = PressInteraction.Press(offset)
+                                val shown = launch {
+                                    delay(ViewConfiguration.getTapTimeout().toLong())
+                                    presses.emit(press)
+                                }
+                                val released = tryAwaitRelease()
+                                if (shown.isActive) {
+                                    shown.cancel()
+                                    if (released) {
+                                        presses.emit(press)
+                                        presses.emit(PressInteraction.Release(press))
+                                    }
+                                } else {
+                                    presses.emit(if (released) PressInteraction.Release(press) else PressInteraction.Cancel(press))
+                                }
+                            }
+                        },
+                        onTap = { if (!lifted) currentOnShow() },
+                    )
+                },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(

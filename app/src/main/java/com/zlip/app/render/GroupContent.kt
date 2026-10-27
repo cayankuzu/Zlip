@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -53,7 +54,7 @@ val LocalHoldGroupStep = compositionLocalOf { false }
  * finish the pass they are in (see [GroupTiming]). With shuffle the steps play in a new order every pass;
  * with repeat off the group stops on its last step.
  *
- * Exactly one step is composed at a time, as a new composition per pass and position: a video always starts
+ * Exactly one step is composed at a time, as a new composition per pass and item: a video always starts
  * at 0 and only one decoder is alive. A step's own events end it and never reach [events], so a video's
  * loop is not mistaken for the group's pass; the group reports one [PlaybackEvents.onCycle] per trip
  * through all items (repeat on or off), or [PlaybackEvents.onFailed] when none of them can play. Unlike a
@@ -73,10 +74,10 @@ internal fun GroupCover(item: CoverItem.Group, modifier: Modifier, playback: Pla
 }
 
 /**
- * One step on screen: which pass and position in that pass's order, which item ([itemIndex] in the group's
- * list) and what it shows.
+ * One showing of a step: the pass and the item ([childId]) it shows. Not its place in the list, so a live edit that
+ * only moves the step (or others around it) neither restarts it nor cuts to another one.
  */
-private data class Step(val pass: Int, val position: Int, val itemIndex: Int, val childId: String, val video: Boolean)
+private data class Step(val pass: Int, val childId: String, val video: Boolean)
 
 /**
  * What the step on screen reported. A fresh one per step, so a late event of the previous step (a video
@@ -106,27 +107,41 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
     var pass by remember { mutableIntStateOf(0) }
     // The pass the group was on before this one: previous may step back into it once (the step just seen), never further.
     var backFloor by remember { mutableIntStateOf(0) }
-    // The position in this pass's order (the list order, or the shuffled one).
+    // The position in this pass's order (the list order, or the shuffled one) that the group last moved to.
     var index by remember { mutableIntStateOf(0) }
+    // The item on screen there. Null right after a move, until the step it lands on is shown.
+    var shownId by remember { mutableStateOf<String?>(null) }
     // A new random order each time the group comes on screen; stable while it stays (recomposition, edits).
     val seed = remember { Random.nextLong() }
     val order = remember(items.size, item.shuffle, pass) { GroupTiming.playOrder(items.size, item.shuffle, seed, pass) }
-    // Live edits can shorten the group under the current position; start over then.
-    val position = if (index in order.indices) index else 0
-    val itemIndex = order[position]
-    val child = items[itemIndex]
-    val step = Step(pass, position, itemIndex, child.id, video = child.isVideo())
+    // A live edit (a step moved, removed or added, shuffle switched) keeps the step on screen wherever it went.
+    val position = GroupSteps.keptPosition(shownId, index, order.map { items[it].id })
+    val child = items[order[position]]
+    // Next and previous count from the step on screen.
+    SideEffect {
+        index = position
+        shownId = child.id
+    }
+    val step = Step(pass, child.id, video = child.isVideo())
     val signals = remember(step) { StepSignals() }
-    // Positions that failed during this pass; another set of items starts with a clean slate.
-    val failedSteps = remember(items) { mutableSetOf<Int>() }
-    var stuck by remember(items) { mutableStateOf(false) }
-    // Repeat off: the step the group stopped on at the end of its pass. Any other step (next, previous,
-    // repeat turned back on in the editor) plays on.
+    // Positions that failed during this pass. One set and one flag for the group's whole showing, so a step that keeps
+    // playing through a live edit counts in the same set the next step reads.
+    val failedSteps = remember { mutableSetOf<Int>() }
+    var stuck by remember { mutableStateOf(false) }
+    // Another set of items starts with a clean slate.
+    LaunchedEffect(items) {
+        failedSteps.clear()
+        stuck = false
+    }
+    // Repeat off: the step the group stopped on at the end of its pass. Any move (next, previous, a step opened from
+    // the editor) or repeat turned back on plays on; an edit that only moves the stopped step keeps it held.
     var stoppedAt by remember { mutableStateOf<Step?>(null) }
     val stopped = !item.repeat && stoppedAt == step
     // Whether the playlist was told that nothing here can play (so it hears when something can again).
     var failureReported by remember { mutableStateOf(false) }
     val currentEvents by rememberUpdatedState(events)
+    val currentPosition by rememberUpdatedState(position)
+    val currentItems by rememberUpdatedState(items)
     val currentSize by rememberUpdatedState(items.size)
     val currentRepeat by rememberUpdatedState(item.repeat)
     val currentShuffle by rememberUpdatedState(item.shuffle)
@@ -144,9 +159,10 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
             override fun previous(wrap: Boolean): Boolean =
                 go(GroupSteps.previous(GroupSteps.At(pass, index), currentSize, wrap, minPass = backFloor))
 
-            override fun showItem(itemIndex: Int): Boolean {
-                val order = GroupTiming.playOrder(currentSize, currentShuffle, seed, pass)
-                return go(GroupSteps.show(itemIndex, order, pass))
+            override fun showStep(childId: String): Boolean {
+                val steps = currentItems
+                val order = GroupTiming.playOrder(steps.size, currentShuffle, seed, pass)
+                return go(GroupSteps.show(steps.indexOfFirst { it.id == childId }, order, pass))
             }
 
             private fun go(to: GroupSteps.At?): Boolean {
@@ -154,6 +170,8 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
                 if (to.pass > pass) backFloor = pass
                 pass = to.pass
                 index = to.index
+                shownId = null
+                stoppedAt = null
                 return true
             }
         }
@@ -168,8 +186,8 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
         }
     }
 
-    // The position in play order, so a shuffled group still counts 1, 2, 3; a live edit that changes the size tells again.
-    LaunchedEffect(step, order.size) { currentEvents?.onStepAt(child, position + 1, order.size) }
+    // The position in play order, so a shuffled group still counts 1, 2, 3; a live edit that moves it tells again.
+    LaunchedEffect(step, position, order.size) { currentEvents?.onStepAt(child, position + 1, order.size) }
 
     // Repeat off: holding the last step is the group's end, like a play-once clip's last frame, so a plan that starts
     // after it stopped moves on instead of waiting for a pass that never comes.
@@ -183,11 +201,14 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
             extraMs = GroupTiming.extraWaitMs(child),
             signals = signals,
         )
-        if (failed) failedSteps += position else failedSteps -= position
-        // The current size: a live edit may have changed the group while this step played.
-        val next = GroupTiming.next(position, currentSize)
+        // Where the step is now, and the current size: a live edit may have changed the group while this step played.
+        val at = currentPosition
+        if (failed) failedSteps += at else failedSteps -= at
+        val next = GroupTiming.next(at, currentSize)
         if (!next.wrapped) {
             index = next.index
+            shownId = null
+            stoppedAt = null
             return@LaunchedEffect
         }
         if (GroupTiming.allFailed(failedSteps, currentSize)) {
@@ -214,6 +235,7 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
         backFloor = pass
         pass++
         index = 0
+        shownId = null
     }
 
     AnimatedContent(
@@ -231,7 +253,7 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
         label = "group-step",
     ) { shown ->
         // A step on its way out may already be gone from an edited group: it simply disappears.
-        val shownChild = items.getOrNull(shown.itemIndex)?.takeIf { it.id == shown.childId } ?: return@AnimatedContent
+        val shownChild = items.firstOrNull { it.id == shown.childId } ?: return@AnimatedContent
         CoverContent(
             item = shownChild.asStep(item, stopped = shown == step && stopped),
             modifier = Modifier.fillMaxSize(),
@@ -316,5 +338,19 @@ internal object GroupSteps {
     fun show(itemIndex: Int, order: List<Int>, pass: Int): At? {
         val position = order.indexOf(itemIndex)
         return if (position < 0) null else At(pass, position)
+    }
+
+    /**
+     * Where the step on screen is after a live edit, in a pass that plays the items [orderIds] in this order: the item
+     * [shownId] wherever it went; else (it was removed, or nothing is shown yet) position [index], so the step that
+     * took its place plays; position 0 once the group got shorter than that.
+     */
+    fun keptPosition(shownId: String?, index: Int, orderIds: List<String>): Int {
+        val kept = if (shownId == null) -1 else orderIds.indexOf(shownId)
+        return when {
+            kept >= 0 -> kept
+            index in orderIds.indices -> index
+            else -> 0
+        }
     }
 }

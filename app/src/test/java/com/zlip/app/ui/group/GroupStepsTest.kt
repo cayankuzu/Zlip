@@ -86,4 +86,27 @@ class GroupStepsTest {
         assertEquals(listOf("a", "b"), withStepRestored(listOf("a", "b"), "b", 0))
         assertEquals(ids(1..max), withStepRestored(ids(1..max), "extra", 0))
     }
+
+    @Test
+    fun thePreviewShowsThePickedStepWhereverItMoved() {
+        assertEquals(2, shownStepIndex(listOf("a", "b", "c"), "c"))
+        // Dragged to the top: the same step, now row one.
+        assertEquals(0, shownStepIndex(listOf("c", "a", "b"), "c"))
+    }
+
+    @Test
+    fun thePreviewFallsBackToTheFirstStepWhenNoneIsPickedOrItWasRemoved() {
+        assertEquals(0, shownStepIndex(listOf("a", "b"), null))
+        assertEquals(0, shownStepIndex(listOf("a", "b"), "gone"))
+        assertEquals(0, shownStepIndex(emptyList(), "a"))
+    }
+
+    @Test
+    fun theArrowsGoToTheRowBesideAndRoundTheEnds() {
+        assertEquals(1, stepBeside(0, 3, forward = true))
+        assertEquals(0, stepBeside(2, 3, forward = true))
+        assertEquals(2, stepBeside(0, 3, forward = false))
+        assertEquals(0, stepBeside(1, 3, forward = false))
+        assertEquals(-1, stepBeside(0, 0, forward = true))
+    }
 }

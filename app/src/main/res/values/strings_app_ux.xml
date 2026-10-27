@@ -35,8 +35,8 @@
     <string name="group_steps_only_in_group">On the cover these play only inside the sequence.</string>
     <string name="group_step_removed">Step removed</string>
     <string name="group_step_menu">Step options</string>
-    <!-- TalkBack: tapping a step row shows that step in the preview -->
-    <string name="group_step_show">Show in preview</string>
+    <!-- TalkBack: tapping a step row shows that step in the preview and opens it on the cover -->
+    <string name="group_step_show">Show this step</string>
 
     <!-- Leaving an editor with changes -->
     <string name="discard_keep_editing">Keep editing</string>

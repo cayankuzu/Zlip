@@ -66,6 +66,28 @@ class GroupStepsTest {
     }
 
     @Test
+    fun aMovedStepStaysOnScreenWhereverItWent() {
+        // B on screen at position 1; dragged to the end, or C dragged to the top: still B.
+        assertEquals(2, GroupSteps.keptPosition("b", 1, listOf("a", "c", "b")))
+        assertEquals(2, GroupSteps.keptPosition("b", 1, listOf("c", "a", "b")))
+        // A step above it removed: B moves up one place and keeps playing.
+        assertEquals(0, GroupSteps.keptPosition("b", 1, listOf("b", "c")))
+    }
+
+    @Test
+    fun aRemovedStepGivesWayToTheOneThatTookItsPlace() {
+        assertEquals(1, GroupSteps.keptPosition("b", 1, listOf("a", "c", "d")))
+        // The last step removed: the group starts over.
+        assertEquals(0, GroupSteps.keptPosition("c", 2, listOf("a", "b")))
+    }
+
+    @Test
+    fun rightAfterAMoveThePositionMovedToCounts() {
+        assertEquals(2, GroupSteps.keptPosition(null, 2, listOf("a", "b", "c")))
+        assertEquals(0, GroupSteps.keptPosition(null, 5, listOf("a", "b", "c")))
+    }
+
+    @Test
     fun showItemLandsOnThatItemInThisPassesOrder() {
         val size = 6
         val seed = 7L

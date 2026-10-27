@@ -35,8 +35,8 @@
     <string name="group_steps_only_in_group">Bu içerikler kapakta yalnızca grubun içinde oynar.</string>
     <string name="group_step_removed">Adım çıkarıldı</string>
     <string name="group_step_menu">Adım seçenekleri</string>
-    <!-- TalkBack: adım satırına dokununca o adım önizlemede görünür -->
-    <string name="group_step_show">Önizlemede göster</string>
+    <!-- TalkBack: adım satırına dokununca o adım önizlemede görünür ve kapakta açılır -->
+    <string name="group_step_show">Bu adımı göster</string>
 
     <!-- Değişiklik varken düzenleyiciden çıkma -->
     <string name="discard_keep_editing">Düzenlemeye dön</string>
