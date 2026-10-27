@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A share Zlip cannot open (for example a text file instead of text) -->
+    <string name="share_unsupported">Zlip can\'t use this. Share a photo, video, GIF, link or text.</string>
+
+    <!-- The "Mirror screen" launcher shortcut on Android 14 -->
+    <string name="mirror_needs_android15">Screen mirroring needs Android 15 or later</string>
+
+    <!-- What TalkBack says once when the idle cutoff's countdown chip appears -->
+    <string name="auto_off_announce">The cover turns off soon. Tap to keep it on.</string>
+</resources>

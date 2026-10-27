@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher shortcut "Kapağı aç": the power glyph on the app icon's background. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground>
+        <inset
+            android:drawable="@drawable/ic_pip_power"
+            android:inset="32%" />
+    </foreground>
+</adaptive-icon>

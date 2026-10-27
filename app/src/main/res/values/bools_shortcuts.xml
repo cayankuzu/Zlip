@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirroring needs Android 15 (values-v35); below it the "Mirror screen" launcher shortcut is not published. -->
+    <bool name="mirror_shortcut_enabled">false</bool>
+</resources>

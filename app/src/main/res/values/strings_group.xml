@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sequence ("Grup"): items shown one after another, full screen -->
+    <string name="type_group">Sequence</string>
+    <string name="badge_group">Sequence</string>
+    <string name="badge_group_count">%1$s · %2$d</string>
+    <string name="home_add_group_desc">Your picks, one after another, full screen</string>
+    <string name="group_title_new">New sequence</string>
+    <string name="group_title_edit">Edit sequence</string>
+    <string name="group_order">Order</string>
+    <string name="group_choose">Choose items</string>
+    <string name="group_from_gallery">Add from gallery</string>
+    <string name="group_empty">Nothing here yet. Choose items from your library, or add photos and videos from your gallery.</string>
+    <string name="group_need_two">Choose at least 2 items.</string>
+    <plurals name="group_full">
+        <item quantity="one">A sequence holds up to %1$d item.</item>
+        <item quantity="other">A sequence holds up to %1$d items.</item>
+    </plurals>
+    <string name="group_step">Each photo stays for</string>
+    <string name="group_step_hint">Videos, GIFs, scrolling text and animations play to the end.</string>
+    <string name="group_until_end">to the end</string>
+    <string name="group_item_timing">%1$s · %2$s</string>
+    <string name="group_pick_title">Sequence items</string>
+    <string name="group_pick_hint">Tap in the order they should play.</string>
+    <string name="group_remove">Remove from sequence</string>
+    <plurals name="group_items">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+
+    <!-- Reorderable lists -->
+    <string name="reorder_move_up">Move up</string>
+    <string name="reorder_move_down">Move down</string>
+
+    <!-- Item picker sheet -->
+    <string name="picker_clear">Clear</string>
+    <plurals name="picker_max">
+        <item quantity="one">Up to %1$d item</item>
+        <item quantity="other">Up to %1$d items</item>
+    </plurals>
+
+    <!-- Gallery: one tile, one or many files -->
+    <string name="home_add_gallery">From gallery</string>
+    <string name="home_add_gallery_desc">Photos, GIFs or videos; pick several at once</string>
+    <string name="import_batch_title">Importing %1$d of %2$d…</string>
+    <plurals name="import_batch_added">
+        <item quantity="one">%d item added</item>
+        <item quantity="other">%d items added</item>
+    </plurals>
+    <string name="import_batch_body">They are in your library. Make a sequence to play them one after another, full screen.</string>
+    <plurals name="import_batch_failed">
+        <item quantity="one">%d file could not be added.</item>
+        <item quantity="other">%d files could not be added.</item>
+    </plurals>
+    <string name="import_batch_make_group">Make a sequence</string>
+</resources>

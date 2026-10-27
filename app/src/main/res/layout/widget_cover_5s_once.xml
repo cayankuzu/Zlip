@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cover widget, 5 s, stops on the last item (Loop off). AdapterViewFlipper's autoStart/flipInterval cannot be set through RemoteViews,
+     so each interval has its own layout with identical view ids. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <AdapterViewFlipper
+        android:id="@+id/widget_flipper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:animateFirstView="false"
+        android:autoStart="true"
+        android:flipInterval="5000"
+        android:inAnimation="@animator/widget_fade_in"
+        android:loopViews="false"
+        android:outAnimation="@animator/widget_fade_out" />
+
+    <ImageView
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/widget_empty"
+        android:padding="48dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/brand_tile" />
+
+    <!-- Optional screen-saver clock; the host keeps it current with no work from Zlip. -->
+    <LinearLayout
+        android:id="@+id/widget_clock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextClock
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="h:mm"
+            android:format24Hour="HH:mm"
+            android:shadowColor="#CC000000"
+            android:shadowRadius="8"
+            android:textColor="#FFFFFFFF"
+            android:textSize="34sp" />
+
+        <TextClock
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="EEE d MMM"
+            android:format24Hour="EEE d MMM"
+            android:shadowColor="#CC000000"
+            android:shadowRadius="8"
+            android:textColor="#DDFFFFFF"
+            android:textSize="14sp" />
+    </LinearLayout>
+</FrameLayout>

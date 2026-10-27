@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Onboarding: what TalkBack reads for the page dots -->
+    <string name="intro_page_position">Page %1$d of %2$d</string>
+
+    <!-- Text editor sliders, as TalkBack names them (the visible label also shows the value) -->
+    <string name="text_size_label">Text size</string>
+    <string name="text_speed_label">Scrolling speed</string>
+</resources>

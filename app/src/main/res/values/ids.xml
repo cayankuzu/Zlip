@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- View tags used by the media renderer to remember which drawable it already started or froze. -->
+    <item name="tag_started" type="id" />
+    <item name="tag_frozen" type="id" />
+</resources>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Language code of this translation (never shown): countdown dates are written in the same language as the words around them. -->
+    <string name="countdown_language">en</string>
+
+    <!-- Cover card -->
+    <plurals name="countdown_unit_days">
+        <item quantity="one">day</item>
+        <item quantity="other">days</item>
+    </plurals>
+    <!-- Under the big hours:minutes:seconds on the last day -->
+    <string name="countdown_unit_left">left</string>
+    <string name="countdown_today">Today!</string>
+    <string name="countdown_yesterday">Yesterday</string>
+    <plurals name="countdown_days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+    <!-- %1$s is a short date, e.g. "Thu, 24 Dec" -->
+    <string name="countdown_until">until %1$s</string>
+    <string name="countdown_since">since %1$s</string>
+    <!-- %1$s is a time of day, e.g. "09:00" -->
+    <string name="countdown_today_at">Today, %1$s</string>
+    <string name="countdown_tomorrow_at">Tomorrow, %1$s</string>
+    <!-- Spoken by TalkBack -->
+    <plurals name="countdown_cd_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <plurals name="countdown_cd_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <plurals name="countdown_cd_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+
+    <!-- Editor -->
+    <string name="countdown_title_new">New countdown</string>
+    <string name="countdown_title_edit">Edit countdown</string>
+    <string name="countdown_presets">Quick start</string>
+    <string name="countdown_preset_new_year">New Year</string>
+    <string name="countdown_preset_weekend">Weekend</string>
+    <string name="countdown_preset_birthday">Birthday</string>
+    <string name="countdown_preset_holiday">Holiday</string>
+    <string name="countdown_preset_days_since">Days since</string>
+    <string name="countdown_field_title">Title</string>
+    <string name="countdown_field_title_hint">e.g. Holiday</string>
+    <string name="countdown_field_title_hint_up">e.g. Smoke-free</string>
+    <string name="countdown_mode_down">Count down</string>
+    <string name="countdown_mode_up">Count up</string>
+    <string name="countdown_mode_down_desc">Days left until the moment</string>
+    <string name="countdown_mode_up_desc">Days since the moment, like a streak</string>
+    <string name="countdown_date">Date</string>
+    <string name="countdown_time">Time</string>
+    <string name="countdown_date_start">Start date</string>
+    <string name="countdown_time_start">Start time</string>
+    <string name="countdown_change_date">Change date</string>
+    <string name="countdown_change_time">Change time</string>
+    <string name="countdown_pick_time">Select time</string>
+    <string name="countdown_time_keyboard">Type the time</string>
+    <string name="countdown_time_dial">Use the clock dial</string>
+    <!-- Repeat choice for a countdown: a repeating card moves on to the next week or year once its day is over -->
+    <string name="countdown_repeat_none">Once</string>
+    <string name="countdown_repeat_weekly">Every week</string>
+    <string name="countdown_repeat_yearly">Every year</string>
+    <string name="countdown_passed">This moment has passed. The card shows it as done.</string>
+    <string name="countdown_not_started">Counting starts on this date. Until then the card counts down to it.</string>
+    <string name="countdown_led">LED dots</string>
+    <string name="countdown_led_desc">Numbers glow like an LED sign</string>
+    <string name="countdown_accent">Number color</string>
+    <string name="countdown_low_contrast">Hard to read. Pick colors that stand out from the background.</string>
+</resources>

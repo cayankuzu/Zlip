@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: lets adb open the cover screen saver directly for on-device testing, with
+     "adb shell am start (display 1) com.zlip.app.debug/com.zlip.app.DebugCoverScreenSaver".
+     Release builds keep the screen saver unexported. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <activity-alias
+            android:name="com.zlip.app.DebugCoverScreenSaver"
+            android:exported="true"
+            android:targetActivity="com.zlip.app.CoverActivity" />
+    </application>
+</manifest>

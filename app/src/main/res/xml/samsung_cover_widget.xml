@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Samsung Flex Window: lists this widget under Settings > Cover screen > Widgets on Galaxy Z Flip.
+     privacyWidget=false keeps the art visible on a locked cover (it is the user's own content). -->
+<samsung-appwidget-provider
+    display="sub_screen"
+    privacyWidget="false" />

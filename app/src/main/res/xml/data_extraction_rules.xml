@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cloud backup has a 25 MB quota, so it keeps only the library file (and the tiny tally counts); images/GIFs travel only on device-to-device transfer. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="items.json" />
+        <include domain="sharedpref" path="zlip_toy_counts.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="items.json" />
+        <include domain="file" path="media/" />
+        <include domain="sharedpref" path="zlip_toy_counts.xml" />
+    </device-transfer>
+</data-extraction-rules>

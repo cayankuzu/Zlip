@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Limits Play Store distribution to foldables (Galaxy Z Flip reports this sensor). -->
+    <uses-feature
+        android:name="android.hardware.sensor.hinge_angle"
+        android:required="true" />
+
+    <!-- Only for the optional cover controls in the notification shade. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Optional "always show on the cover" (off by default): a quiet service that re-opens the screen
+         saver on the folded cover. Android only allows that with the user-granted "Appear on top". -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Screen mirroring (inner screen on the open phone's cover), only after the user allows it each time. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
+    <!-- Media3 asks for these for network streaming and wake locks; Zlip only plays local files
+         without a wake mode, so neither is needed (ExoPlayer handles their absence). -->
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.WAKE_LOCK"
+        tools:node="remove" />
+
+    <application
+        android:name=".ZlipApp"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Zlip">
+
+        <!-- configChanges keeps the activity (and with it the cover-screen session) alive on rotation, resize or keyboard changes.
+             Picture-in-picture is its small window in other apps, which keeps the open phone's cover on. -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:supportsPictureInPicture="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Long-pressing the quick-settings tile opens the app's settings. -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+            <!-- Share to Zlip: photos and videos come in like a gallery pick, a link becomes a QR card and
+                 other text a text item. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+
+        <!-- Launcher shortcuts land here and are passed on to MainActivity: Android opens a shortcut by
+             clearing its task, and this one lives in a task of its own, so a running Zlip is kept. -->
+        <activity
+            android:name=".ShortcutActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity="com.zlip.app.shortcuts"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Live view on the folded cover, opened from the cover widget on display 1. -->
+        <activity
+            android:name=".CoverActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity="com.zlip.app.live"
+            android:theme="@style/Theme.Zlip">
+            <!-- Samsung's own flag for activities shown over the cover lock screen (harmless elsewhere). -->
+            <meta-data
+                android:name="com.samsung.android.activity.showWhenLocked"
+                android:value="true" />
+        </activity>
+
+        <service
+            android:name=".system.CoverGuardService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-enabled cover screen saver: shows the user's chosen content in front of the folded phone's cover lock screen as soon as the cover wakes. It only listens for display on/off changes and can be turned off from its notification." />
+        </service>
+
+        <service
+            android:name=".system.MirrorService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <receiver
+            android:name=".system.CoverBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".system.CoverActionReceiver"
+            android:exported="false" />
+
+        <!-- Cover-screen (Flex Window) widget: a playlist slideshow the system runs while the phone is folded. -->
+        <receiver
+            android:name=".widget.CoverWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/cover_widget_info" />
+            <meta-data
+                android:name="com.samsung.android.appwidget.provider"
+                android:resource="@xml/samsung_cover_widget" />
+        </receiver>
+
+        <!-- Serves rendered widget frames to the cover host: read-only, unguessable names, no listing. -->
+        <provider
+            android:name=".widget.CoverImageProvider"
+            android:authorities="${applicationId}.coverimages"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+
+        <service
+            android:name=".system.CoverTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_zlip"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+    </application>
+
+</manifest>

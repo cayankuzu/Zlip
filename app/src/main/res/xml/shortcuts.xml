@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher shortcuts (touch and hold the app icon). They go through ShortcutActivity, so a running Zlip is
+     kept. The debug build has its own copy (src/debug/res/xml) because targetPackage cannot follow the
+     ".debug" application id; keep the two in step. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:icon="@drawable/ic_shortcut_cover"
+        android:shortcutId="cover_on"
+        android:shortcutLongLabel="@string/shortcut_cover_long"
+        android:shortcutShortLabel="@string/shortcut_cover_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.zlip.app.ShortcutActivity"
+            android:targetPackage="com.zlip.app">
+            <extra
+                android:name="com.zlip.app.extra.START_COVER"
+                android:value="true" />
+            <extra
+                android:name="com.zlip.app.extra.RETURN_AFTER_START"
+                android:value="true" />
+        </intent>
+    </shortcut>
+    <!-- Mirroring needs Android 15: a disabled static shortcut is not published, so Android 14 never lists it. -->
+    <shortcut
+        android:enabled="@bool/mirror_shortcut_enabled"
+        android:icon="@drawable/ic_shortcut_mirror"
+        android:shortcutDisabledMessage="@string/mirror_needs_android15"
+        android:shortcutId="mirror"
+        android:shortcutLongLabel="@string/shortcut_mirror_long"
+        android:shortcutShortLabel="@string/shortcut_mirror_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.zlip.app.ShortcutActivity"
+            android:targetPackage="com.zlip.app">
+            <extra
+                android:name="com.zlip.app.extra.START_MIRROR"
+                android:value="true" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:icon="@drawable/ic_shortcut_text"
+        android:shortcutId="new_text"
+        android:shortcutLongLabel="@string/shortcut_text_long"
+        android:shortcutShortLabel="@string/shortcut_text_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.zlip.app.ShortcutActivity"
+            android:targetPackage="com.zlip.app">
+            <extra
+                android:name="com.zlip.app.extra.NEW_TEXT"
+                android:value="true" />
+        </intent>
+    </shortcut>
+</shortcuts>

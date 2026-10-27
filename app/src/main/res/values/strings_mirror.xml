@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Small window (picture-in-picture) that keeps the open phone's cover on in other apps -->
+    <string name="pip_status_on">Cover screen on</string>
+    <string name="pip_status_off">Cover off</string>
+    <string name="pip_cover_off">Turn cover off</string>
+    <string name="pip_cover_on">Turn cover on</string>
+    <string name="settings_keep_outside">Mini cover</string>
+    <string name="settings_keep_outside_desc">Switch to another app and Zlip shrinks to a small window, so the cover stays on; turn the cover on and off from there.</string>
+
+    <!-- Idle cutoff -->
+    <string name="auto_off_warning">Cover turns off in %1$d s</string>
+    <string name="settings_auto_off">Turn off when idle</string>
+    <string name="settings_auto_off_desc">If neither screen is touched for this long while Zlip is open, the cover turns off. A notice comes 15 seconds before; one touch keeps it on.</string>
+    <string name="auto_off_never">Never</string>
+
+    <!-- Screen mirroring -->
+    <string name="cover_mirroring">Mirroring</string>
+    <string name="mirror_mode_content">My content</string>
+    <string name="mirror_mode_screen">Mirror screen</string>
+    <string name="mirror_consent_hint">Shows your screen on the cover. Android asks for permission every time.</string>
+    <string name="mirror_active_body_leave">Your screen is on the cover until you leave Zlip. Protected apps such as banking or Netflix show black, and mirroring uses more battery.</string>
+    <string name="mirror_active_body">Your screen is on the cover, in other apps too while Zlip is the Mini cover. Protected apps such as banking or Netflix show black, and mirroring uses more battery.</string>
+    <string name="mirror_stop">Stop mirroring</string>
+    <string name="mirror_failed">Mirroring could not start. Try again.</string>
+    <string name="mirror_fit_title">Mirror view</string>
+    <string name="mirror_fit_fit">Whole screen</string>
+    <string name="mirror_fit_fill">Fill</string>
+    <string name="mirror_fit_desc">Whole screen shows all of it with black bars; Fill fills the cover and crops the edges.</string>
+    <string name="mirror_cover_gestures">On the cover: double-tap, then tap to switch and swipe to see the cropped part.</string>
+    <string name="mirror_settings_hint">Protected apps show black, Android asks for permission every time, and mirroring uses more battery.</string>
+    <string name="mirror_channel">Screen mirroring</string>
+    <string name="mirror_channel_desc">Shown while your screen is mirrored to the cover, with a button to stop.</string>
+    <string name="mirror_notif_title">Mirroring your screen to the cover</string>
+    <string name="mirror_notif_text">The picture never leaves your phone and is not recorded.</string>
+    <string name="action_stop">Stop</string>
+
+    <!-- Quick-settings tile -->
+    <string name="tile_screen_saver">Screen saver</string>
+</resources>

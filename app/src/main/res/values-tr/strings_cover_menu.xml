@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cover_menu_title">Kapak menüsü</string>
+    <string name="cover_menu_open">Menüyü aç</string>
+    <string name="cover_menu_close">Menüyü kapat</string>
+    <string name="cover_menu_hint">Menü için yukarı kaydır</string>
+    <string name="cover_menu_showing">Şu an gösteriliyor</string>
+    <string name="cover_menu_show">Göster</string>
+    <string name="cover_menu_minutes">%1$d dk</string>
+    <string name="cover_menu_always">Hep</string>
+    <string name="cover_menu_auto_show">Kapakta hep göster</string>
+    <string name="cover_menu_allow_on_phone">Telefonda izin ver</string>
+    <string name="cover_menu_clock">Saat</string>
+    <string name="cover_menu_led">LED</string>
+</resources>

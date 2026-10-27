@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Menu on the folded cover (swipe up): pick an item, brightness, stay lit, quick toggles -->
+    <string name="cover_menu_title">Cover menu</string>
+    <string name="cover_menu_open">Open menu</string>
+    <string name="cover_menu_close">Close menu</string>
+    <string name="cover_menu_hint">Swipe up for the menu</string>
+    <!-- TalkBack, on the thumbnail of what the cover shows now -->
+    <string name="cover_menu_showing">Showing now</string>
+    <string name="cover_menu_show">Show</string>
+    <string name="cover_menu_minutes">%1$d min</string>
+    <string name="cover_menu_always">Always</string>
+    <string name="cover_menu_auto_show">Always show on the cover</string>
+    <string name="cover_menu_allow_on_phone">Allow it on the phone</string>
+    <string name="cover_menu_clock">Clock</string>
+    <string name="cover_menu_led">LED</string>
+</resources>

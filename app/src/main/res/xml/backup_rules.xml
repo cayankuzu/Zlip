@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="file" path="items.json" />
+    <!-- Tally counters (the cover toy): a count the user built up, tiny. -->
+    <include domain="sharedpref" path="zlip_toy_counts.xml" />
+</full-backup-content>

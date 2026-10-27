@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pixel art animation (frames) -->
+    <string name="pixel_anim_play">Play animation</string>
+    <string name="pixel_anim_stop">Stop animation</string>
+    <string name="pixel_anim_add">Add frame</string>
+    <string name="pixel_anim_delete">Delete frame</string>
+    <string name="pixel_anim_move_earlier">Move frame earlier</string>
+    <string name="pixel_anim_move_later">Move frame later</string>
+    <string name="pixel_anim_onion">Onion skin</string>
+    <string name="pixel_anim_frame">Frame %1$d of %2$d</string>
+    <string name="pixel_anim_speed">Animation speed</string>
+    <string name="pixel_anim_fps">%d fps</string>
+    <string name="pixel_anim_hint">Tap + to add a frame and bring your drawing to life. Each new frame starts as a copy of the selected one, so you only redraw what moves.</string>
+    <plurals name="pixel_anim_limit">
+        <item quantity="one">That\'s the maximum of %d frame.</item>
+        <item quantity="other">That\'s the maximum of %d frames.</item>
+    </plurals>
+
+    <!-- Pixel canvas zoom -->
+    <string name="pixel_zoom_fit">Show the whole canvas</string>
+    <string name="pixel_zoom_hint">Pinch with two fingers to zoom in and move around. Double-tap to see the whole canvas again.</string>
+</resources>

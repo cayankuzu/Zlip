@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pixel art animation (frames) -->
+    <string name="pixel_anim_play">Animasyonu oynat</string>
+    <string name="pixel_anim_stop">Animasyonu durdur</string>
+    <string name="pixel_anim_add">Kare ekle</string>
+    <string name="pixel_anim_delete">Kareyi sil</string>
+    <string name="pixel_anim_move_earlier">Kareyi bir öne taşı</string>
+    <string name="pixel_anim_move_later">Kareyi bir sonraya taşı</string>
+    <string name="pixel_anim_onion">Önceki kare</string>
+    <string name="pixel_anim_frame">%2$d kareden %1$d. kare</string>
+    <string name="pixel_anim_speed">Animasyon hızı</string>
+    <string name="pixel_anim_fps">%d kare/sn</string>
+    <string name="pixel_anim_hint">Çizimini canlandırmak için + simgesine dokunup kare ekle. Her yeni kare seçili karenin kopyasıyla başlar; sadece hareket eden kısmı yeniden çizmen yeterli.</string>
+    <plurals name="pixel_anim_limit">
+        <item quantity="one">En fazla %d kare eklenebilir.</item>
+        <item quantity="other">En fazla %d kare eklenebilir.</item>
+    </plurals>
+
+    <!-- Piksel tuvali yakınlaştırma -->
+    <string name="pixel_zoom_fit">Tuvalin tamamını göster</string>
+    <string name="pixel_zoom_hint">Yakınlaştırmak ve gezinmek için iki parmağını kullan. Tuvalin tamamını yeniden görmek için çift dokun.</string>
+</resources>

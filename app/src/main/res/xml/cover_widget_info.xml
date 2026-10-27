@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sized and categorised as Samsung's Flex Window guide asks (keyguard, 352x339dp, resizable). -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_description"
+    android:initialKeyguardLayout="@layout/widget_cover_paused"
+    android:initialLayout="@layout/widget_cover_paused"
+    android:minWidth="352dp"
+    android:minHeight="339dp"
+    android:previewImage="@drawable/brand_tile"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="4"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="keyguard" />

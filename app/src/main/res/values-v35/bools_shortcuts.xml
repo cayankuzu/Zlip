@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 15+: screen mirroring works, so the "Mirror screen" launcher shortcut is shown. -->
+    <bool name="mirror_shortcut_enabled">true</bool>
+</resources>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Grup: seçilen içerikler sırayla, tam ekran -->
+    <string name="type_group">Grup</string>
+    <string name="badge_group">Grup</string>
+    <string name="badge_group_count">%1$s · %2$d</string>
+    <string name="home_add_group_desc">Seçtiklerin sırayla, tam ekran oynar</string>
+    <string name="group_title_new">Yeni grup</string>
+    <string name="group_title_edit">Grubu düzenle</string>
+    <string name="group_order">Sıra</string>
+    <string name="group_choose">İçerik seç</string>
+    <string name="group_from_gallery">Galeriden ekle</string>
+    <string name="group_empty">Henüz boş. Kitaplığından içerik seç ya da galeriden fotoğraf ve video ekle.</string>
+    <string name="group_need_two">En az 2 içerik seç.</string>
+    <plurals name="group_full">
+        <item quantity="one">Bir grupta en fazla %1$d içerik olabilir.</item>
+        <item quantity="other">Bir grupta en fazla %1$d içerik olabilir.</item>
+    </plurals>
+    <string name="group_step">Her fotoğraf ekranda kalır</string>
+    <string name="group_step_hint">Videolar, GIF\'ler, kayan yazılar ve animasyonlar sonuna kadar oynar.</string>
+    <string name="group_until_end">sonuna kadar</string>
+    <string name="group_item_timing">%1$s · %2$s</string>
+    <string name="group_pick_title">Grup içeriği</string>
+    <string name="group_pick_hint">Oynama sırasına göre dokun.</string>
+    <string name="group_remove">Gruptan çıkar</string>
+    <plurals name="group_items">
+        <item quantity="one">%d içerik</item>
+        <item quantity="other">%d içerik</item>
+    </plurals>
+
+    <!-- Sıralanabilir listeler -->
+    <string name="reorder_move_up">Yukarı taşı</string>
+    <string name="reorder_move_down">Aşağı taşı</string>
+
+    <!-- İçerik seçme sayfası -->
+    <string name="picker_clear">Temizle</string>
+    <plurals name="picker_max">
+        <item quantity="one">En fazla %1$d içerik</item>
+        <item quantity="other">En fazla %1$d içerik</item>
+    </plurals>
+
+    <!-- Galeri: tek kutucuk, bir ya da birden çok dosya -->
+    <string name="home_add_gallery">Galeriden</string>
+    <string name="home_add_gallery_desc">Fotoğraf, GIF ya da video; birkaçını birden seçebilirsin</string>
+    <string name="import_batch_title">İçe aktarılıyor %1$d/%2$d…</string>
+    <plurals name="import_batch_added">
+        <item quantity="one">%d içerik eklendi</item>
+        <item quantity="other">%d içerik eklendi</item>
+    </plurals>
+    <string name="import_batch_body">Hepsi kitaplığında. Grup yaparsan sırayla, tam ekran oynarlar.</string>
+    <plurals name="import_batch_failed">
+        <item quantity="one">%d dosya eklenemedi.</item>
+        <item quantity="other">%d dosya eklenemedi.</item>
+    </plurals>
+    <string name="import_batch_make_group">Grup yap</string>
+</resources>

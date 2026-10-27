@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR card editor -->
+    <string name="qr_title_new">New QR card</string>
+    <string name="qr_title_edit">Edit QR card</string>
+    <string name="qr_unlock_hint">The cover shows this code without unlocking, so anyone nearby can scan it. Only add what you\'re happy to share.</string>
+    <string name="qr_cover_description">QR code. %1$s</string>
+
+    <string name="qr_kind_link">Link</string>
+    <string name="qr_kind_wifi">Wi-Fi</string>
+    <string name="qr_kind_contact">Contact</string>
+    <string name="qr_kind_text">Text</string>
+
+    <string name="qr_link_field">Web address</string>
+    <string name="qr_link_placeholder">instagram.com/yourname</string>
+    <string name="qr_link_opens">Opens %1$s</string>
+    <string name="qr_link_quick_instagram" translatable="false">Instagram</string>
+    <string name="qr_link_quick_tiktok" translatable="false">TikTok</string>
+    <string name="qr_link_quick_whatsapp" translatable="false">WhatsApp</string>
+    <string name="qr_link_quick_youtube" translatable="false">YouTube</string>
+
+    <string name="qr_wifi_ssid">Network name</string>
+    <string name="qr_wifi_security">Security</string>
+    <string name="qr_wifi_security_wpa" translatable="false">WPA/WPA2/WPA3</string>
+    <string name="qr_wifi_security_wep" translatable="false">WEP</string>
+    <string name="qr_wifi_security_none">No password</string>
+    <string name="qr_wifi_password">Password</string>
+    <string name="qr_password_show">Show password</string>
+    <string name="qr_password_hide">Hide password</string>
+    <string name="qr_wifi_hidden">Hidden network</string>
+    <string name="qr_wifi_hidden_desc">Turn on if the network doesn\'t appear in Wi-Fi lists</string>
+    <string name="qr_wifi_hint">Guests scan it and join without typing. The password isn\'t written on the cover, but anyone who scans the code gets it.</string>
+
+    <string name="qr_contact_name">Full name</string>
+    <string name="qr_contact_phone">Phone</string>
+    <string name="qr_contact_email">Email</string>
+    <string name="qr_contact_org">Company (optional)</string>
+    <string name="qr_contact_hint">One scan saves you to their contacts.</string>
+
+    <string name="qr_text_field">Text</string>
+    <string name="qr_text_hint">A message, a code, a note: phones show it as plain text.</string>
+
+    <string name="qr_caption">Caption</string>
+    <string name="qr_caption_reset">Use suggested caption</string>
+    <string name="qr_caption_link">Scan to visit %1$s</string>
+    <string name="qr_caption_link_generic">Scan to open the link</string>
+    <string name="qr_caption_wifi">Scan to join Wi-Fi: %1$s</string>
+    <string name="qr_caption_wifi_generic">Scan to join the Wi-Fi</string>
+    <string name="qr_caption_contact">Scan to save contact: %1$s</string>
+    <string name="qr_caption_contact_generic">Scan to save the contact</string>
+    <string name="qr_caption_text">Scan to read</string>
+
+    <string name="qr_colors">Colors</string>
+    <string name="qr_colors_hint">Dark on light only, so every phone can scan it, even in bright sun.</string>
+    <string name="qr_colors_fixed">These colors are hard to scan, so the cover shows black on white.</string>
+    <string name="qr_theme_classic">Classic</string>
+    <string name="qr_theme_navy">Navy</string>
+    <string name="qr_theme_paper">Paper</string>
+    <string name="qr_theme_forest">Forest</string>
+    <string name="qr_theme_plum">Plum</string>
+    <string name="qr_theme_lavender">Lavender</string>
+
+    <!-- Why the code cannot be made yet; shown under the fields while Save is disabled. -->
+    <string name="qr_problem_link_missing">Enter a web address to make the code.</string>
+    <string name="qr_problem_link_invalid">That doesn\'t look like a web address.</string>
+    <string name="qr_problem_ssid_missing">Enter the network name to make the code.</string>
+    <plurals name="qr_problem_ssid_too_long">
+        <item quantity="one">Wi-Fi network names have at most %d character.</item>
+        <item quantity="other">Wi-Fi network names have at most %d characters.</item>
+    </plurals>
+    <string name="qr_problem_password_missing">Enter the Wi-Fi password, or choose No password for an open network.</string>
+    <plurals name="qr_problem_password_short">
+        <item quantity="one">WPA passwords have at least %d character.</item>
+        <item quantity="other">WPA passwords have at least %d characters.</item>
+    </plurals>
+    <string name="qr_problem_name_missing">Enter a name to make the card.</string>
+    <string name="qr_problem_contact_details">Add a phone number or an email.</string>
+    <string name="qr_problem_phone_invalid">Use digits, spaces and + ( ) - only.</string>
+    <string name="qr_problem_email_invalid">That doesn\'t look like an email address.</string>
+    <string name="qr_problem_text_missing">Type something to share.</string>
+    <string name="qr_problem_too_long">Too much for one code. Shorten it so phones can still scan it.</string>
+</resources>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Language code of this translation (never shown) -->
+    <string name="countdown_language">tr</string>
+
+    <!-- Cover card -->
+    <plurals name="countdown_unit_days">
+        <item quantity="one">gün</item>
+        <item quantity="other">gün</item>
+    </plurals>
+    <string name="countdown_unit_left">kaldı</string>
+    <string name="countdown_today">Bugün!</string>
+    <string name="countdown_yesterday">Dün</string>
+    <plurals name="countdown_days_ago">
+        <item quantity="one">%d gün önce</item>
+        <item quantity="other">%d gün önce</item>
+    </plurals>
+    <string name="countdown_until">%1$s tarihine kadar</string>
+    <string name="countdown_since">%1$s tarihinden beri</string>
+    <string name="countdown_today_at">Bugün %1$s</string>
+    <string name="countdown_tomorrow_at">Yarın %1$s</string>
+    <plurals name="countdown_cd_days">
+        <item quantity="one">%d gün</item>
+        <item quantity="other">%d gün</item>
+    </plurals>
+    <plurals name="countdown_cd_hours">
+        <item quantity="one">%d saat</item>
+        <item quantity="other">%d saat</item>
+    </plurals>
+    <plurals name="countdown_cd_minutes">
+        <item quantity="one">%d dakika</item>
+        <item quantity="other">%d dakika</item>
+    </plurals>
+
+    <!-- Editor -->
+    <string name="countdown_title_new">Yeni geri sayım</string>
+    <string name="countdown_title_edit">Geri sayımı düzenle</string>
+    <string name="countdown_presets">Hızlı başlangıç</string>
+    <string name="countdown_preset_new_year">Yılbaşı</string>
+    <string name="countdown_preset_weekend">Hafta sonu</string>
+    <string name="countdown_preset_birthday">Doğum günü</string>
+    <string name="countdown_preset_holiday">Tatil</string>
+    <string name="countdown_preset_days_since">Kaç gün oldu</string>
+    <string name="countdown_field_title">Başlık</string>
+    <string name="countdown_field_title_hint">ör. Tatil</string>
+    <string name="countdown_field_title_hint_up">ör. Sigarayı bıraktım</string>
+    <string name="countdown_mode_down">Geri say</string>
+    <string name="countdown_mode_up">İleri say</string>
+    <string name="countdown_mode_down_desc">O ana kalan günler</string>
+    <string name="countdown_mode_up_desc">O andan beri geçen günler, bir seri gibi</string>
+    <string name="countdown_date">Tarih</string>
+    <string name="countdown_time">Saat</string>
+    <string name="countdown_date_start">Başlangıç tarihi</string>
+    <string name="countdown_time_start">Başlangıç saati</string>
+    <string name="countdown_change_date">Tarihi değiştir</string>
+    <string name="countdown_change_time">Saati değiştir</string>
+    <string name="countdown_pick_time">Saat seç</string>
+    <string name="countdown_time_keyboard">Saati yaz</string>
+    <string name="countdown_time_dial">Saat kadranını kullan</string>
+    <string name="countdown_repeat_none">Tekrar yok</string>
+    <string name="countdown_repeat_weekly">Her hafta</string>
+    <string name="countdown_repeat_yearly">Her yıl</string>
+    <string name="countdown_passed">Bu an geçti. Kart onu tamamlandı olarak gösterir.</string>
+    <string name="countdown_not_started">Sayım bu tarihte başlar. O zamana kadar kart bu tarihe geri sayar.</string>
+    <string name="countdown_led">LED noktalar</string>
+    <string name="countdown_led_desc">Rakamlar LED tabela gibi parlar</string>
+    <string name="countdown_accent">Sayı rengi</string>
+    <string name="countdown_low_contrast">Okunması zor. Arka plandan ayrışan renkler seç.</string>
+</resources>

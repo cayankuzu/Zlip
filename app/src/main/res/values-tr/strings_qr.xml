@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR kartı düzenleyicisi -->
+    <string name="qr_title_new">Yeni QR kartı</string>
+    <string name="qr_title_edit">QR kartını düzenle</string>
+    <string name="qr_unlock_hint">Kapak ekranı bu kodu kilit açılmadan gösterir; yakındaki herkes tarayabilir. Yalnızca paylaşmak istediklerini ekle.</string>
+    <string name="qr_cover_description">QR kod. %1$s</string>
+
+    <string name="qr_kind_link">Bağlantı</string>
+    <string name="qr_kind_wifi">Wi-Fi</string>
+    <string name="qr_kind_contact">Kişi</string>
+    <string name="qr_kind_text">Metin</string>
+
+    <string name="qr_link_field">Web adresi</string>
+    <string name="qr_link_placeholder">instagram.com/kullaniciadin</string>
+    <string name="qr_link_opens">%1$s açılır</string>
+
+    <string name="qr_wifi_ssid">Ağ adı</string>
+    <string name="qr_wifi_security">Güvenlik</string>
+    <string name="qr_wifi_security_none">Şifresiz</string>
+    <string name="qr_wifi_password">Şifre</string>
+    <string name="qr_password_show">Şifreyi göster</string>
+    <string name="qr_password_hide">Şifreyi gizle</string>
+    <string name="qr_wifi_hidden">Gizli ağ</string>
+    <string name="qr_wifi_hidden_desc">Ağ, Wi-Fi listesinde görünmüyorsa aç</string>
+    <string name="qr_wifi_hint">Misafirler kodu tarayıp şifre yazmadan bağlanır. Şifre kapakta yazı olarak görünmez ama kodu tarayan herkes şifreyi alır.</string>
+
+    <string name="qr_contact_name">Ad soyad</string>
+    <string name="qr_contact_phone">Telefon</string>
+    <string name="qr_contact_email">E-posta</string>
+    <string name="qr_contact_org">Şirket (isteğe bağlı)</string>
+    <string name="qr_contact_hint">Tek taramayla rehberlerine kaydedilirsin.</string>
+
+    <string name="qr_text_field">Metin</string>
+    <string name="qr_text_hint">Mesaj, kod ya da not: telefonlar düz metin olarak gösterir.</string>
+
+    <string name="qr_caption">Alt yazı</string>
+    <string name="qr_caption_reset">Önerilen alt yazıyı kullan</string>
+    <string name="qr_caption_link">Açmak için tara: %1$s</string>
+    <string name="qr_caption_link_generic">Bağlantıyı açmak için tara</string>
+    <string name="qr_caption_wifi">Wi-Fi\'ye bağlanmak için tara: %1$s</string>
+    <string name="qr_caption_wifi_generic">Wi-Fi\'ye bağlanmak için tara</string>
+    <string name="qr_caption_contact">Kişiyi kaydetmek için tara: %1$s</string>
+    <string name="qr_caption_contact_generic">Kişiyi kaydetmek için tara</string>
+    <string name="qr_caption_text">Okumak için tara</string>
+
+    <string name="qr_colors">Renkler</string>
+    <string name="qr_colors_hint">Yalnızca açık zemin üzerinde koyu renkler: her telefon tarar, güneşte bile.</string>
+    <string name="qr_colors_fixed">Bu renkler zor taranıyor, bu yüzden kapakta siyah-beyaz gösterilir.</string>
+    <string name="qr_theme_classic">Klasik</string>
+    <string name="qr_theme_navy">Lacivert</string>
+    <string name="qr_theme_paper">Kâğıt</string>
+    <string name="qr_theme_forest">Orman</string>
+    <string name="qr_theme_plum">Mürdüm</string>
+    <string name="qr_theme_lavender">Lavanta</string>
+
+    <!-- Kodun neden henüz oluşturulamadığı; Kaydet kapalıyken alanların altında görünür. -->
+    <string name="qr_problem_link_missing">Kodu oluşturmak için bir web adresi gir.</string>
+    <string name="qr_problem_link_invalid">Bu bir web adresine benzemiyor.</string>
+    <string name="qr_problem_ssid_missing">Kodu oluşturmak için ağ adını gir.</string>
+    <plurals name="qr_problem_ssid_too_long">
+        <item quantity="one">Wi-Fi ağ adı en fazla %d karakter olabilir.</item>
+        <item quantity="other">Wi-Fi ağ adı en fazla %d karakter olabilir.</item>
+    </plurals>
+    <string name="qr_problem_password_missing">Wi-Fi şifresini gir ya da açık ağ için Şifresiz\'i seç.</string>
+    <plurals name="qr_problem_password_short">
+        <item quantity="one">WPA şifreleri en az %d karakterdir.</item>
+        <item quantity="other">WPA şifreleri en az %d karakterdir.</item>
+    </plurals>
+    <string name="qr_problem_name_missing">Kartı oluşturmak için bir ad gir.</string>
+    <string name="qr_problem_contact_details">Bir telefon numarası ya da e-posta ekle.</string>
+    <string name="qr_problem_phone_invalid">Yalnızca rakam, boşluk ve + ( ) - kullan.</string>
+    <string name="qr_problem_email_invalid">Bu bir e-posta adresine benzemiyor.</string>
+    <string name="qr_problem_text_missing">Paylaşmak için bir şeyler yaz.</string>
+    <string name="qr_problem_too_long">Tek bir kod için fazla uzun. Telefonların tarayabilmesi için kısalt.</string>
+</resources>

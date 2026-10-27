@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ayarlar: daraltılabilir Gelişmiş bölümü -->
+    <string name="settings_section_advanced">Gelişmiş</string>
+    <string name="settings_advanced_summary">Güç modu, iç ekran bekleme, boşta kapanma ve fazlası</string>
+    <string name="settings_advanced_expanded">Genişletildi</string>
+    <string name="settings_advanced_collapsed">Daraltıldı</string>
+
+    <!-- Kapakta hep göster: kapalıyken ne olacağı -->
+    <string name="auto_show_off_hint">Açmazsan katlayınca kapakta yalnızca Zlip widget\'ı görünür.</string>
+
+    <!-- Ana sayfa -->
+    <string name="action_show_on_cover">Kapakta göster</string>
+    <string name="action_cover_off">Kapağı kapat</string>
+    <string name="home_widget_tip_dismiss">İpucunu kapat</string>
+    <string name="home_sort">Sırala</string>
+    <string name="sort_title">Oynatma sırası</string>
+    <string name="sort_hint">Sürükle ya da oklarla taşı. Kapak bu sırayla oynar.</string>
+    <string name="sort_to_top">En başa</string>
+    <string name="sort_to_bottom">En sona</string>
+
+    <!-- Az önce içe aktarılan dosya, değiştirilmeden geri çıkılınca -->
+    <string name="media_remove_title">Kaldırılsın mı?</string>
+    <string name="media_remove_body">Az önce eklediğin \"%1$s\" kitaplığından kaldırılır.</string>
+    <string name="media_remove_confirm">Kaldır</string>
+    <string name="media_remove_keep">Kalsın</string>
+
+    <!-- Tanıtım: yansıtma ve gruplar sayfaları -->
+    <string name="intro_mirror_title">Ekranını kapağa yansıt</string>
+    <string name="intro_mirror_body">İç ekranda ne varsa kapakta da görünür: kameranın vizörü, bir fotoğraf ya da harita, karşındaki görsün diye. Hiçbir şey kaydedilmez, telefondan çıkmaz.</string>
+    <string name="intro_groups_title">Gruplar, kolajlar ve galerin</string>
+    <string name="intro_groups_body">Galeriden birkaç fotoğraf ve videoyu birden seç, grup yap: sırayla, tam ekran oynarlar. Kolaj ise birkaçını aynı anda gösterir.</string>
+
+    <!-- Bildirim: kapaktaki grubun adımı -->
+    <string name="notif_group_step">Grup · %1$d/%2$d</string>
+
+    <!-- Başlatıcı kısayolları (uygulama simgesine basılı tutunca) -->
+    <string name="shortcut_cover_short">Kapağı aç</string>
+    <string name="shortcut_cover_long">Kapak ekranını aç</string>
+    <string name="shortcut_mirror_short">Ekranı yansıt</string>
+    <string name="shortcut_mirror_long">Ekranı kapağa yansıt</string>
+    <string name="shortcut_text_short">Yeni yazı</string>
+    <string name="shortcut_text_long">Kapak için yeni yazı</string>
+</resources>

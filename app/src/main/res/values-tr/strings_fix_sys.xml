@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_unsupported">Zlip bunu kullanamıyor. Fotoğraf, video, GIF, bağlantı ya da yazı paylaş.</string>
+
+    <string name="mirror_needs_android15">Ekran yansıtma için Android 15 veya üstü gerekir</string>
+
+    <string name="auto_off_announce">Kapak birazdan kapanacak. Açık tutmak için dokun.</string>
+</resources>

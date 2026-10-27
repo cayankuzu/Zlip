@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ana sayfa, kapak açık: Mini kapak olmayan yerde (Android 14, resim içinde resim yok ya da Mini kapak kapalı) -->
+    <string name="status_active_body_leave">Dokunmayı açmak için kapağa iki kez dokun; 3 saniye sonra yeniden kilitlenir. Zlip\'ten çıkınca kapak kapanır.</string>
+
+    <!-- Tanıtım karşılaması, Mini kapak olmayan yerde -->
+    <string name="intro_welcome_body_no_mini">Fotoğrafların, videoların, yazıların ve çizimlerin kapakta oynar. Avucun değince bir şey olmaz; kapağı kullanmak için ona iki kez dokun.</string>
+
+    <!-- Kaydedilmemiş değişiklikler, henüz kaydedilemiyorken (yalnızca Kaydetme / İptal) -->
+    <string name="discard_title_unsavable">Değişiklikler silinsin mi?</string>
+
+    <!-- Bildirim: Zlip'e tek seferde alınabilenden çok dosya paylaşıldı (%1$d alınmadı, %2$d sınır) -->
+    <plurals name="share_skipped">
+        <item quantity="one">%1$d dosya alınmadı: tek seferde en fazla %2$d dosya eklenir.</item>
+        <item quantity="other">%1$d dosya alınmadı: tek seferde en fazla %2$d dosya eklenir.</item>
+    </plurals>
+
+    <!-- Bildirim: gruba yer kalandan çok dosya seçildi (%1$d eklenmedi, %2$d sınır) -->
+    <plurals name="group_gallery_skipped">
+        <item quantity="one">%1$d dosya eklenmedi: bir grupta en fazla %2$d içerik olabilir.</item>
+        <item quantity="other">%1$d dosya eklenmedi: bir grupta en fazla %2$d içerik olabilir.</item>
+    </plurals>
+</resources>

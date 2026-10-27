@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Zlip</string>
+
+    <!-- Library defaults -->
+    <string name="sample_heart_name">Heart</string>
+    <string name="sample_smile_name">Smile</string>
+    <string name="sample_text_name">Hello</string>
+    <string name="sample_text">HELLO FROM THE BACK ✦</string>
+    <string name="default_media_name">Image</string>
+    <string name="type_pixel">Pixel art</string>
+    <string name="type_text">Text</string>
+    <string name="badge_pixel">Pixel</string>
+    <string name="badge_photo">Photo</string>
+    <string name="badge_gif">GIF</string>
+    <string name="badge_video">Video</string>
+    <string name="badge_text">Text</string>
+    <string name="filter_all">All</string>
+    <string name="filter_photo">Photo &amp; GIF</string>
+
+    <!-- Cover screen -->
+    <string name="cover_paused">Paused</string>
+    <string name="cover_empty">Pick something in Zlip to show here</string>
+
+    <!-- Common actions -->
+    <string name="action_back">Back</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_redo">Redo</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Play</string>
+    <string name="action_next">Next</string>
+    <string name="action_previous">Previous</string>
+    <!-- Only the always-show notification's button: it turns "Always show on the cover" off. -->
+    <string name="action_turn_off">Stop always showing</string>
+    <string name="field_name">Name</string>
+
+    <!-- Import -->
+    <string name="import_title">Preparing…</string>
+    <string name="import_body">Adding it to your library.</string>
+    <string name="import_video_body">Optimizing the video for the cover screen (720p, up to 60 seconds) so it plays smoothly and saves battery.</string>
+    <string name="import_failed">Could not import the file.</string>
+    <string name="import_too_large">The file is larger than %1$d MB.</string>
+    <string name="import_video_failed">This video could not be converted. Try a shorter or different clip.</string>
+    <string name="media_added">Added to your library</string>
+    <string name="save_failed">Could not save your changes. Is the storage full?</string>
+
+    <!-- Home -->
+    <string name="home_add">Add</string>
+    <string name="home_add_title">Add to the cover</string>
+    <string name="home_add_pixel_desc">Draw it pixel by pixel</string>
+    <string name="home_add_text_desc">Scrolling LED-style text</string>
+    <string name="home_library">Your library</string>
+    <string name="home_library_empty">Nothing here yet. Tap Add to create something for the cover screen.</string>
+    <string name="home_filter_empty">Nothing of this type yet.</string>
+    <string name="home_nothing_selected">Nothing selected</string>
+    <string name="home_on_cover">On the cover screen</string>
+    <string name="home_item_menu">%1$s: more options</string>
+    <string name="home_cover_start">Start cover screen</string>
+    <string name="home_cover_stop">Turn cover off</string>
+    <string name="home_delete_title">Delete item?</string>
+    <string name="home_delete_body">\"%1$s\" will be removed from your library.</string>
+
+    <!-- Cover status -->
+    <string name="status_checking_title">Checking…</string>
+    <string name="status_checking_body">Looking for the cover screen.</string>
+    <string name="status_unsupported_title">Not supported</string>
+    <string name="status_unsupported_body">This phone does not let apps use the cover screen while it is open. Zlip needs a Galaxy Z Flip with One UI 6 or newer.</string>
+    <string name="status_unavailable_title">Unavailable</string>
+    <string name="status_unavailable_body">Open the phone fully and turn off power saving. Another app may also be using the cover screen.</string>
+    <string name="status_available_title">Ready</string>
+    <string name="status_available_body">Show your content on the back while you use the phone.</string>
+    <string name="status_active_title">Cover screen on</string>
+    <string name="status_active_body">Double-tap the cover to unlock touch; it locks again after 3 seconds. The cover stays on while Zlip is on screen, even as the Mini cover.</string>
+    <string name="error_start_rejected">The cover screen could not be opened. Try again while Zlip is on screen.</string>
+    <string name="error_session_failed">The cover screen closed unexpectedly.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_cover">Cover</string>
+    <string name="settings_section_controls">Controls</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_brightness">Brightness</string>
+    <string name="settings_brightness_desc">Dims the cover below its automatic brightness. Dark pixels use less power on OLED.</string>
+    <string name="settings_rotation">Rotation</string>
+    <string name="settings_rotation_desc">Turn the cover content if it looks sideways or upside down.</string>
+    <string name="settings_power_mode">Power mode</string>
+    <string name="power_saver">Saver</string>
+    <string name="power_balanced">Balanced</string>
+    <string name="power_smooth">Smooth</string>
+    <string name="power_saver_desc">Scrolling text and the cover refresh are capped at 20 fps. Longest battery life.</string>
+    <string name="power_balanced_desc">Capped at 30 fps. Smooth for text and GIFs, light on battery.</string>
+    <string name="power_smooth_desc">Up to 60 fps. Silkiest motion, uses the most battery.</string>
+    <string name="settings_standby">Inner screen standby</string>
+    <string name="settings_standby_desc">The inner screen has to stay on while the cover is on. After this idle time it goes black; tap to wake.</string>
+    <string name="settings_battery_tip">Tip: black backgrounds cost almost nothing on the cover\'s OLED panel. Videos use the most power.</string>
+    <string name="settings_auto_start">Start automatically</string>
+    <string name="settings_auto_start_desc">Turn the cover on when Zlip opens.</string>
+    <string name="settings_notification">Notification controls</string>
+    <string name="settings_notification_desc">Pause, skip or turn off the cover from the notification shade.</string>
+    <string name="settings_notification_denied">Notifications are off for Zlip.</string>
+    <string name="settings_notification_allow">Allow notifications</string>
+    <string name="settings_tile">Quick settings tile</string>
+    <string name="settings_tile_desc">Turn the cover on or off from quick settings.</string>
+    <string name="settings_tile_add">Add tile</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_privacy">Zlip has no internet access and collects no data. Your photos and videos never leave your phone.</string>
+    <string name="settings_show_intro">Show the introduction again</string>
+    <string name="duration_off">Off</string>
+    <string name="duration_seconds">%1$d s</string>
+    <string name="duration_minutes">%1$d min</string>
+
+    <!-- Pixel editor -->
+    <string name="pixel_title_new">New pixel art</string>
+    <string name="pixel_title_edit">Edit pixel art</string>
+    <string name="pixel_tool_pencil">Pencil</string>
+    <string name="pixel_tool_eraser">Eraser</string>
+    <string name="pixel_tool_fill">Fill</string>
+    <string name="pixel_tool_picker">Picker</string>
+    <string name="pixel_mirror">Mirror</string>
+    <string name="pixel_grid">Grid</string>
+    <string name="pixel_clear">Clear</string>
+    <string name="pixel_color">Color</string>
+    <string name="pixel_background">Background</string>
+    <string name="pixel_size">Canvas size</string>
+
+    <!-- Text editor -->
+    <string name="text_title_new">New text</string>
+    <string name="text_title_edit">Edit text</string>
+    <string name="text_field">Text</string>
+    <string name="text_placeholder">Type something…</string>
+    <string name="text_color">Text color</string>
+    <string name="text_size">Size: up to %1$d sp</string>
+    <string name="text_bold">Bold</string>
+    <string name="text_scroll">Scroll like an LED sign</string>
+    <string name="text_scroll_desc">Off shows the text still and centered.</string>
+    <string name="text_speed">Speed: %1$d</string>
+
+    <!-- Media editor -->
+    <string name="media_title_photo">Photo</string>
+    <string name="media_title_gif">GIF</string>
+    <string name="media_title_video">Video</string>
+    <string name="media_fit">Scaling</string>
+    <string name="media_fit_fit">Fit</string>
+    <string name="media_fit_fill">Fill</string>
+    <string name="media_loop">Loop</string>
+    <string name="media_loop_desc">Off plays once and holds the last frame.</string>
+    <string name="media_crisp">Sharp pixels</string>
+    <string name="media_crisp_desc">Best for pixel-art GIFs. Turn off for photos.</string>
+    <string name="media_background_hint">Shown around the image when it does not fill the screen.</string>
+    <string name="media_video_note">Zlip stored an optimized copy, so the original stays untouched.</string>
+
+    <!-- Unsaved-changes dialog (Save / Don't save / Cancel) -->
+    <string name="discard_title">Save changes?</string>
+    <string name="discard_body">It can\'t be saved yet. If you leave, your changes are lost.</string>
+    <string name="discard_confirm">Don\'t save</string>
+
+    <!-- Onboarding -->
+    <string name="intro_welcome_title">On the cover, even while open</string>
+    <string name="intro_welcome_body">Your photos, videos, text and drawings play on the cover. Your palm can\'t set anything off: double-tap the cover to unlock touch. Switch to another app and Zlip becomes the Mini cover, so the cover stays on.</string>
+    <string name="intro_skip">Skip</string>
+    <string name="intro_next">Next</string>
+    <string name="intro_start">Get started</string>
+    <string name="intro_allow_notifications">Allow notification controls</string>
+
+    <!-- Standby -->
+    <string name="standby_hint">Cover screen on · tap to wake</string>
+
+    <!-- Notification & tile -->
+    <string name="notif_channel">Cover controls</string>
+    <string name="notif_channel_desc">Cover controls while Zlip plays on the cover screen (pause, next, turn off).</string>
+    <string name="notif_title">Cover screen on</string>
+    <string name="notif_text_paused">%1$s · paused</string>
+    <string name="notif_text_editing">Showing your edit live</string>
+    <string name="widget_label">Zlip cover</string>
+    <string name="widget_description">Your Zlip playlist on the cover screen, even when folded. Tap for the screen saver.</string>
+    <string name="tile_label">Cover screen</string>
+    <string name="tile_on">On</string>
+    <string name="tile_off">Off</string>
+    <string name="tile_added">Tile added to quick settings</string>
+    <string name="tile_already_added">The tile is already in quick settings</string>
+    <string name="tile_not_added">The tile was not added</string>
+    <string name="tile_add_failed">Could not add the tile. Add it from the quick settings edit screen.</string>
+    <!-- Playlist & auto-advance -->
+    <string name="filter_playlist">Playlist</string>
+    <string name="home_playlist_tip">Tip: long-press items to pick several and make a playlist the cover rotates through.</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_select">Select</string>
+    <string name="playlist_position">Playlist position %1$d</string>
+    <string name="action_playlist_add">Add to playlist</string>
+    <string name="action_playlist_remove">Remove from playlist</string>
+    <string name="action_move_earlier">Move earlier</string>
+    <string name="action_move_later">Move later</string>
+    <string name="advance_title">Auto-advance</string>
+    <string name="advance_off">Off</string>
+    <string name="advance_smart">Smart</string>
+    <string name="advance_timer">Timer</string>
+    <string name="advance_off_desc">The chosen item stays on the cover.</string>
+    <string name="advance_smart_desc">Photos and drawings change when the time is up; videos, GIFs, scrolling text and sequences finish first.</string>
+    <string name="advance_timer_desc">Every item shows for the same time; sequences play to the end.</string>
+    <string name="advance_min_time">At least this long per item</string>
+    <string name="advance_time">Time per item</string>
+    <string name="advance_shuffle">Shuffle</string>
+    <string name="advance_shuffle_desc">Random order, no repeats until all have played</string>
+    <string name="advance_repeat">Loop</string>
+    <string name="advance_repeat_desc">Start over after the last item</string>
+    <string name="advance_playlist_hint">With a playlist, only its items rotate; otherwise the whole library does.</string>
+    <plurals name="playlist_count">
+        <item quantity="one">%d in playlist</item>
+        <item quantity="other">%d in playlist</item>
+    </plurals>
+    <plurals name="selection_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <plurals name="home_delete_many">
+        <item quantity="one">%d item will be removed from your library.</item>
+        <item quantity="other">%d items will be removed from your library.</item>
+    </plurals>
+    <!-- Folded cover (widget + live view) -->
+    <string name="widget_empty">Open Zlip and pick something for the cover</string>
+    <string name="settings_section_folded">When folded</string>
+    <string name="folded_placed">The cover widget is on your cover screen</string>
+    <string name="folded_not_placed">Add the cover widget</string>
+    <string name="folded_desc">When folded, your content shows on the cover even while Zlip is closed. Tap the widget for the screen saver in front of the lock screen: swipe sideways to browse, swipe up for the menu, swipe down for the lock screen.</string>
+    <string name="folded_steps">1. Settings → Cover screen → Widgets (or, folded, touch and hold the cover screen → Edit).\n2. Add \"Zlip cover\".\n3. Fold the phone: your content is there.</string>
+    <string name="settings_cover_clock">Clock on the cover</string>
+    <string name="settings_cover_clock_desc">When folded: in the widget and the screen saver.</string>
+    <string name="home_widget_tip_title">Show it when folded too</string>
+    <string name="home_widget_tip_body">Add the Zlip widget to your cover screen and your content plays there even when Zlip is closed.</string>
+    <string name="home_widget_tip_action">How?</string>
+    <string name="type_collage">Collage</string>
+    <string name="badge_collage">Collage</string>
+    <string name="home_add_collage_desc">Several pictures at once, each cell loops</string>
+    <string name="collage_title_new">New collage</string>
+    <string name="collage_title_edit">Edit collage</string>
+    <string name="collage_tap_hint">Tap a cell to choose what it plays</string>
+    <string name="collage_layout">Layout</string>
+    <string name="collage_layout_side">Side by side</string>
+    <string name="collage_layout_stacked">Stacked</string>
+    <string name="collage_layout_big_left">Big left</string>
+    <string name="collage_layout_big_top">Big top</string>
+    <string name="collage_layout_grid">Grid</string>
+    <string name="collage_cells">Cells</string>
+    <string name="collage_cell">Cell %1$d</string>
+    <string name="collage_cell_empty">Empty, tap to fill</string>
+    <string name="collage_autofill">Fill automatically</string>
+    <string name="collage_empty_library">Add photos, GIFs, drawings or text first.</string>
+    <string name="collage_interval">Each cell changes every</string>
+    <string name="collage_gap">Spacing</string>
+    <string name="collage_gap_none">None</string>
+    <string name="collage_gap_thin">Thin</string>
+    <string name="collage_gap_wide">Wide</string>
+    <string name="collage_rounded">Rounded corners</string>
+    <string name="collage_pick_title">Cell %1$d</string>
+    <string name="collage_pick_hint">Tap in the order they should play. Videos in a collage play muted.</string>
+    <string name="action_done">Done</string>
+    <plurals name="collage_cell_items">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <string name="media_sound">Play with sound</string>
+    <string name="media_sound_desc">Only on the cover screen. Turn it off any time from the cover or the notification.</string>
+    <string name="media_sound_none">This clip has no sound (or it was added before sound was supported).</string>
+    <string name="action_sound_on">Sound on</string>
+    <string name="action_sound_off">Mute</string>
+    <string name="cover_close">Close screen saver</string>
+    <string name="type_countdown">Countdown</string>
+    <string name="type_qr">QR card</string>
+    <string name="type_toy">Cover toy</string>
+    <string name="badge_countdown">Countdown</string>
+    <string name="badge_qr">QR</string>
+    <string name="badge_toy">Toy</string>
+    <string name="filter_tools">Smart cards</string>
+    <string name="home_add_countdown_desc">Days until a trip, a birthday, anything</string>
+    <string name="home_add_qr_desc">Wi-Fi, a link or your contact, ready to scan</string>
+    <string name="home_add_toy_desc">Dice, coin, magic ball and more, with a tap</string>
+    <string name="guard_channel">Always show on the cover</string>
+    <string name="guard_channel_desc">Keeps the screen saver ready while the phone is folded.</string>
+    <string name="guard_notif_title">Screen saver is ready</string>
+    <string name="guard_notif_text">Zlip shows whenever the cover wakes. You can swipe this notification away.</string>
+    <string name="settings_stay_on">Stays lit</string>
+    <string name="settings_stay_on_desc">After the last touch on the folded cover.</string>
+    <string name="stay_on_system">Cover default</string>
+    <string name="stay_on_always">Always on</string>
+    <string name="settings_nightstand">Always on while charging</string>
+    <string name="settings_nightstand_desc">A dim bedside clock with your content while the phone charges.</string>
+    <string name="settings_auto_show">Always show on the cover</string>
+    <string name="settings_auto_show_desc">On every wake, in front of the lock screen, even when Zlip is closed.</string>
+    <string name="settings_auto_show_missing">Until you allow Appear on top, the folded cover only shows the widget.</string>
+    <string name="settings_auto_show_allow">Allow</string>
+    <string name="auto_show_dialog_title">Always show on the cover</string>
+    <string name="auto_show_dialog_body">To open by itself on the folded cover, Zlip needs the Appear on top permission: find Zlip in the list and turn it on. A quiet service only listens for the screens turning on and off, so the battery cost is close to none. You can turn it off any time.</string>
+    <string name="settings_led">LED matrix look</string>
+    <string name="settings_led_desc">Everything on the cover glows as dots, like an LED sign.</string>
+    <string name="settings_led_density">Dots</string>
+    <string name="led_density_low">Big</string>
+    <string name="led_density_mid">Medium</string>
+    <string name="led_density_high">Fine</string>
+    <string name="settings_led_color">Color</string>
+    <string name="led_color_original">Original</string>
+    <string name="led_color_red">Red</string>
+    <string name="led_color_amber">Amber</string>
+    <string name="led_color_green">Green</string>
+    <string name="led_color_blue">Ice</string>
+    <string name="led_color_white">White</string>
+    <string name="settings_video_sound">New videos start with sound</string>
+    <string name="settings_video_sound_desc">You can still mute each one, on the cover or in its settings.</string>
+    <string name="add_section_media">From your gallery</string>
+    <string name="add_section_create">Make your own</string>
+    <string name="add_section_smart">Smart cards</string>
+    <string name="text_presets_title">Quick messages</string>
+    <string-array name="text_presets">
+        <item>Back in 5 minutes</item>
+        <item>In a meeting</item>
+        <item>Do not disturb</item>
+        <item>Hello! 👋</item>
+        <item>Happy birthday! 🎉</item>
+        <item>Thank you! ♥</item>
+    </string-array>
+    <string name="intro_folded_title">A screen saver when folded</string>
+    <string name="intro_folded_body">Add the Zlip widget to the cover and tap it: your content plays in front of the lock screen. Swipe sideways to browse, swipe up for the menu, swipe down for the lock screen. Opening the phone puts it away by itself.</string>
+    <string name="cover_show_controls">Show controls</string>
+    <string name="cover_to_lock_screen">Back to lock screen</string>
+    <string name="color_black">Black</string>
+    <string name="color_white">White</string>
+    <string name="color_grey">Grey</string>
+    <string name="color_dark_grey">Dark grey</string>
+    <string name="color_pink">Pink</string>
+    <string name="color_red">Red</string>
+    <string name="color_orange">Orange</string>
+    <string name="color_yellow">Yellow</string>
+    <string name="color_green">Green</string>
+    <string name="color_mint">Mint</string>
+    <string name="color_sky">Sky blue</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_periwinkle">Periwinkle</string>
+    <string name="color_lavender">Lavender</string>
+    <string name="color_magenta">Magenta</string>
+    <string name="color_brown">Brown</string>
+    <string name="color_custom">Custom color</string>
+</resources>
