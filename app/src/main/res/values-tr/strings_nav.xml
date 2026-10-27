@@ -6,4 +6,11 @@
     <string name="action_previous_item">Önceki içerik</string>
     <string name="action_next_item">Sonraki içerik</string>
     <string name="cover_group_step">Adım %1$d/%2$d</string>
+    <!-- Kapak: menü düğmesi, kilitli açık telefon kapağı, TalkBack -->
+    <string name="cover_menu_label">Menü</string>
+    <string name="cover_locked_hint">Kullanmak için iki kez dokun</string>
+    <string name="cover_controls_hide">Kontrolleri gizle</string>
+    <!-- Bildirim ve Mini kapak durumu -->
+    <string name="notif_list_position">Listede %1$d/%2$d</string>
+    <string name="notif_paused">Duraklatıldı</string>
 </resources>

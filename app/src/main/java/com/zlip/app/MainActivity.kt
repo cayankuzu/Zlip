@@ -258,6 +258,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             app.cover.closeRefused.collect { if (isInPictureInPictureMode) moveTaskToBack(true) }
         }
+        // Turned off from the cover's ×, the notification or the tile: the small window goes with it, so "off" is
+        // complete. Only hidden, never finished: an import still running finishes in the library.
+        lifecycleScope.launch {
+            app.hideMiniWindow.collect { if (isInPictureInPictureMode) moveTaskToBack(true) }
+        }
         // The optional always-show service may only be started while Zlip is on screen.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -426,7 +431,7 @@ class MainActivity : ComponentActivity() {
                         app.cover.resetAutoStart()
                         app.cover.start(this)
                     },
-                    onStopCover = app::stopCover,
+                    onStopCover = { app.stopCover() },
                     onOpeningPicker = { openingPicker = true },
                     // Typing and touches in our own sheets never reach onUserInteraction.
                     onWake = ::noteUserActivity,

@@ -20,6 +20,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -61,7 +64,8 @@ class ZlipApp : Application() {
         playback = CoverPlayback(repository, appScope)
         sessions = CoverSessions(this, playback)
         mirror = MirrorController(this, repository, appScope)
-        cover = CoverDisplayController(repository, playback, sessions, mirror, appScope)
+        // The cover's own ×: the same "off" as Home, the notification and the tile.
+        cover = CoverDisplayController(repository, playback, sessions, mirror, appScope) { stopCover(hideMiniWindow = true) }
         // Nothing moves on out of sight while the cover mirrors the inner screen.
         playback.runAutoAdvance(cover.status, mirror.state.map { it == MirrorState.ON })
         mirror.followCover(cover.status)
@@ -99,10 +103,23 @@ class ZlipApp : Application() {
         }
     }
 
-    /** The user turned the cover off (in Zlip, from a notification, the tile or the small window). */
-    fun stopCover() {
+    private val _hideMiniWindow = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /**
+     * The cover was turned off from outside the full-size app (its own ×, the notification, the tile): Zlip's small
+     * window, if it floats over another app, goes too, so "off" is complete. A cover that ended by itself (a fold,
+     * the screen lock, a timeout) keeps the window as the way back on.
+     */
+    val hideMiniWindow: SharedFlow<Unit> = _hideMiniWindow.asSharedFlow()
+
+    /**
+     * The user turned the cover off (in Zlip, from the cover's ×, a notification, the tile or the small window).
+     * [hideMiniWindow]: the request came from outside the full-size app, so the small window closes with it.
+     */
+    fun stopCover(hideMiniWindow: Boolean = false) {
         mirror.stop()
         cover.stop(byUser = true)
+        if (hideMiniWindow) _hideMiniWindow.tryEmit(Unit)
     }
 }
 
