@@ -8,29 +8,45 @@ import org.junit.Test
 
 class HoverButtonsTest {
 
-    private val trio = listOf(HoverButton.PREVIOUS, HoverButton.PLAY_PAUSE, HoverButton.NEXT)
-
     @Test
-    fun theTrioHoldsTheFirstThreeSlotsWheneverMovesGoSomewhere() {
+    fun playPauseAndNextAlwaysHoldTheFirstTwoSlots() {
         for (media in listOf(false, true)) {
             for (group in listOf(false, true)) {
-                assertEquals(trio, hoverButtons(coverOn = true, mirroring = false, media = media, group = group, canMove = true, max = 3))
+                val shown = hoverButtons(coverOn = true, mirroring = false, media = media, group = group, canMove = true, max = 3)
+                assertEquals(listOf(HoverButton.PLAY_PAUSE, HoverButton.NEXT), shown.take(2))
             }
         }
     }
 
     @Test
-    fun roomForMoreAddsNextItemThenFitThenTurningOff() {
+    fun aPhotoOrVideoKeepsFitOrFillInTheThirdSlot() {
         assertEquals(
-            trio + listOf(HoverButton.NEXT_ITEM, HoverButton.MEDIA_FIT),
-            hoverButtons(coverOn = true, mirroring = false, media = true, group = true, canMove = true, max = 5),
+            listOf(HoverButton.PLAY_PAUSE, HoverButton.NEXT, HoverButton.MEDIA_FIT),
+            hoverButtons(coverOn = true, mirroring = false, media = true, group = false, canMove = true, max = 3),
         )
+        // A group with a photo or video among its steps too: stepping never moves the buttons.
         assertEquals(
-            trio + listOf(HoverButton.NEXT_ITEM, HoverButton.MEDIA_FIT, HoverButton.COVER_OFF),
+            listOf(HoverButton.PLAY_PAUSE, HoverButton.NEXT, HoverButton.MEDIA_FIT),
+            hoverButtons(coverOn = true, mirroring = false, media = true, group = true, canMove = true, max = 3),
+        )
+    }
+
+    @Test
+    fun anythingElseOffersPreviousInTheThirdSlot() {
+        assertEquals(
+            listOf(HoverButton.PLAY_PAUSE, HoverButton.NEXT, HoverButton.PREVIOUS),
+            hoverButtons(coverOn = true, mirroring = false, media = false, group = true, canMove = true, max = 3),
+        )
+    }
+
+    @Test
+    fun roomForMoreAddsPreviousThenNextItemThenTurningOff() {
+        assertEquals(
+            listOf(HoverButton.PLAY_PAUSE, HoverButton.NEXT, HoverButton.MEDIA_FIT, HoverButton.PREVIOUS, HoverButton.NEXT_ITEM, HoverButton.COVER_OFF),
             hoverButtons(coverOn = true, mirroring = false, media = true, group = true, canMove = true, max = 8),
         )
         assertEquals(
-            trio + HoverButton.COVER_OFF,
+            listOf(HoverButton.PLAY_PAUSE, HoverButton.NEXT, HoverButton.PREVIOUS, HoverButton.COVER_OFF),
             hoverButtons(coverOn = true, mirroring = false, media = false, group = false, canMove = true, max = 5),
         )
     }
@@ -39,7 +55,7 @@ class HoverButtonsTest {
     fun aSingleItemAloneSpendsNoSlotOnMovesThatGoNowhere() {
         // Fit / Fill stays in reach of a lone photo or video, and the cover can be turned off with the window kept.
         assertEquals(
-            listOf(HoverButton.MEDIA_FIT, HoverButton.PLAY_PAUSE, HoverButton.COVER_OFF),
+            listOf(HoverButton.PLAY_PAUSE, HoverButton.MEDIA_FIT, HoverButton.COVER_OFF),
             hoverButtons(coverOn = true, mirroring = false, media = true, group = false, canMove = false, max = 3),
         )
         assertEquals(
@@ -67,7 +83,7 @@ class HoverButtonsTest {
     @Test
     fun lessRoomKeepsWhatMattersMost() {
         assertEquals(
-            listOf(HoverButton.PREVIOUS, HoverButton.PLAY_PAUSE),
+            listOf(HoverButton.PLAY_PAUSE, HoverButton.NEXT),
             hoverButtons(coverOn = true, mirroring = false, media = true, group = false, canMove = true, max = 2),
         )
         assertEquals(listOf(HoverButton.MIRROR_VIEW), hoverButtons(coverOn = true, mirroring = true, media = false, group = false, canMove = true, max = 1))

@@ -824,22 +824,23 @@ private data class HoverItem(val name: String?, val media: Boolean, val group: B
 internal enum class HoverButton { MIRROR_VIEW, MIRROR_STOP, PREVIOUS, PLAY_PAUSE, NEXT, NEXT_ITEM, MEDIA_FIT, COVER_OFF, COVER_ON }
 
 /**
- * The small window's buttons, in order, cut to the [max] Android shows (usually three). With the cover on, ⏮ ⏯ ⏭ come
- * first and never move, like the cover's own; room for more adds next item ([group]: a group that can be left), Fit /
- * Fill ([media], see [hoverOffersFit]) and turning the cover off. When ⏮ and ⏭ would go nowhere (![canMove]: a single
- * item alone in the rotation), Fit / Fill, ⏯ and turning off take the three slots instead. The window's own close
- * button comes from the system, so none of these is spent on it. Pure, so it is unit-tested.
+ * The small window's buttons, in order, cut to the [max] Android shows (usually three). With the cover on, ⏯ and ⏭ come
+ * first and never move; the third is Fit / Fill for a photo or video ([media], see [hoverOffersFit]), which the user
+ * asked to have in the window, and ⏮ otherwise. Room for more adds ⏮ (after Fit / Fill), next item ([group]: a group
+ * that can be left) and turning the cover off. When moves would go nowhere (![canMove]: a single item alone in the
+ * rotation), ⏯, Fit / Fill and turning off take the slots instead. The window's own close button comes from the
+ * system, so none of these is spent on it. Pure, so it is unit-tested.
  */
 internal fun hoverButtons(coverOn: Boolean, mirroring: Boolean, media: Boolean, group: Boolean, canMove: Boolean, max: Int): List<HoverButton> {
     val all = when {
         coverOn && mirroring -> listOf(HoverButton.MIRROR_VIEW, HoverButton.MIRROR_STOP, HoverButton.COVER_OFF)
-        coverOn && !canMove -> listOfNotNull(HoverButton.MEDIA_FIT.takeIf { media }, HoverButton.PLAY_PAUSE, HoverButton.COVER_OFF)
+        coverOn && !canMove -> listOfNotNull(HoverButton.PLAY_PAUSE, HoverButton.MEDIA_FIT.takeIf { media }, HoverButton.COVER_OFF)
         coverOn -> listOfNotNull(
-            HoverButton.PREVIOUS,
             HoverButton.PLAY_PAUSE,
             HoverButton.NEXT,
+            if (media) HoverButton.MEDIA_FIT else HoverButton.PREVIOUS,
+            HoverButton.PREVIOUS.takeIf { media },
             HoverButton.NEXT_ITEM.takeIf { group },
-            HoverButton.MEDIA_FIT.takeIf { media },
             HoverButton.COVER_OFF,
         )
         else -> listOf(HoverButton.COVER_ON)
