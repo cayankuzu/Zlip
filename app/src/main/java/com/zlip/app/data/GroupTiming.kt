@@ -52,7 +52,7 @@ object GroupTiming {
 
     /**
      * Upper bound for one more pass of [item] once its minimum time is over. A video's comes from its length
-     * (the import cap when that is not known yet); a marquee can take far longer than a GIF (300 characters
+     * ([UNKNOWN_VIDEO_MS] when that is not known yet); a marquee can take far longer than a GIF (300 characters
      * of large text crawling slowly), so its bound comes from the text itself, with room for font scaling.
      */
     fun extraWaitMs(item: CoverItem): Long = when (item) {
@@ -67,9 +67,15 @@ object GroupTiming {
         else -> MAX_EXTRA_WAIT_MS
     }
 
-    /** Longest one play of [video] from its start can take: its length, or the import cap when unknown. */
+    /**
+     * A clip whose length could not be read is waited for at most this long. Lengths are measured at import
+     * (and once for older clips), so this only bounds the wait if a clip never reports its end.
+     */
+    const val UNKNOWN_VIDEO_MS = 10 * 60_000L
+
+    /** Longest one play of [video] from its start can take: its length, or [UNKNOWN_VIDEO_MS] when unknown. */
     fun videoPassMs(video: CoverItem.Media): Long =
-        (if (video.durationMs > 0) video.durationMs else MediaImport.MAX_VIDEO_MS) + SLACK_MS
+        (if (video.durationMs > 0) video.durationMs else UNKNOWN_VIDEO_MS) + SLACK_MS
 
     /** The photo time of [group]: how long each still step stays. */
     fun stepMs(group: CoverItem.Group): Long = group.stepSeconds * 1_000L

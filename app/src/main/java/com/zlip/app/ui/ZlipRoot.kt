@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -64,9 +65,9 @@ import com.zlip.app.cover.CoverStatus
 import com.zlip.app.cover.coverHoverSupported
 import com.zlip.app.cover.mirror.MirrorState
 import com.zlip.app.data.CoverItem
-import com.zlip.app.data.MediaImport
 import com.zlip.app.data.MediaKind
 import com.zlip.app.data.MediaTooLargeException
+import com.zlip.app.data.NotEnoughSpaceException
 import com.zlip.app.data.VideoConversionException
 import com.zlip.app.render.Playback
 import com.zlip.app.system.CoverTileService
@@ -359,21 +360,13 @@ fun ZlipRoot(
 
     fun isCurrentImport(running: CoroutineScope) = importJob === running.coroutineContext[Job]
 
-    /** Some videos were longer than the import cap: only their beginning came in. */
-    fun showClipped(count: Int) {
-        if (count <= 0) return
-        val minutes = (MediaImport.MAX_VIDEO_MS / 60_000L).toInt()
-        val message = resources.getQuantityString(R.plurals.import_video_clipped, count, count, minutes)
-        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-    }
-
     fun importUri(uri: Uri) {
         startImport {
             // The user waits without touching anything: an import is activity, so the idle cutoff waits too.
             currentOnWake()
             importProgress = -1f
             try {
-                repository.importMedia(uri, onClipped = { showClipped(1) }) { importProgress = it }
+                repository.importMedia(uri) { importProgress = it }
                     .onSuccess { item ->
                         // Never replace an editor the user opened meanwhile; the item is in the library either way.
                         if (screen == Screen.Home) {
@@ -386,6 +379,7 @@ fun ZlipRoot(
                     .onFailure { error ->
                         val message = when (error) {
                             is MediaTooLargeException -> context.getString(R.string.import_too_large, error.limitMb)
+                            is NotEnoughSpaceException -> context.getString(R.string.import_no_space, error.neededMb)
                             is VideoConversionException -> context.getString(R.string.import_video_failed)
                             else -> context.getString(R.string.import_failed)
                         }
@@ -405,16 +399,20 @@ fun ZlipRoot(
         startImport {
             val added = mutableListOf<String>()
             var failed = 0
-            var clipped = 0
+            // A full phone fails every file after it the same way: said once, with what it needs.
+            var noSpace: NotEnoughSpaceException? = null
             try {
                 uris.forEachIndexed { index, uri ->
                     // Each file counts as activity (a batch of videos outlasts the idle cutoff); one file is short.
                     currentOnWake()
                     importCount = index + 1 to uris.size
                     importProgress = -1f
-                    repository.importMedia(uri, select = false, onClipped = { clipped++ }) { importProgress = it }
+                    repository.importMedia(uri, select = false) { importProgress = it }
                         .onSuccess { added += it.id }
-                        .onFailure { failed++ }
+                        .onFailure { error ->
+                            failed++
+                            if (error is NotEnoughSpaceException) noSpace = error
+                        }
                 }
             } finally {
                 if (isCurrentImport(this)) {
@@ -422,8 +420,8 @@ fun ZlipRoot(
                     importCount = null
                     importJob = null
                 }
+                noSpace?.let { Toast.makeText(context, context.getString(R.string.import_no_space, it.neededMb), Toast.LENGTH_LONG).show() }
                 // After Cancel too: whatever came in so far is in the library.
-                showClipped(clipped)
                 onDone(added, failed)
             }
         }
@@ -830,6 +828,8 @@ fun ZlipRoot(
             )
         }
 
+        // A long video takes minutes to convert: the screen must not time out (and stop the cover) meanwhile.
+        if (importProgress != null) KeepScreenOn()
         importProgress?.takeUnless { hovering }?.let { progress ->
             val count = importCount?.takeIf { (_, total) -> total > 1 }
             AlertDialog(
@@ -911,3 +911,13 @@ private const val MAX_GALLERY_PICK = 20
 
 /** How long after standby ends a Back still only wakes the screen (its start already ended standby). */
 private const val WAKE_BACK_GRACE_MS = 600L
+
+/** Keeps the screen on while this is shown, so a long video conversion is never cut short by the screen timeout. */
+@Composable
+private fun KeepScreenOn() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
+}

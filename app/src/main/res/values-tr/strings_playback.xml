@@ -34,9 +34,5 @@
     <string name="duration_hours">%1$d sa</string>
     <string name="duration_hours_minutes">%1$d sa %2$d dk</string>
 
-    <!-- İçe aktarma sonrası: sınırdan uzun video -->
-    <plurals name="import_video_clipped">
-        <item quantity="one">Video %2$d dakikadan uzundu, ilk %2$d dakikası eklendi.</item>
-        <item quantity="other">%1$d video %2$d dakikadan uzundu, ilk %2$d dakikaları eklendi.</item>
-    </plurals>
+    <string name="import_no_space">Bu video için yeterli boş alan yok. Yaklaşık %1$d MB gerekiyor.</string>
 </resources>

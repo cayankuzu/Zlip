@@ -51,27 +51,26 @@ class MediaUnreadableException(cause: Throwable? = null) : IOException(cause)
 /** The video could not be converted for the cover screen. */
 class VideoConversionException(cause: Throwable? = null) : IOException(cause)
 
-/** What [MediaImport.transcodeVideo] made: whether the clip kept sound, and whether the source was longer than the cap. */
-internal data class TranscodedVideo(val hasAudio: Boolean, val clipped: Boolean)
+/** The converted video would not fit in the phone's free space; [neededMb] is roughly what it needs. */
+class NotEnoughSpaceException(val neededMb: Int) : IOException("About $neededMb MB of free space needed")
 
 /**
  * Prepares picked media so the cover can show it at the lowest possible cost: photos are downscaled
  * once to [MAX_PHOTO_EDGE], videos are re-encoded to SDR H.264 at most [VIDEO_SHORT_SIDE]p / 30 fps and
  * about [VIDEO_BITRATE] (audio kept as AAC when there is any), so playback is a light hardware decode
- * instead of a full-size 4K/HDR stream, and a five-minute clip stays near 80 MB.
+ * instead of a full-size 4K/HDR stream. Clips are kept whole, however long: a minute comes to about 16 MB.
  */
 internal object MediaImport {
     const val MAX_ANIMATION_BYTES: Long = 30L * 1024 * 1024
     const val MAX_PHOTO_EDGE = 1440
     const val VIDEO_SHORT_SIDE = 720
     const val VIDEO_FPS = 30f
-    const val MAX_VIDEO_MS = 300_000L
-    /** Plenty for 720p on a 3.4" cover: 5 minutes come to about 75 MB of video. */
+    /** Plenty for 720p on a 3.4" cover: a minute comes to about 15 MB of video. */
     const val VIDEO_BITRATE = 2_000_000
     /** A low-bitrate source is re-encoded at its own rate (it cannot gain anything), but never below this. */
     private const val MIN_VIDEO_BITRATE = 600_000
-    /** A source at most this much longer than [MAX_VIDEO_MS] is not worth telling the user about. */
-    private const val CLIP_TOLERANCE_MS = 1_000L
+    /** Free space left over after a long clip, so an import never fills the phone to the brim. */
+    private const val SPACE_MARGIN_BYTES = 100L * 1024 * 1024
     private const val POSTER_EDGE = 480
     private const val AUDIO_BITRATE = 128_000
 
@@ -146,24 +145,39 @@ internal object MediaImport {
     }
 
     /**
-     * Re-encodes the first [MAX_VIDEO_MS] of [source] into [destination]; reports 0..1 progress. Keeps the
+     * Re-encodes all of [source] into [destination], however long it is; reports 0..1 progress. Keeps the
      * audio track when there is one; if that audio cannot be converted, the clip is imported silent
-     * rather than not at all.
+     * rather than not at all. Fails with [NotEnoughSpaceException] before converting anything when the result
+     * would not fit. Returns whether [destination] has audio.
      */
-    suspend fun transcodeVideo(context: Context, source: Uri, destination: File, onProgress: (Float) -> Unit): TranscodedVideo {
+    suspend fun transcodeVideo(context: Context, source: Uri, destination: File, onProgress: (Float) -> Unit): Boolean {
         val probe = withContext(Dispatchers.IO) { probe(context, source) }
-        val clipped = probe.durationMs > MAX_VIDEO_MS + CLIP_TOLERANCE_MS
         val bitrate = if (probe.bitrate in 1 until VIDEO_BITRATE) probe.bitrate.coerceAtLeast(MIN_VIDEO_BITRATE) else VIDEO_BITRATE
+        withContext(Dispatchers.IO) { ensureRoomFor(destination, probe.durationMs, bitrate) }
         if (probe.hasAudio) {
             try {
                 export(context, source, destination, probe.shortSide, bitrate, keepAudio = true, onProgress)
-                return TranscodedVideo(hasAudio = withContext(Dispatchers.IO) { hasAudio { setDataSource(destination.absolutePath) } }, clipped)
+                return withContext(Dispatchers.IO) { hasAudio { setDataSource(destination.absolutePath) } }
             } catch (e: VideoConversionException) {
                 withContext(Dispatchers.IO) { destination.delete() }
             }
         }
         export(context, source, destination, probe.shortSide, bitrate, keepAudio = false, onProgress)
-        return TranscodedVideo(hasAudio = false, clipped)
+        return false
+    }
+
+    /**
+     * Roughly how many bytes [durationMs] of video at [bitrate] take once converted, audio and container
+     * included; null when the length is unknown. Pure, so it is unit-tested.
+     */
+    fun estimatedBytes(durationMs: Long, bitrate: Int): Long? =
+        if (durationMs <= 0L || bitrate <= 0) null else durationMs * (bitrate.toLong() + AUDIO_BITRATE) / 8_000L * 11 / 10
+
+    /** Fails with [NotEnoughSpaceException] when the converted clip would not fit beside [destination]; an unknown length is not checked. */
+    private fun ensureRoomFor(destination: File, durationMs: Long, bitrate: Int) {
+        val needed = (estimatedBytes(durationMs, bitrate) ?: return) + SPACE_MARGIN_BYTES
+        val free = destination.parentFile?.usableSpace ?: return
+        if (free in 1 until needed) throw NotEnoughSpaceException((needed / (1024 * 1024)).toInt())
     }
 
     /** Length of the video [file] in milliseconds, or 0 if it cannot be read. */
@@ -226,16 +240,14 @@ internal object MediaImport {
                                 if (continuation.isActive) continuation.resumeWithException(VideoConversionException(exportException))
                             }
                         })
-                        val clipped = MediaItem.Builder()
-                            .setUri(source)
-                            .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setEndPositionMs(MAX_VIDEO_MS).build())
-                            .build()
+                        // The whole clip, however long: the cover plays a video to its end.
+                        val whole = MediaItem.fromUri(source)
                         // Never upscale: small clips stay at their own size.
                         val effects = buildList<Effect> {
                             if (shortSide == 0 || shortSide > VIDEO_SHORT_SIDE) add(Presentation.createForShortSide(VIDEO_SHORT_SIDE))
                             add(FrameDropEffect.createDefaultFrameDropEffect(VIDEO_FPS))
                         }
-                        val edited = EditedMediaItem.Builder(clipped)
+                        val edited = EditedMediaItem.Builder(whole)
                             .setRemoveAudio(!keepAudio)
                             .setEffects(Effects(emptyList(), effects))
                             .build()
