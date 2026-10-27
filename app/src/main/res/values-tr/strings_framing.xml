@@ -5,4 +5,8 @@
 
     <string name="media_frame_reset">Sıfırla</string>
     <string name="media_frame_reset_desc">Yakınlaştırmayı ve kadrajı sıfırla</string>
+
+    <string name="cover_zoom_hint">Kaydırarak gez · Geçmek için uzaklaştır</string>
+
+    <string name="pip_close">Mini kapağı kapat</string>
 </resources>

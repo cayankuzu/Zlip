@@ -24,11 +24,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Pinch
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -53,13 +56,15 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleStartEffect
 import com.zlip.app.R
+import com.zlip.app.data.MediaFit
 import java.text.DateFormat
 import java.util.Date
 
 /**
  * On-cover controls, shown after a tap (folded) or the unlocking double tap (open phone). Big targets
- * for a small screen: previous / play-pause / next in the middle, sound and close at the edges, and on
- * the folded cover the way into its menu. Kept clear of the cover's camera cutout, if it has one.
+ * for a small screen: previous / play-pause / next in the middle, sound and close at the edges, Fit / Fill
+ * for a photo or video, and on the folded cover the way into its menu. Kept clear of the cover's camera
+ * cutout, if it has one.
  */
 @Composable
 internal fun CoverControls(
@@ -74,6 +79,10 @@ internal fun CoverControls(
     onNext: () -> Unit,
     onToggleSound: () -> Unit,
     onClose: (() -> Unit)?,
+    /** How the photo or video on the cover is fitted; null when it shows something else. */
+    mediaFit: MediaFit? = null,
+    /** Switches it to the other fit, not zoomed and centred (also the way back from any zoom). */
+    onSwitchFit: () -> Unit = {},
     /** Opens the folded cover's menu; null on the open phone, which has none. */
     onOpenMenu: (() -> Unit)? = null,
     /** The item takes taps itself (a toy): keep the middle free, skip from the edges, no pause. */
@@ -139,6 +148,23 @@ internal fun CoverControls(
                     stringResource(if (soundOn) R.string.action_sound_off else R.string.action_sound_on),
                     onToggleSound,
                     size = 52,
+                )
+            }
+        }
+
+        if (mediaFit != null) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 10.dp, bottom = 14.dp),
+            ) {
+                // Says what a press does: a fitted picture fills the cover, a filled one fits.
+                val fitted = mediaFit == MediaFit.FIT
+                ControlButton(
+                    if (fitted) Icons.Filled.ZoomOutMap else Icons.Filled.FitScreen,
+                    stringResource(if (fitted) R.string.media_fit_fill else R.string.media_fit_fit),
+                    onSwitchFit,
+                    size = 44,
                 )
             }
         }
@@ -216,6 +242,25 @@ internal fun PausedBadge(modifier: Modifier = Modifier) {
         Icon(Icons.Filled.Pause, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
         Text(stringResource(R.string.cover_paused), color = Color.White, fontSize = 11.sp)
+    }
+}
+
+/**
+ * How a zoomed-in photo or video is moved, for a moment the first time in a session: one finger moves it, and only
+ * once it is zoomed out do swipes change the item again. Not for TalkBack, which zooms with actions.
+ */
+@Composable
+internal fun ZoomHint(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .clearAndSetSemantics {}
+            .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(50))
+            .padding(start = 10.dp, end = 14.dp, top = 7.dp, bottom = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.Pinch, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(stringResource(R.string.cover_zoom_hint), color = Color.White, fontSize = 13.sp)
     }
 }
 

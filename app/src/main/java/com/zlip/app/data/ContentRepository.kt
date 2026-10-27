@@ -1,6 +1,7 @@
 package com.zlip.app.data
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -663,4 +664,15 @@ object MediaStorage {
     fun dir(context: Context): File = File(context.filesDir, "media").apply { mkdirs() }
 
     fun file(context: Context, fileName: String): File = File(dir(context), fileName)
+
+    /**
+     * Width / height of [media]'s picture as stored (a video's from its poster frame), or 0 when it cannot be read.
+     * Reads only the file's header, so it is cheap, but still file access: call it off the main thread.
+     */
+    fun aspect(context: Context, media: CoverItem.Media): Float {
+        val name = (if (media.kind == MediaKind.VIDEO) media.posterFileName else media.fileName) ?: return 0f
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        runCatching { BitmapFactory.decodeFile(file(context, name).path, bounds) }
+        return if (bounds.outWidth > 0 && bounds.outHeight > 0) bounds.outWidth.toFloat() / bounds.outHeight else 0f
+    }
 }

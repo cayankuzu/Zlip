@@ -42,6 +42,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.zlip.app.cover.CoverStatus
 import com.zlip.app.cover.coverHoverSupported
 import com.zlip.app.cover.mirror.MirrorState
+import com.zlip.app.data.CoverItem
+import com.zlip.app.data.MediaFit
 import com.zlip.app.system.CoverActionReceiver
 import com.zlip.app.system.CoverGuard
 import com.zlip.app.system.CoverNotifier
@@ -253,6 +255,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             app.cover.closeRefused.collect { if (isInPictureInPictureMode) moveTaskToBack(true) }
         }
+        // The small window's close button: the cover is off already (CoverActionReceiver), the window goes too. Only
+        // Zlip's window closes; everything the user made stays.
+        lifecycleScope.launch {
+            app.cover.closeHoverRequests.collect { if (isInPictureInPictureMode) finish() }
+        }
         // The optional always-show service may only be started while Zlip is on screen.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -287,10 +294,11 @@ class MainActivity : ComponentActivity() {
                 combine(
                     app.cover.status,
                     combine(app.repository.settings.map { it.keepCoverInOtherApps }.distinctUntilChanged(), editorDirty, ::Pair),
-                    app.playback.paused,
+                    // The photo or video the cover shows (a group's step too) offers Fit / Fill.
+                    combine(app.playback.paused, app.playback.shownItem.map { (it as? CoverItem.Media)?.fit }.distinctUntilChanged(), ::Pair),
                     app.mirror.state,
                     app.repository.selectedItem.map { it?.name }.distinctUntilChanged(),
-                ) { status, (keep, dirty), paused, mirror, name ->
+                ) { status, (keep, dirty), (paused, mediaFit), mirror, name ->
                     HoverState(
                         coverOn = status == CoverStatus.ACTIVE,
                         keep = keep,
@@ -298,6 +306,7 @@ class MainActivity : ComponentActivity() {
                         paused = paused,
                         mirroring = mirror == MirrorState.ON,
                         itemName = name,
+                        mediaFit = mediaFit,
                     )
                 }.distinctUntilChanged().collect { state ->
                     hoverParams = buildHoverParams(state).also(::setPictureInPictureParams)
@@ -550,28 +559,34 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Cover on: pause/play, next and "turn the cover off" (the window stays, as the way back on). Mirroring:
-     * whole screen / fill (as a tap on the cover), stop mirroring and turn off. Cover off (turned off, or ended by
-     * the lock or screen timeout): turn on.
+     * The small window's buttons, as many as Android shows ([hoverButtons]). Cover on: pause/play, Fit / Fill for a
+     * photo or video, close, next and "turn the cover off" (the window stays, as the way back on). Mirroring: whole
+     * screen / fill (as a tap on the cover), stop mirroring, close and turn off. Cover off (turned off, or ended by the
+     * lock or screen timeout): turn on and close.
      */
     private fun buildHoverParams(state: HoverState): PictureInPictureParams {
-        val actions = when {
-            state.coverOn && state.mirroring -> listOf(
-                broadcastAction(R.drawable.ic_pip_mirror_view, R.string.mirror_toggle_view, CoverNotifier.ACTION_MIRROR_VIEW),
-                broadcastAction(R.drawable.ic_pip_mirror_off, R.string.mirror_stop, CoverNotifier.ACTION_MIRROR_STOP),
-                broadcastAction(R.drawable.ic_pip_power, R.string.pip_cover_off, CoverNotifier.ACTION_STOP),
-            )
-            state.coverOn -> listOf(
-                if (state.paused) {
+        val buttons = hoverButtons(state.coverOn, state.mirroring, media = state.mediaFit != null, max = maxNumPictureInPictureActions)
+        val actions = buttons.map { button ->
+            when (button) {
+                HoverButton.MIRROR_VIEW -> broadcastAction(R.drawable.ic_pip_mirror_view, R.string.mirror_toggle_view, CoverNotifier.ACTION_MIRROR_VIEW)
+                HoverButton.MIRROR_STOP -> broadcastAction(R.drawable.ic_pip_mirror_off, R.string.mirror_stop, CoverNotifier.ACTION_MIRROR_STOP)
+                HoverButton.PLAY_PAUSE -> if (state.paused) {
                     broadcastAction(R.drawable.ic_notif_play, R.string.action_resume, CoverNotifier.ACTION_TOGGLE)
                 } else {
                     broadcastAction(R.drawable.ic_notif_pause, R.string.action_pause, CoverNotifier.ACTION_TOGGLE)
-                },
-                broadcastAction(R.drawable.ic_notif_next, R.string.action_next, CoverNotifier.ACTION_NEXT),
-                broadcastAction(R.drawable.ic_pip_power, R.string.pip_cover_off, CoverNotifier.ACTION_STOP),
-            )
-            // Only a full-size Zlip may start the cover: expand, start it, and shrink back (returnWhenStarted).
-            else -> listOf(remoteAction(R.drawable.ic_pip_power, R.string.pip_cover_on, turnOnIntent()))
+                }
+                // Says what a press does: a fitted picture fills the cover, a filled one fits.
+                HoverButton.MEDIA_FIT -> if (state.mediaFit == MediaFit.FILL) {
+                    broadcastAction(R.drawable.ic_pip_media_fit, R.string.media_fit_fit, CoverNotifier.ACTION_MEDIA_FIT)
+                } else {
+                    broadcastAction(R.drawable.ic_pip_mirror_view, R.string.media_fit_fill, CoverNotifier.ACTION_MEDIA_FIT)
+                }
+                HoverButton.NEXT -> broadcastAction(R.drawable.ic_notif_next, R.string.action_next, CoverNotifier.ACTION_NEXT)
+                HoverButton.CLOSE -> broadcastAction(R.drawable.ic_pip_close, R.string.pip_close, CoverNotifier.ACTION_CLOSE_HOVER)
+                HoverButton.COVER_OFF -> broadcastAction(R.drawable.ic_pip_power, R.string.pip_cover_off, CoverNotifier.ACTION_STOP)
+                // Only a full-size Zlip may start the cover: expand, start it, and shrink back (returnWhenStarted).
+                HoverButton.COVER_ON -> remoteAction(R.drawable.ic_pip_power, R.string.pip_cover_on, turnOnIntent())
+            }
         }
         val title = when {
             state.coverOn && state.mirroring -> R.string.cover_mirroring
@@ -769,7 +784,29 @@ private data class HoverState(
     val paused: Boolean,
     val mirroring: Boolean,
     val itemName: String?,
+    /** How the photo or video the cover shows (a group's step too) is fitted; null when it shows something else. */
+    val mediaFit: MediaFit?,
 )
+
+/** A button of the small window. */
+internal enum class HoverButton { MIRROR_VIEW, MIRROR_STOP, PLAY_PAUSE, MEDIA_FIT, NEXT, CLOSE, COVER_OFF, COVER_ON }
+
+/**
+ * The small window's buttons, in order: what matters most first, then cut to the [max] Android shows (usually three).
+ * Close always stays (in place of the last one kept, if need be), so the window can always be closed from its buttons.
+ * [media]: the cover shows a photo or video (or a group's step that is one). Pure, so it is unit-tested.
+ */
+internal fun hoverButtons(coverOn: Boolean, mirroring: Boolean, media: Boolean, max: Int): List<HoverButton> {
+    val all = when {
+        coverOn && mirroring -> listOf(HoverButton.MIRROR_VIEW, HoverButton.MIRROR_STOP, HoverButton.CLOSE, HoverButton.COVER_OFF)
+        coverOn && media -> listOf(HoverButton.PLAY_PAUSE, HoverButton.MEDIA_FIT, HoverButton.CLOSE, HoverButton.NEXT, HoverButton.COVER_OFF)
+        coverOn -> listOf(HoverButton.PLAY_PAUSE, HoverButton.NEXT, HoverButton.CLOSE, HoverButton.COVER_OFF)
+        else -> listOf(HoverButton.COVER_ON, HoverButton.CLOSE)
+    }
+    if (max <= 0) return emptyList()
+    val kept = all.take(max)
+    return if (HoverButton.CLOSE in kept) kept else kept.dropLast(1) + HoverButton.CLOSE
+}
 
 private fun isShare(intent: Intent?): Boolean =
     intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE

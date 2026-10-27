@@ -25,20 +25,27 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -46,6 +53,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -61,10 +69,16 @@ import com.zlip.app.cover.mirror.steerMirror
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
+import com.zlip.app.data.MediaFit
+import com.zlip.app.data.MediaFocus
+import com.zlip.app.data.MediaFraming
+import com.zlip.app.data.MediaStorage
 import com.zlip.app.data.showsQr
 import com.zlip.app.render.CoverContent
 import com.zlip.app.render.LocalAllowSound
 import com.zlip.app.render.LocalAnimationFps
+import com.zlip.app.render.LocalHoldGroupStep
+import com.zlip.app.render.LocalMediaFraming
 import com.zlip.app.render.LocalOnSoundLost
 import com.zlip.app.render.LedStyle
 import com.zlip.app.render.LocalVideoOverlay
@@ -72,7 +86,10 @@ import com.zlip.app.render.Playback
 import com.zlip.app.render.ledMatrix
 import com.zlip.app.ui.theme.BrandGradient
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withContext
 import kotlin.math.pow
 import kotlin.random.Random
 
@@ -84,6 +101,10 @@ import kotlin.random.Random
  * Folded screen saver: touches work directly. A tap shows the controls, a sideways swipe changes the
  * item, a swipe up opens the menu ([CoverMenu]) and a swipe down hands the cover back to its lock screen
  * ([onDismiss]); [onClose] ends it. The open phone has no menu: its cover faces other people.
+ *
+ * A photo or video (a group's step too) frames like a phone's gallery wherever touches work: two fingers zoom it, one
+ * finger moves it while it is zoomed in (it then stays the item on screen), and the controls switch Fit / Fill, which
+ * is also the way back from any zoom. The framing is saved for the item once the fingers let go ([CoverFraming]).
  *
  * The content (not the mirror, not the controls) is keyed on [CoverPlayback.session], so whenever the
  * cover starts over everything on it plays from its beginning.
@@ -154,6 +175,92 @@ fun CoverScreen(
         menuShown = false
         currentOnUserActivity()
         playback.noteInteraction()
+    }
+
+    // Photos and videos frame like a phone's gallery: pinched closer, moved around once closer, switched Fit / Fill.
+    val framing = remember(repository) { CoverFraming(repository) }
+    val glideScope = rememberCoroutineScope()
+    val framingOf = remember(framing) { { media: CoverItem.Media -> framing.framingOf(media) } }
+    // Not while resting, mirroring or showing an editor's draft, nor under the menu.
+    val media = mediaOnScreen(item, groupStep).takeIf { mirroring == null && !ambient && !menuShown && !editing }
+    // The picture's shape, read from its file; fingers frame it only once it is known.
+    val measured by produceState<Pair<String, Float>?>(null, media?.fileName) {
+        val shown = media ?: return@produceState
+        value = shown.fileName to withContext(Dispatchers.IO) { MediaStorage.aspect(context, shown) }
+    }
+    val aspect = measured?.takeIf { it.first == media?.fileName }?.second ?: 0f
+    val framable = media?.takeIf { aspect > 0f }
+    val currentFramable by rememberUpdatedState(framable)
+    val currentAspect by rememberUpdatedState(aspect)
+    val currentRotation by rememberUpdatedState(settings.rotation)
+    var coverSize by remember { mutableStateOf(IntSize.Zero) }
+    // Only what the controls, TalkBack and the hint need, so moving fingers recompose the picture alone.
+    val look by remember(media, framing) {
+        derivedStateOf(structuralEqualityPolicy()) { media?.let { FramingLook.of(framing.framingOf(it)) } }
+    }
+    // Moves the picture as fingers, a glide or TalkBack say; false once it cannot move any further that way.
+    val moveMedia = { zoomChange: Float, pivot: Offset, pan: Offset ->
+        val shown = currentFramable
+        if (shown == null) {
+            false
+        } else {
+            val before = framing.framingOf(shown)
+            val after = CoverFramingMath.moved(
+                before,
+                currentAspect,
+                coverSize.width.toFloat(),
+                coverSize.height.toFloat(),
+                currentRotation,
+                zoomChange,
+                pivot,
+                pan,
+            )
+            if (after != before) framing.show(shown, after)
+            after != before
+        }
+    }
+    val zoomMediaBy = { change: Float -> moveMedia(change, Offset(coverSize.width / 2f, coverSize.height / 2f), Offset.Zero) }
+    val switchFit = {
+        media?.let(framing::switchFit)
+        playback.noteInteraction()
+    }
+    val zoomInLabel = stringResource(R.string.media_zoom_in)
+    val zoomOutLabel = stringResource(R.string.media_zoom_out)
+    val fillLabel = stringResource(R.string.media_fit_fill)
+    val fitLabel = stringResource(R.string.media_fit_fit)
+
+    // Auto-advance and a group's step wait while fingers frame the picture.
+    LaunchedEffect(framing.moving) { playback.setFraming(framing.moving) }
+    // Saved once the fingers have let go for a moment, so a few quick gestures make one write; whatever is left when
+    // the cover closes is saved then.
+    LaunchedEffect(framing) {
+        snapshotFlow { framing.edit != null && !framing.moving }.collectLatest { due ->
+            if (due) {
+                delay(FRAMING_SAVE_MS)
+                framing.save()
+            }
+        }
+    }
+    DisposableEffect(framing) {
+        onDispose {
+            framing.save()
+            playback.setFraming(false)
+        }
+    }
+
+    // The first zoom of each session says how a zoomed-in picture moves.
+    var zoomHint by remember { mutableStateOf(false) }
+    var zoomHintSession by remember { mutableIntStateOf(-1) }
+    val movingZoomedIn = look?.zoomedIn == true && framing.moving
+    LaunchedEffect(movingZoomedIn) {
+        if (!movingZoomedIn || zoomHintSession == session) return@LaunchedEffect
+        zoomHintSession = session
+        zoomHint = true
+    }
+    LaunchedEffect(zoomHint) {
+        if (!zoomHint) return@LaunchedEffect
+        delay(ZOOM_HINT_MS)
+        zoomHint = false
     }
 
     // Burn-in guard: nudge everything that stays put (content, LED grid, clock) a little every minute
@@ -234,6 +341,7 @@ fun CoverScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .onSizeChanged { coverSize = it }
             .semantics {
                 // TalkBack cannot swipe the cover: offer the same things as actions. They reach no touch
                 // handler, so each one tells the host it was used.
@@ -247,15 +355,36 @@ fun CoverScreen(
                         }
                         true
                     }
-                    customActions = listOf(
-                        CustomAccessibilityAction(openMenuLabel) {
-                            // Woken first, so the menu never opens over a resting (dimmed, paused) screen.
-                            currentOnUserActivity()
-                            openMenu()
-                            true
-                        },
-                        CustomAccessibilityAction(lockScreenLabel) { currentOnDismiss?.invoke(); true },
-                    )
+                    customActions = buildList {
+                        add(
+                            CustomAccessibilityAction(openMenuLabel) {
+                                // Woken first, so the menu never opens over a resting (dimmed, paused) screen.
+                                currentOnUserActivity()
+                                openMenu()
+                                true
+                            },
+                        )
+                        add(CustomAccessibilityAction(lockScreenLabel) { currentOnDismiss?.invoke(); true })
+                        // A photo or video: what fingers do with it, as actions (zooming around the cover's centre).
+                        val shownLook = look
+                        if (shownLook != null) {
+                            val framed = { action: () -> Unit ->
+                                currentOnUserActivity()
+                                playback.noteInteraction()
+                                action()
+                                true
+                            }
+                            if (framable != null && !shownLook.closest) {
+                                add(CustomAccessibilityAction(zoomInLabel) { framed { zoomMediaBy(MediaFocus.ZOOM_STEP) } })
+                            }
+                            if (framable != null && shownLook.zoomedIn) {
+                                add(CustomAccessibilityAction(zoomOutLabel) { framed { zoomMediaBy(1f / MediaFocus.ZOOM_STEP) } })
+                            }
+                            // Says what it does: a fitted picture fills the cover, a filled one fits.
+                            val fitAction = if (shownLook.fit == MediaFit.FIT) fillLabel else fitLabel
+                            add(CustomAccessibilityAction(fitAction) { framed { media?.let(framing::switchFit) } })
+                        }
+                    }
                 }
             }
             .pointerInput(lock) {
@@ -267,15 +396,29 @@ fun CoverScreen(
                     lastTouch = down.uptimeMillis
                     // Someone is using the cover: auto-advance waits (a toy mid-roll must not be skipped).
                     if (!lockTouches || unlocked) playback.noteInteraction()
+                    // A finger stops a gliding picture where it is.
+                    framing.touched()
                     // An unlocked mirror follows the fingers live, like a map; locked, only the double tap below counts.
                     val steered = currentMirroring
                     if (steered != null && lock.isActive) {
                         lastTouch = steerMirror(steered, down, lock) { mirrorHint = false }
                         return@awaitEachGesture
                     }
+                    // A photo or video the fingers can frame, now that the cover listens to touches.
+                    val framed = currentFramable?.takeIf { lock.isActive }
+                    if (framed != null && framing.framingOf(framed).zoom > MediaFocus.MIN_ZOOM) {
+                        // Zoomed in: the fingers move the picture around, and it stays the item on screen.
+                        val gesture = frameMedia(down, lock, pinching = false, framing, glideScope, moveMedia)
+                        if (gesture.tapped) {
+                            if (lockTouches) playback.togglePause() else controlsShown = !controlsShown
+                        }
+                        lastTouch = gesture.upTime
+                        return@awaitEachGesture
+                    }
                     var last = down
                     var lifted = false
                     var othersDown = false
+                    var pinched = false
                     try {
                         while (true) {
                             val event = awaitPointerEvent()
@@ -283,6 +426,11 @@ fun CoverScreen(
                             val change = event.changes.firstOrNull { it.id == down.id }
                             if (change == null || change.isConsumed) break
                             last = change
+                            // A second finger on a photo or video: a pinch, which zooms it from here on.
+                            if (framed != null && event.changes.count { it.pressed } > 1) {
+                                pinched = true
+                                break
+                            }
                             // Only a real swipe is taken from the buttons; finger jitter during a tap must
                             // not cancel a control's click.
                             if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
@@ -294,6 +442,10 @@ fun CoverScreen(
                                 break
                             }
                             lock.onMove(change.uptimeMillis)
+                        }
+                        if (pinched) {
+                            lastTouch = frameMedia(down, lock, pinching = true, framing, glideScope, moveMedia).upTime
+                            return@awaitEachGesture
                         }
                         if (!lifted) {
                             lock.onCancel(SystemClock.uptimeMillis())
@@ -366,6 +518,8 @@ fun CoverScreen(
                     .graphicsLayer { rotationZ = settings.rotation.toFloat() },
             ) {
                 CompositionLocalProvider(
+                    LocalMediaFraming provides framingOf,
+                    LocalHoldGroupStep provides framing.moving,
                     LocalAnimationFps provides settings.powerMode.fps,
                     // A hardware overlay cannot be rotated or turned into LED dots: use a texture then.
                     LocalVideoOverlay provides (settings.rotation == 0 && led == null),
@@ -454,6 +608,19 @@ fun CoverScreen(
             MirrorGestureHint()
         }
 
+        AnimatedVisibility(
+            visible = zoomHint && look != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            // Above the controls' bottom row while they show.
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.displayCutout)
+                .padding(bottom = if (controlsVisible) 76.dp else 18.dp),
+        ) {
+            ZoomHint()
+        }
+
         AnimatedVisibility(visible = controlsVisible, enter = fadeIn(), exit = fadeOut()) {
             Box(Modifier.fillMaxSize()) {
                 if (lockTouches) {
@@ -498,6 +665,12 @@ fun CoverScreen(
                         playback.toggleSound()
                     },
                     onClose = onClose,
+                    mediaFit = look?.fit,
+                    onSwitchFit = {
+                        lastTouch = SystemClock.uptimeMillis()
+                        currentOnUserActivity()
+                        switchFit()
+                    },
                     onOpenMenu = if (menuAllowed) {
                         {
                             currentOnUserActivity()
@@ -601,6 +774,19 @@ private const val TOY_HINT_MS = 2_000L
 
 /** How long the mirror's gesture hint stays, unless a move puts it away first. */
 private const val MIRROR_HINT_MS = 4_000L
+
+/** How long the zoom hint stays. */
+private const val ZOOM_HINT_MS = 3_000L
+
+/** How long after the fingers let go a framing is saved, unless they come back first. */
+private const val FRAMING_SAVE_MS = 600L
+
+/** What the controls, TalkBack and the hint show of a picture's framing; coarse, so moving fingers rarely change it. */
+private data class FramingLook(val fit: MediaFit, val zoomedIn: Boolean, val closest: Boolean) {
+    companion object {
+        fun of(framing: MediaFraming) = FramingLook(framing.fit, framing.zoom > MediaFocus.MIN_ZOOM, framing.zoom >= MediaFocus.MAX_ZOOM)
+    }
+}
 
 /** Resting brightness relative to the user's setting. */
 private const val AMBIENT_FACTOR = 0.35f

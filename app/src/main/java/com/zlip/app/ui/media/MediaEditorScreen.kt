@@ -1,7 +1,5 @@
 package com.zlip.app.ui.media
 
-import android.content.Context
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -145,7 +143,7 @@ fun MediaEditorScreen(
     // Two fingers zoom the preview; one drags the picture to choose what shows, only along an axis where it is
     // larger than the cover, so the other way still scrolls the page.
     val context = LocalContext.current
-    val aspect by produceState(0f, initial.fileName) { value = withContext(Dispatchers.IO) { pictureAspect(context, initial) } }
+    val aspect by produceState(0f, initial.fileName) { value = withContext(Dispatchers.IO) { MediaStorage.aspect(context, initial) } }
     val framable = aspect > 0f
 
     Scaffold(
@@ -414,12 +412,4 @@ private fun FramingSurface(
 private fun movable(aspect: Float, width: Float, height: Float, framing: MediaFraming): Pair<Boolean, Boolean> {
     val (overflowX, overflowY) = MediaFocus.overflow(aspect, width, height, framing.fit, framing.zoom)
     return (overflowX > width * MIN_FRAMING_CROP) to (overflowY > height * MIN_FRAMING_CROP)
-}
-
-/** Width / height of the picture as stored (a video's from its poster frame), or 0 when it cannot be read. */
-private fun pictureAspect(context: Context, media: CoverItem.Media): Float {
-    val name = (if (media.kind == MediaKind.VIDEO) media.posterFileName else media.fileName) ?: return 0f
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    runCatching { BitmapFactory.decodeFile(MediaStorage.file(context, name).path, bounds) }
-    return if (bounds.outWidth > 0 && bounds.outHeight > 0) bounds.outWidth.toFloat() / bounds.outHeight else 0f
 }

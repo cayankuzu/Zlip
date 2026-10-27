@@ -239,6 +239,12 @@ class CoverNotifier(
 
         /** The small window's Whole screen / Fill switch while mirroring, as a tap on the cover. */
         const val ACTION_MIRROR_VIEW = "com.zlip.app.action.MIRROR_VIEW"
+
+        /** The small window's Fit / Fill for the photo or video on the cover, as the cover's own button. */
+        const val ACTION_MEDIA_FIT = "com.zlip.app.action.MEDIA_FIT"
+
+        /** The small window's close button: the cover goes off and the window closes. */
+        const val ACTION_CLOSE_HOVER = "com.zlip.app.action.CLOSE_HOVER"
         private const val HIDE_DELAY_MS = 300L
     }
 }
@@ -262,6 +268,13 @@ class CoverActionReceiver : BroadcastReceiver() {
             CoverNotifier.ACTION_PLAYING_DISMISSED -> app.notifier.dismissPlaying()
             CoverNotifier.ACTION_MIRROR_STOP -> app.mirror.stop()
             CoverNotifier.ACTION_MIRROR_VIEW -> app.mirror.toggleView()
+            CoverNotifier.ACTION_MEDIA_FIT -> app.playback.switchShownMediaFit()
+            // Like dismissing the small window: not the user's "turn off", so the next visit starts the cover again.
+            CoverNotifier.ACTION_CLOSE_HOVER -> {
+                app.mirror.stop()
+                app.cover.stop(byUser = false)
+                app.cover.requestCloseHover()
+            }
             // The same switch as the cover's own button: the cover's sound, until it next starts over.
             CoverNotifier.ACTION_SOUND -> if (hasSoundToSwitch(app.repository.selectedItem.value)) app.playback.toggleSound()
             CoverNotifier.ACTION_STOP -> {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,12 @@ import kotlin.random.Random
 
 /** Crossfade between two still steps (when the group has soft transitions); video steps cut instead. */
 private const val CROSSFADE_MS = 500
+
+/**
+ * True while fingers frame the step on the cover: the group stays on that step, and the step's time starts again
+ * once they let go, as for any other use of the cover.
+ */
+val LocalHoldGroupStep = compositionLocalOf { false }
 
 /**
  * A group: its items one after another, each full screen. Stills stay for the group's photo time; videos
@@ -118,9 +125,10 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
     val currentEvents by rememberUpdatedState(events)
     val currentSize by rememberUpdatedState(items.size)
     val currentRepeat by rememberUpdatedState(item.repeat)
-    // Nothing advances while paused or while the cover is dark; coming back restarts the step's minimum time.
+    // Nothing advances while paused, while the cover is dark or while the step is being framed; coming back restarts
+    // the step's minimum time.
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
-    val running = playback == Playback.LIVE && lifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    val running = playback == Playback.LIVE && lifecycleState.isAtLeast(Lifecycle.State.STARTED) && !LocalHoldGroupStep.current
 
     // Next/previous (cover swipes and buttons, notification, inner-screen controls) move through the steps
     // first, in the order they play (shuffled too).

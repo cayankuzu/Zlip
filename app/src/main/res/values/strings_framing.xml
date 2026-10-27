@@ -7,4 +7,10 @@
     <!-- Media editor, button under Fit / Fill while the picture is zoomed in or moved off the centre: back to 1x, centred -->
     <string name="media_frame_reset">Reset</string>
     <string name="media_frame_reset_desc">Reset zoom and framing</string>
+
+    <!-- Cover, a moment after a photo or video is first zoomed in: one finger moves it, zooming out lets swipes change the item again -->
+    <string name="cover_zoom_hint">Swipe to move around · Zoom out to switch items</string>
+
+    <!-- Mini cover (picture-in-picture window) button: turns the cover off and closes the small window -->
+    <string name="pip_close">Close mini cover</string>
 </resources>

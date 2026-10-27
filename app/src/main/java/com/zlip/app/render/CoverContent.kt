@@ -91,9 +91,11 @@ import com.zlip.app.R
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.MediaFit
 import com.zlip.app.data.MediaFocus
+import com.zlip.app.data.MediaFraming
 import com.zlip.app.data.MediaKind
 import com.zlip.app.data.MediaPlacement
 import com.zlip.app.data.MediaStorage
+import com.zlip.app.data.framed
 import com.zlip.app.data.framing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -134,6 +136,13 @@ val LocalAllowSound = compositionLocalOf { false }
  * unplugged), so the cover's sound goes off and its button says so. Null where nobody keeps that state.
  */
 val LocalOnSoundLost = staticCompositionLocalOf<(() -> Unit)?> { null }
+
+/**
+ * How the cover shows a photo or video right now: while fingers frame it there, ahead of saving it, the framing they
+ * left; otherwise its own. Null everywhere else, where every item shows as stored. Read while composing, so only the
+ * picture being framed recomposes as the fingers move.
+ */
+val LocalMediaFraming = staticCompositionLocalOf<((CoverItem.Media) -> MediaFraming)?> { null }
 
 /**
  * Where a clip reports that it is heard: the events of the outermost item, so a group's steps (whose own
@@ -193,7 +202,9 @@ fun CoverContent(
         // item (same id) keep scrolling smoothly.
         is CoverItem.Text -> key(item.id) { TextCover(item, modifier, playback, events) }
         is CoverItem.Media -> key(item.fileName) {
-            if (item.kind == MediaKind.VIDEO) VideoCover(item, modifier, playback, events) else ImageCover(item, modifier, playback, events)
+            // Framed live on the cover: only the framing changes, so the same player or decoder carries on.
+            val shown = LocalMediaFraming.current?.invoke(item)?.takeIf { it != item.framing }?.let(item::framed) ?: item
+            if (shown.kind == MediaKind.VIDEO) VideoCover(shown, modifier, playback, events) else ImageCover(shown, modifier, playback, events)
         }
         is CoverItem.Collage -> key(item.id) { CollageCover(item, modifier, playback, events) }
         is CoverItem.Countdown -> CountdownCover(item, modifier, playback)

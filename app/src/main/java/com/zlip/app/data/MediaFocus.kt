@@ -17,6 +17,12 @@ data class MediaFraming(
 
     /** The same framing with every value in range; a damaged file or a wild gesture never breaks a renderer. */
     fun clamped(): MediaFraming = copy(zoom = MediaFocus.clampZoom(zoom), focusX = MediaFocus.clamp(focusX), focusY = MediaFocus.clamp(focusY))
+
+    /**
+     * The other fit, from scratch: not zoomed, centred. The cover's Fit / Fill button and the small window's, which are
+     * also the way back from any zoom.
+     */
+    fun fitSwitched(): MediaFraming = MediaFraming(if (fit == MediaFit.FILL) MediaFit.FIT else MediaFit.FILL)
 }
 
 /** Where a picture lands in its box, in the box's units: its leading (left, top) edge relative to the box's, and its size. */

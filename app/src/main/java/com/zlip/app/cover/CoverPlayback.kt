@@ -7,6 +7,7 @@ import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.GroupTiming
 import com.zlip.app.data.MediaKind
+import com.zlip.app.data.framing
 import com.zlip.app.render.GroupStepper
 import com.zlip.app.render.PlaybackEvents
 import kotlinx.coroutines.CancellationException
@@ -74,6 +75,9 @@ class CoverPlayback(
     /** The folded cover's menu covers the screen: playback and auto-advance wait until it closes. */
     private val menuOpen = MutableStateFlow(false)
 
+    /** Fingers are framing a photo or video on the cover (or it glides on after them): auto-advance waits. */
+    private val framingNow = MutableStateFlow(false)
+
     /** Bumped on every touch of the cover; restarts the auto-advance timer so it never skips mid-use. */
     private val interactions = MutableStateFlow(0L)
 
@@ -110,9 +114,13 @@ class CoverPlayback(
     val groupStep: StateFlow<Pair<String, String>?> = stepShown.map { shown -> shown?.let { (group, step) -> group to step.id } }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
-    /** What the cover shows: the selected item, or the step its group is on. */
+    /**
+     * What the cover shows: the selected item, or the step its group is on. The step as the group holds it now, so an
+     * edit of that step (a new framing) shows here at once rather than when the group next moves on.
+     */
     val shownItem: StateFlow<CoverItem?> = combine(repository.selectedItem, stepShown) { selected, step ->
-        step?.takeIf { it.first == selected?.id }?.second ?: selected
+        val shown = step?.takeIf { it.first == selected?.id }?.second
+        if (shown == null) selected else (selected as? CoverItem.Group)?.items?.firstOrNull { it.id == shown.id } ?: shown
     }.stateIn(scope, SharingStarted.Eagerly, null)
 
     /**
@@ -233,6 +241,20 @@ class CoverPlayback(
         menuOpen.value = open
     }
 
+    /** Fingers frame a photo or video on the cover ([framingNow]); the touch that started it already counted as use. */
+    fun setFraming(active: Boolean) {
+        framingNow.value = active
+    }
+
+    /**
+     * The small window's Fit / Fill: the photo or video the cover shows (a group's step too) switches to the other fit,
+     * not zoomed and centred, as the cover's own button does. Anything else is left alone.
+     */
+    fun switchShownMediaFit() {
+        val media = shownItem.value as? CoverItem.Media ?: return
+        repository.setMediaFraming(media.id, media.framing.fitSwitched())
+    }
+
     fun noteInteraction() {
         // Someone is using the cover: the item gets its full time again from now.
         credit.clear()
@@ -294,8 +316,15 @@ class CoverPlayback(
         val coverShowsContent = combine(status, mirroring) { s, mirrored -> s == CoverStatus.ACTIVE && !mirrored }
         scope.launch {
             combine(
-                combine(coverShowsContent, liveViewVisible, liveResting, menuOpen, interactions) { showing, live, rest, menu, touch ->
-                    ((showing || (live && !rest)) && !menu) to touch
+                combine(
+                    coverShowsContent,
+                    liveViewVisible,
+                    liveResting,
+                    // The menu over the cover, or fingers framing a picture on it.
+                    combine(menuOpen, framingNow) { menu, frame -> menu || frame },
+                    interactions,
+                ) { showing, live, rest, held, touch ->
+                    ((showing || (live && !rest)) && !held) to touch
                 }.distinctUntilChanged(),
                 repository.settings.map { Triple(it.advanceMode, it.advanceSeconds, it.shuffle to it.repeat) }.distinctUntilChanged(),
                 combine(paused, editing, session) { isPaused, isEditing, current -> (isPaused || isEditing) to current },

@@ -172,4 +172,13 @@ class MediaFocusTest {
         assertEquals(1f, MediaFocus.clampZoom(Float.NaN), delta)
         assertEquals(MediaFocus.MAX_ZOOM, MediaFocus.clampZoom(Float.POSITIVE_INFINITY), delta)
     }
+
+    @Test
+    fun switchingTheFitStartsFromScratch() {
+        // Zoomed in and moved off the centre: the switch is also the way back.
+        val zoomed = MediaFraming(MediaFit.FIT, zoom = 3f, focusX = 0.4f, focusY = -1f)
+        assertEquals(MediaFraming(MediaFit.FILL), zoomed.fitSwitched())
+        assertEquals(MediaFraming(MediaFit.FIT), MediaFraming(MediaFit.FILL, zoom = 2f, focusY = 0.5f).fitSwitched())
+        assertFalse(zoomed.fitSwitched().adjusted)
+    }
 }
