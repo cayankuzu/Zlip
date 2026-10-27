@@ -107,3 +107,7 @@ Birim testleri:
 | `ui/components/` | Ortak parçalar: sıralanabilir liste, içerik seçici, Mini kapak kartı, bekleme modu |
 
 Yayınlama için bkz. [PLAY_STORE.md](PLAY_STORE.md).
+
+## Lisans
+
+[MIT](LICENSE) © 2026 MeMoDe
