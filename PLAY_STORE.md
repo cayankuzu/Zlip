@@ -6,22 +6,13 @@
 - **Uygulama adı:** `Zlip` (`app/src/main/res/values/strings.xml` → `app_name`).
 - **Sürüm:** her yüklemede `app/build.gradle.kts` içindeki `versionCode` değerini 1 artır, `versionName` değerini güncelle.
 
-## 2. Yükleme anahtarı (bir kez)
+## 2. İmza anahtarı (hazır)
 
-```bash
-keytool -genkeypair -v -keystore zlip-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias zlip
-```
+Zlip'in imza anahtarı proje kökünde: `zlip-release.jks` (takma ad `zlip`) ve şifresiyle birlikte `keystore.properties`. İkisi de `.gitignore` içinde; asla paylaşma, **mutlaka yedekle**. GitHub'daki APK bu anahtarla imzalı; anahtar kaybolursa APK kullanıcılarına güncelleme verilemez.
 
-Proje köküne `keystore.properties` dosyası oluştur. Bu dosya `.gitignore` içinde; asla paylaşma:
+Sertifika SHA-256: `C2:D5:A7:7D:0B:08:C6:EF:AF:81:B9:52:13:7F:05:32:C3:5F:9D:8E:B2:13:31:52:C7:C0:95:71:03:DE:E4:B2`
 
-```properties
-storeFile=zlip-upload.jks
-storePassword=...
-keyAlias=zlip
-keyPassword=...
-```
-
-`zlip-upload.jks` dosyasını ve şifreleri güvenli bir yerde yedekle. Play Console'da **Play App Signing** açık kalsın; Google asıl imza anahtarını kendisi saklar.
+Play Console'da uygulamayı oluştururken **Play App Signing**'de "Use a different key → Export and upload a key from Java keystore" seç ve bu anahtarı (Google'ın PEPK aracıyla) yükle. Böylece Play'deki sürüm de GitHub APK'sı da aynı imzayı taşır; kullanıcılar birinden diğerine sorunsuz güncelleyebilir. Google'ın kendi ürettiği anahtarı seçersen APK ile kurulmuş Zlip, Play sürümüyle güncellenemez (önce kaldırmak gerekir).
 
 ## 3. Paketi derle
 
@@ -71,13 +62,16 @@ yazıların ve çizimlerin görünür. İstersen iç ekranın kendisi.
 
 ARKADA NE İSTERSEN
 • Galeriden: fotoğraf, GIF ve videoları tek seferde birkaç tane seç; tek dokunuşla grup yap.
-• Grup: seçtiklerin sırayla, tam ekran oynar; videolar sonuna kadar ve kendi sesiyle.
+• Grup: seçtiklerin sırayla, tam ekran oynar. Fotoğraf süresi, karışık sıra, tekrar ve
+  yumuşak geçiş senin; videolar baştan sona oynar.
 • Ekran yansıtma: iç ekranı kapakta göster; karşındaki kişi kamera vizörünü, bir
   fotoğrafı ya da haritayı görsün. Görüntü kaydedilmez, telefondan çıkmaz.
 • Piksel çizim editörü: kalem, silgi, doldurma, damlalık, ayna modu, geri al/yinele,
   16×16'dan 48×48'e kadar tuval, yakınlaştırma.
 • Fotoğraf ve GIF: sığdır/doldur, döngü, piksel art için keskin ölçekleme.
-• Video: döngüde, istersen sesli; kapak ekranı için otomatik optimize edilir.
+• Kadraj: kapakta da iki parmakla yakınlaştır, yakınken kaydırarak gez.
+• Video: ne kadar uzunsa baştan sona oynar; kapak açılınca sesli ya da sessiz başlar.
+  Kapak ekranı için otomatik optimize edilir.
 • Kayan yazı: LED tabela gibi; renk, boyut ve hız senin elinde. Hazır mesajlar tek dokunuşla.
 • Kolaj: 2-4 hücre, her hücre kendi içeriklerini döngüde oynatır.
 • Animasyonlu piksel çizim: kare kare çiz, kapakta canlansın.
@@ -85,15 +79,15 @@ ARKADA NE İSTERSEN
 • QR kartı: Wi-Fi, bağlantı ya da kartvizit; kilidi açmadan gösterilir.
 • Kapak oyuncakları: zar, yazı tura, sihirli küre, şişe çevirme, karar çarkı, sayaç.
 • LED matris görünümü: kapaktaki her şey nokta nokta parlasın.
-• Oynatma listesi: istediğin öğeleri seç, sürükleyerek sırala; Akıllı ilerleme videoları
-  ve kayan yazıları bitince, fotoğrafları süre dolunca değiştirir. Karıştır ve döngü.
+• Oynatma listesi: istediğin öğeleri seç, sürükleyerek sırala; otomatik ilerleme fotoğrafları
+  süre dolunca, videoları ve kayan yazıları bitince değiştirir. Karıştır ve döngü.
 • Zlip'e paylaş: galeriden ya da başka bir uygulamadan paylaş; bağlantılar QR kartı,
   yazılar kayan yazı olur.
 • Canlı önizleme: düzenlediğin her şey kaydetmeden önce de arkada anında görünür.
 
 BAŞKA UYGULAMADAYKEN DE
 • Mini kapak: başka uygulamaya geçince Zlip küçük bir pencereye dönüşür ve kapak açık
-  kalır. Duraklat, geç, kapağı aç ya da kapat; hepsi o pencereden.
+  kalır. Duraklat, sığdır/doldur, geç, kapağı aç ya da kapat; × ile pencereyi kapat.
 • Uygulama simgesine basılı tut: "Kapağı aç", "Ekranı yansıt", "Yeni yazı".
 
 AKILLI VE PİLE DOST

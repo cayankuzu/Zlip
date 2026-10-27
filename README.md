@@ -2,20 +2,31 @@
 
 Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** hem **katlıyken** kullanan Android uygulaması: piksel çizim (animasyonlu), fotoğraf, GIF, video (sesli/sessiz), kayan yazı, döngülü kolaj, tam ekran sırayla oynayan **gruplar**, tekrarlayan geri sayım, QR kartı ve kapak oyuncakları. Açık telefonda **ekran yansıtma** ve diğer uygulamalarda kapağı açık tutan **Mini kapak** da var.
 
+## İndir
+
+- **APK:** [Zlip.apk](https://github.com/cayankuzu/Zlip/releases/latest/download/Zlip.apk) (her zaman son sürüm; tüm sürümler [Releases](https://github.com/cayankuzu/Zlip/releases) sayfasında). Dosyayı açınca Android, tarayıcına ya da Dosyalarım'a bilinmeyen uygulamaları yükleme izni vermeni ister.
+- Gereken: kapak ekranı olan bir Galaxy Z Flip, Android 14 (One UI 6) ve üstü. Mini kapak ve ekran yansıtma Android 15 ve üstünde çalışır.
+- Zlip'in internet izni yoktur, kendini güncellemez; yeni sürümler Releases sayfasına gelir. Google Play sürümü yakında.
+- Tanıtım sitesi: https://zlip-web.vercel.app
+
 ## Nasıl çalışıyor
 
 - Kapak ekranı, Jetpack WindowManager'ın **rear-display presentation (dual-screen)** moduyla açılır (`androidx.window` 1.5.1, `WindowAreaController.presentContentOnWindowArea`). Root, ADB ya da Shizuku gerekmez.
 - Android bu modu yalnızca Zlip ekrandayken açık tutar. Telefon kilitlenince ya da katlanınca kapak ekranı da kapanır; Zlip'e dönünce kendiliğinden yeniden başlar.
-- **Mini kapak** (Android 15 ve üstü; isteğe bağlı, varsayılan açık): kapak açıkken başka uygulamaya geçince Zlip küçük bir resim içinde resim penceresine dönüşür. Pencere ekranda kaldıkça kapak açık kalır; düğmeleriyle duraklat, sonraki ve kapağı aç/kapat. Pencereyi kapatmak kapağı da kapatır. Kaydedilmemiş değişiklik varken Zlip küçülmez; çıkınca kapak kapanır.
+- **Mini kapak** (Android 15 ve üstü; isteğe bağlı, varsayılan açık): kapak açıkken başka uygulamaya geçince Zlip küçük bir resim içinde resim penceresine dönüşür. Pencere ekranda kaldıkça kapak açık kalır. Düğmeleri (Android en fazla üçüne yer verir, önem sırasıyla): duraklat/oynat, fotoğraf ve videoda Sığdır/Doldur, **×** (pencereyi ve kapağı kapatır), sonraki, kapağı kapat. Pencereyi kapatmak kapağı da kapatır; süren bir içe aktarma iptal olmaz. Kaydedilmemiş değişiklik varken Zlip küçülmez; çıkınca kapak kapanır.
 - Kapak ekranında dokunma varsayılan olarak **kilitli**: tek dokunuş hiçbir şey yapmaz. **Çift dokunuş** kilidi açar, **3 saniye** dokunulmazsa kilit geri gelir. Ekran kapanmaz.
-- Kilit açıkken: kontroller görünür (önceki / oynat-duraklat / sonraki / ses); sağa/sola kaydırınca sıradaki öğeye ya da grubun sıradaki adımına geçer.
+- Kilit açıkken: kontroller görünür (önceki / oynat-duraklat / sonraki / ses / fotoğraf ve videoda Sığdır-Doldur); sağa/sola kaydırınca sıradaki öğeye ya da grubun sıradaki adımına geçer.
+- **Fotoğraf, GIF ve videoda kadraj** (açık telefonda kilit açıkken ve katlıyken): galeri uygulamaları gibi iki parmakla yakınlaştırılır; yakınken tek parmakla resmin içinde gezilir (bırakınca süzülür) ve kaydırma içerik değiştirmez; 1x'te kaydırma her zamanki gibi sıradakine geçer. Sığdır/Doldur düğmesi yakınlaştırmayı da sıfırlar. Kadraj öğeye kaydedilir; widget, küçük resimler ve düzenleyici aynı kadrajı gösterir. Düzenleyicide de iki parmakla yakınlaştırılır, "Sıfırla" ile geri alınır.
+- **Otomatik ilerleme**: açık/kapalı. Fotoğraf, çizim ve yazı gibi sabit içerikler **fotoğraf süresi** kadar kalır; videolar varsayılan olarak **sonuna kadar** oynar ("Süre dolunca geç" seçilirse onlar da kesilir). Kayan yazı, GIF ve kolaj turunu bitirir; grup kendi turunu tamamlar. Karıştır (her turda hepsi bir kez) ve döngü.
+- **Ses**: "Kapak açılınca ses" Açık başlasın / Kapalı başlasın (varsayılan açık). Kapaktaki ses düğmesi, bildirim ve ses açma tuşu yalnızca o seferlik değiştirir; telefon her açılıp katlandığında ve kapak her uyandığında ayara döner. Bir videoyu hep sessiz oynatmak için düzenleyicide "Sesli oynat"ı kapat. Kolajdaki videolar sessizdir.
 - **Ekran yansıtma** (Android 15 ve üstü): Ana sayfadaki "İçeriğim | Ekranı yansıt" seçimiyle iç ekran kapakta görünür (MediaProjection, `mediaProjection` türünde ön plan hizmeti). Android her seferinde izin ister ve "Tüm ekran" seçilmelidir. Görüntü yalnızca kapakta gösterilir; kaydedilmez, saklanmaz, hiçbir yere gönderilmez. Kapak harita gibi gezilir: iki kez dokunup kilidi açınca tek parmakla kaydırılır (bırakınca süzülür), iki parmakla yakınlaştırılır, tek dokunuş "Tamamı / Doldur" arasında geçer; kaydırırken kenarda kaydırma çubukları görünür. İç ekrandaki "Tamamı / Doldur / Yakın" ve "Başa dön" de kapağı yönetir; Ayarlar'daki "Yansıtma görünümü" başlangıç görünümüdür (varsayılan Doldur). Korumalı uygulamalar (bankacılık, Netflix) siyah görünür.
 - Boşta kalınca kapat (5 / 10 / 30 dk / asla): Zlip tam ekranken iki ekrana da dokunulmazsa kapak kapanır, iç ekran karanlık kalır ve normal zaman aşımıyla kilitlenir. 15 saniye önce uyarı çıkar; bir sonraki dokunuşa kadar kendiliğinden yeniden açılmaz. Bölünmüş ekranda ya da TalkBack açıkken yalnızca ekranı açık tutmayı bırakır.
 
 ## İçerik
 
 - **Galeriden**: tek seçicide fotoğraf, GIF ve video; birkaçı birden seçilebilir. Tek dosya düzenleyicide açılır (hiçbir şey değiştirmeden geri çıkınca "Kaldırılsın mı?" diye sorar); birkaç dosya birlikte gelir ve tek dokunuşla **grup** yapılabilir.
-- **Grup**: seçilen içerikler sırayla, tam ekran oynar. Videolar sonuna kadar ve kendi sesiyle, fotoğraflar seçilen süre kadar kalır. Sıra sürükleyerek, oklarla ya da TalkBack eylemleriyle değişir.
+- **Grup**: seçilen içerikler sırayla, tam ekran oynar. Seçenekler: fotoğraf süresi (3 sn-1 dk), videolar sonuna kadar ya da süre dolunca, karışık sıra, tekrarla (kapalıyken son adımda durur), yumuşak geçiş. Düzenleyici toplam süreyi ve her adımın süresini gösterir. Sıra sürükleyerek, oklarla ya da TalkBack eylemleriyle değişir.
+- **Video**: ne kadar uzunsa o kadar; içe aktarırken kesilmez. Kapak için 720p'ye dönüştürülür (dakikada yaklaşık 16 MB); yer yetmezse ne kadar gerektiği söylenir. Dönüştürme sürerken ekran açık kalır.
 - **Kolaj**: 2-4 hücre, her hücre kendi içeriklerini döngüde oynatır.
 - **Geri sayım**: tek seferlik, her hafta ya da her yıl tekrarlayan (doğum günü, hafta sonu, yılbaşı); ileri sayım da var.
 - **Oynatma listesi**: öğelere basılı tutup seçerek oluşturulur. "Liste" filtresindeki **Sırala** sayfasında sürükleyerek, oklarla ya da "En başa / En sona" ile sıralanır.
@@ -26,7 +37,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 
 - **Kapak widget'ı** (Samsung Flex Window, `display="sub_screen"`): oynatma listesinin önceden çizilmiş karelerini sistem kendisi döndürür, Zlip kapalıyken de çalışır. Kareler `CoverImageProvider` üzerinden (salt okunur, tahmin edilemez adlar) verilir.
 - **Ekran koruyucu** (`CoverActivity`, `showWhenLocked`): widget'a dokununca kapak ekranında (display 1) açılır ve **kilit ekranının önünde** oynar. Kapak uyuduğunda kapanmaz; kapak her uyandığında kilit ekranının önüne geri gelir.
-  - Yana kaydır: önceki/sonraki. Yukarı kaydır: kapak menüsü. Aşağı kaydır: kilit ekranına dön. Ses açma tuşu: sesli videonun sesini açar.
+  - Yana kaydır: önceki/sonraki. Yukarı kaydır: kapak menüsü. Aşağı kaydır: kilit ekranına dön. Dokununca açılan kontrollerdeki **×** ekran koruyucuyu kapatır. Ses açma tuşu: o seferlik sesi açar.
   - Açık kalma süresi (kapak varsayılanı / 1-30 dk / hep açık). Hep açıkta 1 dk sonra "dinlenme": kısık, durağan kare + saat (AOD gibi). Şarjdayken hep açık (komodin saati).
   - Telefon açılınca (iç ekran yanınca) kendini kapatır; iç ekran asla etkilenmez.
   - **"Kapakta hep göster"** (Ana sayfada ve Ayarlar'da): "Üstte göster" izni + `specialUse` ön plan hizmeti (yalnızca ekran açılıp kapanmalarını dinler, sensör/wakelock yok). Kapak kararınca ekran koruyucuyu yeniden hazırlar. Bu ayar kapalıyken katlanmış kapakta yalnızca widget görünür. Hizmetin bildirimi kaydırılarak kaldırılabilir; "Hep göstermeyi kapat" düğmesi özelliği kapatır.
@@ -42,7 +53,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 | LED görünümü GPU gölgelendiricisi (AGSL) ile tek geçişte | Ek kare maliyeti neredeyse sıfır |
 | Kapak parlaklığı: içerik yazılımla karartılır (One UI kapak penceresinin parlaklık değerini yok sayıyor) | OLED'de koyu piksel = daha az güç |
 | Güç modları 20 / 30 / 60 kare/sn | Kayan yazı ve kapak yenilemesi sınırlanır |
-| Videolar içe aktarılırken 720p / 30 fps H.264 + 128 kbps AAC'ye dönüştürülür | Hafif donanım kod çözme |
+| Videolar içe aktarılırken kesilmeden 720p / 30 fps H.264 (yaklaşık 2 Mbps) + 128 kbps AAC'ye dönüştürülür | Hafif donanım kod çözme, dakikada yaklaşık 16 MB |
 | Fotoğraflar 1440 px WebP'ye küçültülür | Her gösterimde daha az kod çözme |
 | Kitaplık küçük resimleri durağan; videolar için önizleme karesi | Listede hiç kod çözücü çalışmaz |
 | Kapak açıkken iç ekrandaki önizleme durur; Mini kapak penceresi durağan bir karedir | Aynı içerik iki kez çizilmez |
@@ -53,8 +64,8 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 
 ## Kontroller
 
-- Bildirim panelinde Duraklat/Oynat, Sonraki (sesli videoda Ses aç/kapat), Kapağı kapat: telefon açıkken kapak ekranı için de, katlıyken ekran koruyucu için de (sıradan bildirim). Grup oynarken başlıkta "Grup · 2/4" görünür.
-- Mini kapak penceresinin düğmeleri: duraklat/oynat, sonraki, kapağı aç/kapat; yansıtırken Tamamı/Doldur, yansıtmayı durdur, kapağı kapat.
+- Bildirim panelinde Duraklat/Oynat, Sonraki (sesli videoda o seferlik Ses aç/kapat), Kapağı kapat: telefon açıkken kapak ekranı için de, katlıyken ekran koruyucu için de (sıradan bildirim). Grup oynarken başlıkta "Grup · 2/4" görünür.
+- Mini kapak penceresinin düğmeleri: duraklat/oynat, fotoğraf ve videoda Sığdır/Doldur, × (pencereyi kapatır), sonraki, kapağı kapat; yansıtırken Tamamı/Doldur, yansıtmayı durdur, ×; kapak kapalıyken kapağı aç ve ×. Android pencerede genelde üç düğmeye yer verir; fazlası bu sırayla düşer.
 - Hızlı ayarlar kutucuğu: kapak ekranını tek dokunuşla aç/kapat. Uzun basınca ayarlar açılır.
 - Başlatıcı kısayolları `ShortcutActivity` üzerinden gelir; açık bir Zlip (ve kaydedilmemiş düzenleme) kapanmaz.
 
