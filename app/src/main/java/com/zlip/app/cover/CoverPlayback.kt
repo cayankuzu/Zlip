@@ -84,6 +84,16 @@ class CoverPlayback(
     /** Counts deliberate cover touches; the inner screen's idle cutoff treats each one as activity. */
     val coverTouches: StateFlow<Long> = interactions.asStateFlow()
 
+    /**
+     * Bumped on every manual step inside the group on the cover, from any surface (Home, notification, Mini kapak,
+     * TalkBack): like a touch it gives the group a full turn again, so going back to see steps is never cut short.
+     * Kept apart from [interactions], which also counts as activity for the inner screen's idle cutoff.
+     */
+    private val manualSteps = MutableStateFlow(0L)
+
+    /** What restarts the item's turn: touches of the cover and manual steps. */
+    private val turnRestarts: Long get() = interactions.value + manualSteps.value
+
     /** Asks open live views to close (the notification's "turn off" while folded). */
     private val _closeLiveView = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val closeLiveView: SharedFlow<Unit> = _closeLiveView.asSharedFlow()
@@ -126,6 +136,10 @@ class CoverPlayback(
      * group. A group alone goes round instead, so there is nowhere to skip to.
      */
     val itemSkipAvailable: StateFlow<Boolean> = combine(repository.selectedItem, repository.sequence, CoverNav::itemSkipAvailable)
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /** [next] and [previous] go somewhere ([CoverNav.canMove]); a single item alone in the rotation has nowhere to go. */
+    val movesAvailable: StateFlow<Boolean> = combine(repository.selectedItem, repository.sequence, CoverNav::canMove)
         .stateIn(scope, SharingStarted.Eagerly, false)
 
     private val _manualMoves = MutableSharedFlow<CoverMove>(extraBufferCapacity = 4)
@@ -254,11 +268,17 @@ class CoverPlayback(
     private fun move(forward: Boolean, byStep: Boolean) {
         // While an editor streams a draft the selection is hidden; changing it would be invisible.
         if (editing.value) return
-        _paused.value = false
+        val before = repository.currentSelected?.id
         val stayed = CoverNav.staysInGroup(byStep) { stepGroup(forward) }
-        if (!stayed) {
+        if (stayed) {
+            credit.clear()
+            manualSteps.update { it + 1 }
+        } else {
             if (forward) repository.selectNext(shuffle = CoverNav.MANUAL_SHUFFLE) else repository.selectPrevious()
+            // Nowhere to go (one item in the rotation): nothing moved, so nothing resumes or says where it went.
+            if (repository.currentSelected?.id == before) return
         }
+        _paused.value = false
         _manualMoves.tryEmit(if (stayed) CoverMove.STEP else CoverMove.ITEM)
     }
 
@@ -360,7 +380,7 @@ class CoverPlayback(
                     liveResting,
                     // The menu over the cover, or fingers framing a picture on it.
                     combine(menuOpen, framingNow) { menu, frame -> menu || frame },
-                    interactions,
+                    combine(interactions, manualSteps) { touches, steps -> touches + steps },
                 ) { showing, live, rest, held, touch ->
                     ((showing || (live && !rest)) && !held) to touch
                 }.distinctUntilChanged(),
@@ -386,12 +406,12 @@ class CoverPlayback(
         val id = plan.item.id
         val seenMs = credit.of(id)
         val started = SystemClock.uptimeMillis()
-        // A touch cancels this plan only after noteInteraction() cleared the credit; this tells the two apart.
-        val touchesAtStart = interactions.value
+        // A touch or a manual step cancels this plan only after clearing the credit; this tells them from the rest.
+        val touchesAtStart = turnRestarts
         try {
             awaitTurnEnd(plan, seenMs)
         } catch (e: CancellationException) {
-            credit.addCutShort(id, SystemClock.uptimeMillis() - started, touchesAtStart, interactions.value)
+            credit.addCutShort(id, SystemClock.uptimeMillis() - started, touchesAtStart, turnRestarts)
             throw e
         }
         credit.clear()
@@ -495,6 +515,13 @@ internal object CoverNav {
     /** A group is [selected] and the [sequence] has another item to move to. */
     fun itemSkipAvailable(selected: CoverItem?, sequence: List<CoverItem>): Boolean =
         selected is CoverItem.Group && sequence.any { it.id != selected.id }
+
+    /**
+     * Whether a manual move goes anywhere: a group steps (alone, it goes round), and anything else moves to another
+     * item of the [sequence], which an item picked by hand outside it always has. A single item alone goes nowhere.
+     */
+    fun canMove(selected: CoverItem?, sequence: List<CoverItem>): Boolean =
+        selected is CoverItem.Group || sequence.any { it.id != selected?.id }
 }
 
 /**

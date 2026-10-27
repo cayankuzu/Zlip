@@ -28,8 +28,22 @@ class GroupStepsTest {
     @Test
     fun previousAtStepOneOfALaterPassShowsTheStepJustSeen() {
         // Wrapping or not, it goes back to the last step of the pass before, never to another pass's last step.
-        assertEquals(at(1, 4), GroupSteps.previous(at(2, 0), size = 5, wrap = false))
-        assertEquals(at(1, 4), GroupSteps.previous(at(2, 0), size = 5, wrap = true))
+        assertEquals(at(1, 4), GroupSteps.previous(at(2, 0), size = 5, wrap = false, minPass = 1))
+        assertEquals(at(1, 4), GroupSteps.previous(at(2, 0), size = 5, wrap = true, minPass = 1))
+    }
+
+    @Test
+    fun aGroupThatLoopedForMinutesStepsBackOnePassAtMost() {
+        // Pass 5 after looping on the cover: back reaches pass 4 once, then leaves at its first step (or wraps in it).
+        var step: GroupSteps.At? = at(5, 0)
+        val seen = mutableListOf<GroupSteps.At>()
+        while (step != null) {
+            seen += step
+            step = GroupSteps.previous(step, size = 5, wrap = false, minPass = 4)
+        }
+        assertEquals(at(4, 0), seen.last())
+        assertEquals(6, seen.size)
+        assertEquals(at(4, 4), GroupSteps.previous(at(4, 0), size = 5, wrap = true, minPass = 4))
     }
 
     @Test

@@ -104,6 +104,8 @@ private class StepSignals : PlaybackEvents {
 private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playback, events: PlaybackEvents?) {
     val items = item.items
     var pass by remember { mutableIntStateOf(0) }
+    // The pass the group was on before this one: previous may step back into it once (the step just seen), never further.
+    var backFloor by remember { mutableIntStateOf(0) }
     // The position in this pass's order (the list order, or the shuffled one).
     var index by remember { mutableIntStateOf(0) }
     // A new random order each time the group comes on screen; stable while it stays (recomposition, edits).
@@ -140,7 +142,7 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
             override fun next(wrap: Boolean): Boolean = go(GroupSteps.next(GroupSteps.At(pass, index), currentSize, wrap))
 
             override fun previous(wrap: Boolean): Boolean =
-                go(GroupSteps.previous(GroupSteps.At(pass, index), currentSize, wrap))
+                go(GroupSteps.previous(GroupSteps.At(pass, index), currentSize, wrap, minPass = backFloor))
 
             override fun showItem(itemIndex: Int): Boolean {
                 val order = GroupTiming.playOrder(currentSize, currentShuffle, seed, pass)
@@ -149,6 +151,7 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
 
             private fun go(to: GroupSteps.At?): Boolean {
                 if (to == null) return false
+                if (to.pass > pass) backFloor = pass
                 pass = to.pass
                 index = to.index
                 return true
@@ -208,6 +211,7 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
         }
         // Hold the last step a moment: the playlist usually moves on now, and step one would only flash.
         delay(GroupTiming.WRAP_GRACE_MS)
+        backFloor = pass
         pass++
         index = 0
     }
@@ -292,16 +296,17 @@ internal object GroupSteps {
     }
 
     /**
-     * The previous step. At step one of a later pass that is the last step of the pass before, the step just seen
-     * (play orders are stable per seed and pass, so a shuffled pass comes back exactly); at the very first step only
-     * with [wrap] (on to the last).
+     * The previous step. At step one of a pass after [minPass] that is the last step of the pass before, the step
+     * just seen (play orders are stable per seed and pass, so a shuffled pass comes back exactly). [minPass] is the
+     * pass the group was on before the current one, so back crosses one pass boundary at most and a group that
+     * looped for minutes still leaves at its first step. There, only with [wrap] (on to the last), else null.
      */
-    fun previous(at: At, size: Int, wrap: Boolean): At? {
+    fun previous(at: At, size: Int, wrap: Boolean, minPass: Int = 0): At? {
         if (size <= 0) return null
         val index = at.index.coerceIn(0, size - 1)
         return when {
             index > 0 -> at.copy(index = index - 1)
-            at.pass > 0 -> At(at.pass - 1, size - 1)
+            at.pass > minPass -> At(at.pass - 1, size - 1)
             wrap -> at.copy(index = size - 1)
             else -> null
         }

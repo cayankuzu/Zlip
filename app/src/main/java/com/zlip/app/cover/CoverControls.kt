@@ -200,11 +200,14 @@ internal fun CoverControls(
             }
         }
 
+        // Fit and the labelled menu pill take the bottom right, and grow with the font size: the sound button then
+        // moves to the bottom left (the clock there hides while the controls show), so a thumb never hits both.
+        val bottomEndTaken = mediaFit != null || onOpenMenu != null
         if (soundOn != null) {
             Box(
                 Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 14.dp),
+                    .align(if (bottomEndTaken) Alignment.BottomStart else Alignment.BottomCenter)
+                    .padding(start = if (bottomEndTaken) 10.dp else 0.dp, bottom = 14.dp),
             ) {
                 ControlButton(
                     if (soundOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
@@ -215,8 +218,7 @@ internal fun CoverControls(
             }
         }
 
-        // Bottom right, so the clock in the bottom-left corner stays readable.
-        if (mediaFit != null || onOpenMenu != null) {
+        if (bottomEndTaken) {
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)

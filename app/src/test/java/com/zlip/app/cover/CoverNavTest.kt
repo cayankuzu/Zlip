@@ -59,4 +59,15 @@ class CoverNavTest {
         // Picked by hand outside the rotation: the rotation is somewhere to go.
         assertTrue(CoverNav.itemSkipAvailable(group, listOf(photo)))
     }
+
+    @Test
+    fun movesGoSomewhereUnlessASingleItemIsAlone() {
+        assertTrue(CoverNav.canMove(photo, listOf(photo, note)))
+        // A group alone goes round its steps.
+        assertTrue(CoverNav.canMove(group, listOf(group)))
+        assertFalse(CoverNav.canMove(photo, listOf(photo)))
+        // Picked by hand outside a one-item rotation: both ways lead into it.
+        assertTrue(CoverNav.canMove(photo, listOf(group)))
+        assertFalse(CoverNav.canMove(null, emptyList()))
+    }
 }

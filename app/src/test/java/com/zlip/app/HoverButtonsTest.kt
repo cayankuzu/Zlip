@@ -11,10 +11,10 @@ class HoverButtonsTest {
     private val trio = listOf(HoverButton.PREVIOUS, HoverButton.PLAY_PAUSE, HoverButton.NEXT)
 
     @Test
-    fun theTrioHoldsTheFirstThreeSlotsWhateverShows() {
+    fun theTrioHoldsTheFirstThreeSlotsWheneverMovesGoSomewhere() {
         for (media in listOf(false, true)) {
             for (group in listOf(false, true)) {
-                assertEquals(trio, hoverButtons(coverOn = true, mirroring = false, media = media, group = group, max = 3))
+                assertEquals(trio, hoverButtons(coverOn = true, mirroring = false, media = media, group = group, canMove = true, max = 3))
             }
         }
     }
@@ -23,15 +23,28 @@ class HoverButtonsTest {
     fun roomForMoreAddsNextItemThenFitThenTurningOff() {
         assertEquals(
             trio + listOf(HoverButton.NEXT_ITEM, HoverButton.MEDIA_FIT),
-            hoverButtons(coverOn = true, mirroring = false, media = true, group = true, max = 5),
+            hoverButtons(coverOn = true, mirroring = false, media = true, group = true, canMove = true, max = 5),
         )
         assertEquals(
             trio + listOf(HoverButton.NEXT_ITEM, HoverButton.MEDIA_FIT, HoverButton.COVER_OFF),
-            hoverButtons(coverOn = true, mirroring = false, media = true, group = true, max = 8),
+            hoverButtons(coverOn = true, mirroring = false, media = true, group = true, canMove = true, max = 8),
         )
         assertEquals(
             trio + HoverButton.COVER_OFF,
-            hoverButtons(coverOn = true, mirroring = false, media = false, group = false, max = 5),
+            hoverButtons(coverOn = true, mirroring = false, media = false, group = false, canMove = true, max = 5),
+        )
+    }
+
+    @Test
+    fun aSingleItemAloneSpendsNoSlotOnMovesThatGoNowhere() {
+        // Fit / Fill stays in reach of a lone photo or video, and the cover can be turned off with the window kept.
+        assertEquals(
+            listOf(HoverButton.MEDIA_FIT, HoverButton.PLAY_PAUSE, HoverButton.COVER_OFF),
+            hoverButtons(coverOn = true, mirroring = false, media = true, group = false, canMove = false, max = 3),
+        )
+        assertEquals(
+            listOf(HoverButton.PLAY_PAUSE, HoverButton.COVER_OFF),
+            hoverButtons(coverOn = true, mirroring = false, media = false, group = false, canMove = false, max = 3),
         )
     }
 
@@ -40,30 +53,30 @@ class HoverButtonsTest {
         // A photo under the mirror is out of sight: no Fit / Fill for it.
         assertEquals(
             listOf(HoverButton.MIRROR_VIEW, HoverButton.MIRROR_STOP, HoverButton.COVER_OFF),
-            hoverButtons(coverOn = true, mirroring = true, media = true, group = true, max = 3),
+            hoverButtons(coverOn = true, mirroring = true, media = true, group = true, canMove = true, max = 3),
         )
     }
 
     @Test
     fun aCoverThatIsOffOffersToTurnItOn() {
-        assertEquals(listOf(HoverButton.COVER_ON), hoverButtons(coverOn = false, mirroring = false, media = true, group = false, max = 3))
+        assertEquals(listOf(HoverButton.COVER_ON), hoverButtons(coverOn = false, mirroring = false, media = true, group = false, canMove = true, max = 3))
         // The mirror's state does not matter once the cover is off.
-        assertEquals(listOf(HoverButton.COVER_ON), hoverButtons(coverOn = false, mirroring = true, media = false, group = true, max = 3))
+        assertEquals(listOf(HoverButton.COVER_ON), hoverButtons(coverOn = false, mirroring = true, media = false, group = true, canMove = true, max = 3))
     }
 
     @Test
     fun lessRoomKeepsWhatMattersMost() {
         assertEquals(
             listOf(HoverButton.PREVIOUS, HoverButton.PLAY_PAUSE),
-            hoverButtons(coverOn = true, mirroring = false, media = true, group = false, max = 2),
+            hoverButtons(coverOn = true, mirroring = false, media = true, group = false, canMove = true, max = 2),
         )
-        assertEquals(listOf(HoverButton.MIRROR_VIEW), hoverButtons(coverOn = true, mirroring = true, media = false, group = false, max = 1))
+        assertEquals(listOf(HoverButton.MIRROR_VIEW), hoverButtons(coverOn = true, mirroring = true, media = false, group = false, canMove = true, max = 1))
     }
 
     @Test
     fun noRoomShowsNothing() {
-        assertEquals(emptyList<HoverButton>(), hoverButtons(coverOn = true, mirroring = false, media = false, group = false, max = 0))
-        assertEquals(emptyList<HoverButton>(), hoverButtons(coverOn = false, mirroring = false, media = false, group = false, max = -1))
+        assertEquals(emptyList<HoverButton>(), hoverButtons(coverOn = true, mirroring = false, media = false, group = false, canMove = true, max = 0))
+        assertEquals(emptyList<HoverButton>(), hoverButtons(coverOn = false, mirroring = false, media = false, group = false, canMove = true, max = -1))
     }
 
     @Test

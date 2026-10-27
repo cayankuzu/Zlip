@@ -192,8 +192,9 @@ fun CoverScreen(
     // What the moves do here, the same as the buttons: steps inside a group, items otherwise.
     val inGroup = !editing && item is CoverItem.Group
     val itemSkip = !editing && itemSkipAvailable
-    // A group alone in the playlist goes round its steps; a single item alone has nowhere to go.
-    val canSkip = !editing && (sequence.size > 1 || item is CoverItem.Group)
+    // A group alone in the playlist goes round its steps; a single item alone has nowhere to go. An item outside the
+    // playlist (picked by hand) always has: both ways lead into the playlist.
+    val canSkip = !editing && CoverNav.canMove(item, sequence)
     val previousLabel = stringResource(if (inGroup) R.string.action_previous_step else R.string.action_previous)
     val nextLabel = stringResource(if (inGroup) R.string.action_next_step else R.string.action_next)
     val previousItemLabel = stringResource(R.string.action_previous_item)
@@ -771,9 +772,10 @@ fun CoverScreen(
             ZoomHint()
         }
 
-        // Where a move went, while the controls are hidden; never over a resting screen saver, the menu or a mirror.
+        // Where a move went, while the controls are hidden; never over a resting screen saver, the menu or a mirror, nor
+        // over a toy's menu hint in the same spot (the toy itself is on screen to say where the move went).
         AnimatedVisibility(
-            visible = moveHintShown && !controlsVisible && !ambient && !menuShown && mirroring == null && !editing,
+            visible = moveHintShown && !toyHint && !controlsVisible && !ambient && !menuShown && mirroring == null && !editing,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier

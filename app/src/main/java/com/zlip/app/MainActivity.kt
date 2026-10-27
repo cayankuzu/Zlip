@@ -304,8 +304,9 @@ class MainActivity : ComponentActivity() {
                     combine(
                         app.repository.selectedItem.map { it?.name to hoverOffersFit(it) }.distinctUntilChanged(),
                         app.playback.itemSkipAvailable,
-                    ) { (name, media), group -> Triple(name, media, group) },
-                ) { status, (keep, dirty), (paused, mediaFit), mirror, (name, media, group) ->
+                        app.playback.movesAvailable,
+                    ) { (name, media), group, moves -> HoverItem(name, media, group, moves) },
+                ) { status, (keep, dirty), (paused, mediaFit), mirror, (name, media, group, moves) ->
                     HoverState(
                         coverOn = status == CoverStatus.ACTIVE,
                         keep = keep,
@@ -316,6 +317,7 @@ class MainActivity : ComponentActivity() {
                         mediaFit = mediaFit,
                         media = media,
                         group = group,
+                        canMove = moves,
                     )
                 }.distinctUntilChanged().collect { state ->
                     hoverParams = buildHoverParams(state).also(::setPictureInPictureParams)
@@ -576,12 +578,13 @@ class MainActivity : ComponentActivity() {
     /**
      * The small window's buttons, as many as Android shows ([hoverButtons]). Cover on: previous, pause/play and next,
      * always in those slots like the cover's own ⏮ ⏯ ⏭; with room for more, next item (a group), Fit / Fill (a photo or
-     * video) and "turn the cover off" (the window stays, as the way back on). Mirroring: whole screen / fill (as a tap
+     * video) and "turn the cover off" (the window stays, as the way back on). A single item alone in the rotation has
+     * nowhere to move, so Fit / Fill and turning off take the slots ⏮ and ⏭ would waste. Mirroring: whole screen / fill (as a tap
      * on the cover), stop mirroring and turn off. Cover off (turned off, or ended by the lock or screen timeout): turn
      * on. Closing the window is the system's own close button, which ends the cover with it.
      */
     private fun buildHoverParams(state: HoverState): PictureInPictureParams {
-        val buttons = hoverButtons(state.coverOn, state.mirroring, state.media, state.group, max = maxNumPictureInPictureActions)
+        val buttons = hoverButtons(state.coverOn, state.mirroring, state.media, state.group, state.canMove, max = maxNumPictureInPictureActions)
         val actions = buttons.map { button ->
             when (button) {
                 HoverButton.PREVIOUS -> broadcastAction(R.drawable.ic_notif_previous, R.string.action_previous, CoverNotifier.ACTION_PREVIOUS)
@@ -810,7 +813,12 @@ private data class HoverState(
     val media: Boolean,
     /** A group is on the cover and can be left for another item. */
     val group: Boolean,
+    /** ⏮ and ⏭ go somewhere ([com.zlip.app.cover.CoverNav.canMove]). */
+    val canMove: Boolean,
 )
+
+/** The selected item, as far as the small window cares: its name, Fit / Fill, leaving a group, moving at all. */
+private data class HoverItem(val name: String?, val media: Boolean, val group: Boolean, val canMove: Boolean)
 
 /** A button of the small window. */
 internal enum class HoverButton { MIRROR_VIEW, MIRROR_STOP, PREVIOUS, PLAY_PAUSE, NEXT, NEXT_ITEM, MEDIA_FIT, COVER_OFF, COVER_ON }
@@ -818,12 +826,14 @@ internal enum class HoverButton { MIRROR_VIEW, MIRROR_STOP, PREVIOUS, PLAY_PAUSE
 /**
  * The small window's buttons, in order, cut to the [max] Android shows (usually three). With the cover on, ⏮ ⏯ ⏭ come
  * first and never move, like the cover's own; room for more adds next item ([group]: a group that can be left), Fit /
- * Fill ([media], see [hoverOffersFit]) and turning the cover off. The window's own close button comes from the system,
- * so none of these is spent on it. Pure, so it is unit-tested.
+ * Fill ([media], see [hoverOffersFit]) and turning the cover off. When ⏮ and ⏭ would go nowhere (![canMove]: a single
+ * item alone in the rotation), Fit / Fill, ⏯ and turning off take the three slots instead. The window's own close
+ * button comes from the system, so none of these is spent on it. Pure, so it is unit-tested.
  */
-internal fun hoverButtons(coverOn: Boolean, mirroring: Boolean, media: Boolean, group: Boolean, max: Int): List<HoverButton> {
+internal fun hoverButtons(coverOn: Boolean, mirroring: Boolean, media: Boolean, group: Boolean, canMove: Boolean, max: Int): List<HoverButton> {
     val all = when {
         coverOn && mirroring -> listOf(HoverButton.MIRROR_VIEW, HoverButton.MIRROR_STOP, HoverButton.COVER_OFF)
+        coverOn && !canMove -> listOfNotNull(HoverButton.MEDIA_FIT.takeIf { media }, HoverButton.PLAY_PAUSE, HoverButton.COVER_OFF)
         coverOn -> listOfNotNull(
             HoverButton.PREVIOUS,
             HoverButton.PLAY_PAUSE,
