@@ -3,64 +3,43 @@
     <!-- Cover toys: names and one-line descriptions -->
     <string name="toy_dice">Dice</string>
     <string name="toy_coin">Coin flip</string>
-    <string name="toy_ball">Magic ball</string>
-    <string name="toy_bottle">Spin the bottle</string>
     <string name="toy_wheel">Decision wheel</string>
     <string name="toy_counter">Counter</string>
     <string name="toy_pomodoro">Focus timer</string>
     <string name="toy_stopwatch">Stopwatch</string>
-    <string name="toy_flashlight">Studio light</string>
-    <string name="toy_rps">Rock paper scissors</string>
     <string name="toy_dice_desc">Roll a die from 1 to 6</string>
     <string name="toy_coin_desc">Heads or tails, settled fairly</string>
-    <string name="toy_ball_desc">Ask a question, get an answer</string>
-    <string name="toy_bottle_desc">Spin it to pick who\'s next</string>
     <string name="toy_wheel_desc">Your own choices on a wheel</string>
     <string name="toy_counter_desc">Tap to count, hold to reset</string>
     <string name="toy_pomodoro_desc">25 min Pomodoro: tap to start/pause, hold to reset</string>
     <string name="toy_stopwatch_desc">Precision stopwatch: tap to start/stop, hold to reset</string>
-    <string name="toy_flashlight_desc">Full-brightness ring light, softbox and strobe</string>
-    <string name="toy_rps_desc">Rock, paper or scissors with a single tap</string>
 
     <!-- Hints under a resting toy on the cover -->
     <string name="toy_hint_dice">Tap to roll</string>
     <string name="toy_hint_coin">Tap to flip</string>
-    <string name="toy_hint_ball">Ask, then tap</string>
-    <string name="toy_hint_bottle">Tap to spin</string>
     <string name="toy_hint_wheel">Tap to spin</string>
     <string name="toy_hint_counter">Tap +1 · Hold to reset</string>
     <string name="toy_hint_pomodoro">Tap start/pause · Hold to reset</string>
     <string name="toy_hint_stopwatch">Tap start/stop · Hold to reset</string>
-    <string name="toy_hint_rps">Tap to play</string>
 
     <!-- Results -->
     <string name="toy_heads">Heads</string>
     <string name="toy_tails">Tails</string>
     <string name="toy_pomodoro_focus">FOCUS</string>
     <string name="toy_pomodoro_done">DONE</string>
-    <string name="toy_light_ring">Ring light · Tap for mode</string>
-    <string name="toy_light_softbox">Softbox · Tap for mode</string>
-    <string name="toy_light_strobe">Strobe · Tap for mode</string>
 
     <!-- Accessibility: actions and what the toy shows -->
     <string name="toy_action_roll">Roll</string>
     <string name="toy_action_flip">Flip</string>
-    <string name="toy_action_ask">Ask</string>
     <string name="toy_action_spin">Spin</string>
     <string name="toy_action_count">Add one</string>
     <string name="toy_action_reset">Reset</string>
-    <string name="toy_action_light_mode">Switch light mode</string>
-    <string name="toy_action_rps">Play rock paper scissors</string>
     <string name="toy_cd_dice">Dice showing %1$d</string>
     <string name="toy_cd_coin">Coin: %1$s</string>
-    <string name="toy_cd_ball">Magic ball says: %1$s</string>
-    <string name="toy_cd_bottle">The bottle points to %1$d o\'clock</string>
     <string name="toy_cd_wheel">The wheel landed on %1$s</string>
     <string name="toy_cd_counter">Count: %1$d</string>
     <string name="toy_cd_pomodoro">Focus timer: %1$s</string>
     <string name="toy_cd_stopwatch">Stopwatch: %1$s</string>
-    <string name="toy_cd_flashlight">Studio light: %1$s</string>
-    <string name="toy_cd_rps">Rock paper scissors: %1$s</string>
 
     <!-- Built-in wheel, in slice order (the wheel shows them as ✓ ✗ ? ↻) -->
     <string-array name="toy_wheel_defaults">
@@ -70,30 +49,6 @@
         <item>Ask again</item>
     </string-array>
 
-    <!-- The classic 20 magic ball answers; keep exactly 20 -->
-    <string-array name="toy_ball_answers">
-        <item>It is certain</item>
-        <item>It is decidedly so</item>
-        <item>Without a doubt</item>
-        <item>Yes, definitely</item>
-        <item>You may rely on it</item>
-        <item>As I see it, yes</item>
-        <item>Most likely</item>
-        <item>Outlook good</item>
-        <item>Yes</item>
-        <item>Signs point to yes</item>
-        <item>Reply hazy, try again</item>
-        <item>Ask again later</item>
-        <item>Better not tell you now</item>
-        <item>Cannot predict now</item>
-        <item>Concentrate and ask again</item>
-        <item>Don\'t count on it</item>
-        <item>My reply is no</item>
-        <item>My sources say no</item>
-        <item>Outlook not so good</item>
-        <item>Very doubtful</item>
-    </string-array>
-
     <!-- Toy editor -->
     <string name="toy_editor_title_new">New cover toy</string>
     <string name="toy_editor_title_edit">Edit cover toy</string>
@@ -101,38 +56,25 @@
     <string name="toy_editor_pick">Toy</string>
     <string name="toy_editor_colors">Colors</string>
     <string name="toy_editor_color">Toy color</string>
-    <string name="toy_editor_ball_color">Answer color</string>
     <string name="toy_editor_same_colors">Pick two different colors so the toy stands out.</string>
-    <string name="toy_editor_answers">Your answers</string>
-    <string name="toy_editor_answers_hint">Leave empty to use the 20 classic answers.</string>
     <string name="toy_editor_choices">Choices</string>
     <string name="toy_editor_choices_hint">Leave empty for Yes, No, Maybe and Ask again.</string>
     <string name="toy_editor_choices_one">Add one more choice. Until then the wheel uses Yes, No, Maybe and Ask again.</string>
-    <plurals name="toy_editor_answer_count">
-        <item quantity="one">%1$d answer, up to %2$d</item>
-        <item quantity="other">%1$d answers, up to %2$d</item>
-    </plurals>
     <plurals name="toy_editor_choice_count">
         <item quantity="one">%1$d choice, up to %2$d</item>
         <item quantity="other">%1$d choices, up to %2$d</item>
     </plurals>
-    <string name="toy_editor_answer_n">Answer %1$d</string>
     <string name="toy_editor_choice_n">Choice %1$d</string>
-    <string name="toy_editor_add_answer">Add answer</string>
     <string name="toy_editor_add_choice">Add choice</string>
-    <string name="toy_editor_remove_answer">Remove answer %1$d</string>
     <string name="toy_editor_remove_choice">Remove choice %1$d</string>
     <string name="toy_editor_builtin">Use built-in</string>
     <string name="toy_editor_presets">Quick fill</string>
     <!-- Snackbar after "Use built-in" or a quick fill replaced what the user typed; its action is Undo -->
     <string name="toy_editor_choices_replaced">Your choices were replaced</string>
-    <string name="toy_editor_answers_replaced">Your answers were replaced</string>
 
     <!-- Wheel presets: a chip name and its choices -->
     <string name="toy_preset_yes_no">Yes / No</string>
     <string name="toy_preset_dinner">Dinner</string>
-    <string name="toy_preset_rps">Rock paper scissors</string>
-    <string name="toy_preset_truth">Truth or dare</string>
     <string-array name="toy_preset_yes_no_items">
         <item>Yes</item>
         <item>No</item>
@@ -144,14 +86,5 @@
         <item>Pasta</item>
         <item>Salad</item>
         <item>Tacos</item>
-    </string-array>
-    <string-array name="toy_preset_rps_items">
-        <item>Rock</item>
-        <item>Paper</item>
-        <item>Scissors</item>
-    </string-array>
-    <string-array name="toy_preset_truth_items">
-        <item>Truth</item>
-        <item>Dare</item>
     </string-array>
 </resources>

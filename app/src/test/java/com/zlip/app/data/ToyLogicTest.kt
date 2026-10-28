@@ -65,22 +65,6 @@ class ToyLogicTest {
     }
 
     @Test
-    fun answersNeverRepeatAndStayFair() {
-        val random = Random(9)
-        var previous = -1
-        val counts = IntArray(20)
-        repeat(38_000) {
-            val next = ToyLogic.pickAnswer(20, previous, random)
-            assertNotEquals(previous, next)
-            counts[next]++
-            previous = next
-        }
-        counts.forEach { assertTrue("count $it", abs(it - 1_900) < 250) }
-        assertEquals(0, ToyLogic.pickAnswer(1, 0, random))
-        assertTrue(ToyLogic.pickAnswer(3, 99, random) in 0..2)
-    }
-
-    @Test
     fun optionsAreCleaned() {
         val long = "x".repeat(40)
         val cleaned = ToyLogic.cleanOptions(listOf("  Pizza ", "", "   ", "Two\nlines", long) + List(20) { "Option $it" })
@@ -94,10 +78,7 @@ class ToyLogicTest {
     }
 
     @Test
-    fun builtInAnswersFillInForEmptyOrTooFewOptions() {
-        val builtIn = listOf("Yes", "No")
-        assertEquals(builtIn, ToyLogic.ballAnswers(listOf(" ", ""), builtIn))
-        assertEquals(listOf("Only"), ToyLogic.ballAnswers(listOf("Only"), builtIn))
+    fun builtInSlicesFillInForEmptyOrTooFewOptions() {
         assertNull(ToyLogic.customWheelSlices(emptyList()))
         assertNull(ToyLogic.customWheelSlices(listOf("One", " ")))
         assertEquals(listOf("A", "B"), ToyLogic.customWheelSlices(listOf("A", "", "B")))
@@ -144,19 +125,6 @@ class ToyLogicTest {
     }
 
     @Test
-    fun bottleSpinsTakeTwoToFourSecondsAndPointAnywhere() {
-        val random = Random(13)
-        val quarters = IntArray(4)
-        repeat(20_000) {
-            val spin = ToyLogic.spinBottle(random.nextFloat() * 720f - 360f, random)
-            assertTrue(spin.durationMs in 2_000L..4_000L)
-            assertTrue(spin.target - spin.start >= 3 * 360f)
-            quarters[(ToyLogic.normalize(spin.target) / 90f).toInt()]++
-        }
-        quarters.forEach { assertTrue("quarter $it", abs(it - 5_000) < 350) }
-    }
-
-    @Test
     fun neighbouringSlicesNeverShareATint() {
         for (count in 2..ToyLogic.MAX_OPTIONS) {
             for (index in 0 until count) {
@@ -174,10 +142,6 @@ class ToyLogicTest {
         assertTrue(ToyLogic.decelerate(0.5f) > 0.5f)
         assertEquals(350f, ToyLogic.normalize(-10f), 0.001f)
         assertEquals(10f, ToyLogic.normalize(730f), 0.001f)
-        assertEquals(12, ToyLogic.clockHour(0f))
-        assertEquals(3, ToyLogic.clockHour(90f))
-        assertEquals(9, ToyLogic.clockHour(-90f))
-        assertEquals(12, ToyLogic.clockHour(355f))
         assertEquals(0, ToyLogic.nearestTick(359f))
         assertEquals(6, ToyLogic.nearestTick(90f))
         assertEquals(1, ToyLogic.nextCount(0))
@@ -202,21 +166,5 @@ class ToyLogicTest {
         assertEquals("00:00", ToyLogic.formatStopwatchMmSs(0L))
         assertEquals("01:05", ToyLogic.formatStopwatchMmSs(65_400L))
         assertEquals("01:05.4", ToyLogic.formatStopwatchTenths(65_400L))
-    }
-
-    @Test
-    fun rpsIsFairAndTumblesCleanly() {
-        val random = Random(42)
-        val counts = IntArray(3)
-        repeat(30_000) { counts[ToyLogic.pickRps(random)]++ }
-        for (move in 0..2) assertTrue("move $move: ${counts[move]}", abs(counts[move] - 10_000) < 450)
-        repeat(200) {
-            val final = ToyLogic.pickRps(random)
-            val seq = ToyLogic.tumbleRps(final, steps = 6, random = random)
-            assertEquals(7, seq.size)
-            assertEquals(final, seq.last())
-            assertTrue(seq.all { it in 0..2 })
-            seq.zipWithNext().forEach { (a, b) -> assertNotEquals(a, b) }
-        }
     }
 }

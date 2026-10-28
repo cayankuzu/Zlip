@@ -202,7 +202,7 @@ sealed interface CoverItem {
 
 enum class QrKind { LINK, WIFI, CONTACT, TEXT }
 
-enum class ToyKind { DICE, COIN, MAGIC_BALL, BOTTLE, WHEEL, COUNTER, POMODORO, STOPWATCH, FLASHLIGHT, RPS }
+enum class ToyKind { DICE, COIN, WHEEL, COUNTER, POMODORO, STOPWATCH }
 
 /** [this] item, or the plain items it is made of: a collage's cells and a group's steps, all the way down. */
 fun CoverItem.leaves(): List<CoverItem> = when (this) {
@@ -212,7 +212,7 @@ fun CoverItem.leaves(): List<CoverItem> = when (this) {
 }
 
 /** A QR code is on screen (alone, in a collage cell or as a group step): it must stay sharp and bright to scan. */
-fun CoverItem.showsQr(): Boolean = leaves().any { it is CoverItem.Qr || (it is CoverItem.Toy && it.kind == ToyKind.FLASHLIGHT) }
+fun CoverItem.showsQr(): Boolean = leaves().any { it is CoverItem.Qr }
 
 /** Every media file [this] item needs, including those inside collages and groups. */
 fun CoverItem.mediaFiles(): List<String> = leaves().flatMap { if (it is CoverItem.Media) listOfNotNull(it.fileName, it.posterFileName) else emptyList() }
@@ -501,7 +501,7 @@ internal object CoverItemJson {
                 CoverItem.Toy(
                     id = id,
                     name = name,
-                    kind = enumOr(json.optString("kind"), ToyKind.DICE),
+                    kind = enumOr(json.optString("kind"), ToyKind.DICE).also { if (json.optString("kind") in REMOVED_TOY_KINDS) return null },
                     color = json.optInt("color", CoverItem.MINT),
                     background = json.optInt("background", CoverItem.BLACK),
                     options = List(options.length()) { options.optString(it) }.filter { it.isNotBlank() },
@@ -527,6 +527,10 @@ internal object CoverItemJson {
         }
     }.getOrNull()
 
+    internal fun isRemovedToy(json: JSONObject): Boolean =
+        json.optString("type") == "toy" && json.optString("kind") in REMOVED_TOY_KINDS
+
+    private val REMOVED_TOY_KINDS = setOf("MAGIC_BALL", "BOTTLE", "FLASHLIGHT", "RPS")
     private inline fun <reified E : Enum<E>> enumOr(name: String, fallback: E): E =
         enumValues<E>().firstOrNull { it.name == name } ?: fallback
 }

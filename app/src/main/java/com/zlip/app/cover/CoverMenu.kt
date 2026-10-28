@@ -270,14 +270,6 @@ internal fun CoverMenu(
                     },
                 )
                 MenuSwitch(
-                    title = stringResource(R.string.cover_menu_clock),
-                    checked = settings.coverClock,
-                    onCheckedChange = { on ->
-                        onUserActivity()
-                        repository.updateSettings { it.copy(coverClock = on) }
-                    },
-                )
-                MenuSwitch(
                     title = stringResource(R.string.cover_menu_led),
                     checked = settings.ledMatrix,
                     onCheckedChange = { on ->
@@ -286,32 +278,6 @@ internal fun CoverMenu(
                     },
                 )
             }
-            if (onClose != null) CloseScreenSaverRow(onClose, faded)
-        }
-    }
-}
-
-/** The way out of the screen saver altogether (back to the cover's lock screen), spelled out at the end of the menu. */
-@Composable
-private fun CloseScreenSaverRow(onClose: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.padding(top = 12.dp)) {
-        HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 52.dp)
-                .clip(MaterialTheme.shapes.small)
-                .clickable(role = Role.Button, onClick = onClose)
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.85f))
-            Spacer(Modifier.width(12.dp))
-            Text(
-                text = stringResource(R.string.cover_close),
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.85f),
-            )
         }
     }
 }

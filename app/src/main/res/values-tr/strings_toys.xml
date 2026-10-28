@@ -3,64 +3,43 @@
     <!-- Kapak oyuncakları: adlar ve tek satırlık açıklamalar -->
     <string name="toy_dice">Zar</string>
     <string name="toy_coin">Yazı tura</string>
-    <string name="toy_ball">Sihirli küre</string>
-    <string name="toy_bottle">Şişe çevirmece</string>
     <string name="toy_wheel">Karar çarkı</string>
     <string name="toy_counter">Sayaç</string>
     <string name="toy_pomodoro">Odak sayacı</string>
     <string name="toy_stopwatch">Kronometre</string>
-    <string name="toy_flashlight">Stüdyo ışığı</string>
-    <string name="toy_rps">Taş kağıt makas</string>
     <string name="toy_dice_desc">1\'den 6\'ya zar at</string>
     <string name="toy_coin_desc">Yazı mı tura mı, tamamen adil</string>
-    <string name="toy_ball_desc">Bir soru sor, cevabını al</string>
-    <string name="toy_bottle_desc">Sıradakini seçmek için çevir</string>
     <string name="toy_wheel_desc">Kendi seçeneklerin bir çarkta</string>
     <string name="toy_counter_desc">Saymak için dokun, sıfırlamak için basılı tut</string>
     <string name="toy_pomodoro_desc">25 dk Pomodoro: başlat/duraklat, basılı tut sıfırla</string>
     <string name="toy_stopwatch_desc">Saliseli kronometre: dokun başlat, basılı tut sıfırla</string>
-    <string name="toy_flashlight_desc">Tam parlaklıkta halka ışık, softbox ve flaşör</string>
-    <string name="toy_rps_desc">Tek dokunuşla taş, kağıt ya da makas</string>
 
     <!-- Kapakta duran oyuncağın altındaki ipuçları -->
     <string name="toy_hint_dice">Dokun ve at</string>
     <string name="toy_hint_coin">Dokun ve havaya at</string>
-    <string name="toy_hint_ball">Sor ve dokun</string>
-    <string name="toy_hint_bottle">Dokun ve çevir</string>
     <string name="toy_hint_wheel">Dokun ve çevir</string>
     <string name="toy_hint_counter">Dokun: +1 · Basılı tut: sıfırla</string>
     <string name="toy_hint_pomodoro">Dokun: başlat/duraklat · Basılı tut: sıfırla</string>
     <string name="toy_hint_stopwatch">Dokun: başlat/durdur · Basılı tut: sıfırla</string>
-    <string name="toy_hint_rps">Dokun ve oyna</string>
 
     <!-- Sonuçlar -->
     <string name="toy_heads">Tura</string>
     <string name="toy_tails">Yazı</string>
     <string name="toy_pomodoro_focus">ODAKLAN</string>
     <string name="toy_pomodoro_done">TAMAMLANDI</string>
-    <string name="toy_light_ring">Halka ışık · Mod için dokun</string>
-    <string name="toy_light_softbox">Softbox · Mod için dokun</string>
-    <string name="toy_light_strobe">Flaşör · Mod için dokun</string>
 
     <!-- Erişilebilirlik: eylemler ve oyuncağın gösterdiği -->
     <string name="toy_action_roll">Zar at</string>
     <string name="toy_action_flip">Para at</string>
-    <string name="toy_action_ask">Sor</string>
     <string name="toy_action_spin">Çevir</string>
     <string name="toy_action_count">Bir ekle</string>
     <string name="toy_action_reset">Sıfırla</string>
-    <string name="toy_action_light_mode">Işık modunu değiştir</string>
-    <string name="toy_action_rps">Taş kağıt makas oyna</string>
     <string name="toy_cd_dice">Zar: %1$d</string>
     <string name="toy_cd_coin">Para: %1$s</string>
-    <string name="toy_cd_ball">Sihirli küre diyor ki: %1$s</string>
-    <string name="toy_cd_bottle">Şişe saat %1$d yönünü gösteriyor</string>
     <string name="toy_cd_wheel">Çark durdu: %1$s</string>
     <string name="toy_cd_counter">Sayı: %1$d</string>
     <string name="toy_cd_pomodoro">Odak sayacı: %1$s</string>
     <string name="toy_cd_stopwatch">Kronometre: %1$s</string>
-    <string name="toy_cd_flashlight">Stüdyo ışığı: %1$s</string>
-    <string name="toy_cd_rps">Taş kağıt makas: %1$s</string>
 
     <!-- Hazır çark, dilim sırasıyla (çarkta ✓ ✗ ? ↻ olarak görünür) -->
     <string-array name="toy_wheel_defaults">
@@ -70,30 +49,6 @@
         <item>Tekrar sor</item>
     </string-array>
 
-    <!-- 20 klasik sihirli küre cevabı; tam olarak 20 kalmalı -->
-    <string-array name="toy_ball_answers">
-        <item>Kesinlikle öyle</item>
-        <item>Şüphesiz öyle</item>
-        <item>Hiç şüphe yok</item>
-        <item>Evet, kesinlikle</item>
-        <item>Buna güvenebilirsin</item>
-        <item>Bence evet</item>
-        <item>Büyük ihtimalle</item>
-        <item>İşler iyi görünüyor</item>
-        <item>Evet</item>
-        <item>İşaretler evet diyor</item>
-        <item>Belirsiz, tekrar dene</item>
-        <item>Sonra tekrar sor</item>
-        <item>Şimdi söylemesem iyi</item>
-        <item>Şu an tahmin edemem</item>
-        <item>Odaklan ve tekrar sor</item>
-        <item>Pek bel bağlama</item>
-        <item>Cevabım hayır</item>
-        <item>Kaynaklarım hayır diyor</item>
-        <item>Pek iyi görünmüyor</item>
-        <item>Çok şüpheli</item>
-    </string-array>
-
     <!-- Oyuncak düzenleyici -->
     <string name="toy_editor_title_new">Yeni kapak oyuncağı</string>
     <string name="toy_editor_title_edit">Kapak oyuncağını düzenle</string>
@@ -101,37 +56,24 @@
     <string name="toy_editor_pick">Oyuncak</string>
     <string name="toy_editor_colors">Renkler</string>
     <string name="toy_editor_color">Oyuncak rengi</string>
-    <string name="toy_editor_ball_color">Cevap rengi</string>
     <string name="toy_editor_same_colors">Oyuncağın öne çıkması için iki farklı renk seç.</string>
-    <string name="toy_editor_answers">Senin cevapların</string>
-    <string name="toy_editor_answers_hint">Boş bırakırsan 20 klasik cevap kullanılır.</string>
     <string name="toy_editor_choices">Seçenekler</string>
     <string name="toy_editor_choices_hint">Boş bırakırsan Evet, Hayır, Belki ve Tekrar sor kullanılır.</string>
     <string name="toy_editor_choices_one">Bir seçenek daha ekle. O zamana kadar çark Evet, Hayır, Belki ve Tekrar sor ile döner.</string>
-    <plurals name="toy_editor_answer_count">
-        <item quantity="one">%1$d cevap, en fazla %2$d</item>
-        <item quantity="other">%1$d cevap, en fazla %2$d</item>
-    </plurals>
     <plurals name="toy_editor_choice_count">
         <item quantity="one">%1$d seçenek, en fazla %2$d</item>
         <item quantity="other">%1$d seçenek, en fazla %2$d</item>
     </plurals>
-    <string name="toy_editor_answer_n">Cevap %1$d</string>
     <string name="toy_editor_choice_n">Seçenek %1$d</string>
-    <string name="toy_editor_add_answer">Cevap ekle</string>
     <string name="toy_editor_add_choice">Seçenek ekle</string>
-    <string name="toy_editor_remove_answer">%1$d. cevabı kaldır</string>
     <string name="toy_editor_remove_choice">%1$d. seçeneği kaldır</string>
     <string name="toy_editor_builtin">Hazırları kullan</string>
     <string name="toy_editor_presets">Hızlı doldur</string>
     <string name="toy_editor_choices_replaced">Seçeneklerin değiştirildi</string>
-    <string name="toy_editor_answers_replaced">Cevapların değiştirildi</string>
 
     <!-- Çark hazırları: çip adı ve seçenekleri -->
     <string name="toy_preset_yes_no">Evet / Hayır</string>
     <string name="toy_preset_dinner">Akşam yemeği</string>
-    <string name="toy_preset_rps">Taş kağıt makas</string>
-    <string name="toy_preset_truth">Doğruluk mu cesaret mi</string>
     <string-array name="toy_preset_yes_no_items">
         <item>Evet</item>
         <item>Hayır</item>
@@ -143,14 +85,5 @@
         <item>Makarna</item>
         <item>Lahmacun</item>
         <item>Mantı</item>
-    </string-array>
-    <string-array name="toy_preset_rps_items">
-        <item>Taş</item>
-        <item>Kağıt</item>
-        <item>Makas</item>
-    </string-array>
-    <string-array name="toy_preset_truth_items">
-        <item>Doğruluk</item>
-        <item>Cesaret</item>
     </string-array>
 </resources>

@@ -263,6 +263,7 @@ fun ZlipRoot(
     // activity (font size change, process death) still lands in the group.
     var pickingForGroup by rememberSaveable { mutableStateOf<Int?>(null) }
     var pendingGroupAdds by rememberSaveable(stateSaver = IdListSaver) { mutableStateOf<List<String>?>(null) }
+    var groupSessionImports by rememberSaveable(stateSaver = IdListSaver) { mutableStateOf<List<String>?>(null) }
     // The small window hides the editor, so the cover plays the playlist meanwhile (and its buttons can skip);
     // the newest unsaved draft waits here and goes back on the cover when Zlip is full size again.
     var parkedDraft by remember { mutableStateOf<CoverItem?>(null) }
@@ -391,8 +392,9 @@ fun ZlipRoot(
             try {
                 repository.importMedia(uri) { importProgress = it }
                     .onSuccess { item ->
-                        // Never replace an editor the user opened meanwhile; the item is in the library either way.
-                        if (screen == Screen.Home) {
+                        // Never replace an editor the user opened meanwhile; only open MediaEditor if it's a top-level item.
+                        val inMainLibrary = repository.items.value.any { it.id == item.id }
+                        if (screen == Screen.Home && inMainLibrary) {
                             editorDirty = false
                             screen = Screen.MediaEditor(item, fresh = true)
                         } else {
@@ -490,19 +492,29 @@ fun ZlipRoot(
             // The group editor (back after a recreation, too) takes them; anywhere else they are in the library anyway.
             when {
                 added.isEmpty() -> Unit
-                room != null && screen.isGroupEditor -> pendingGroupAdds = pendingGroupAdds.orEmpty() + added
+                room != null && screen.isGroupEditor -> {
+                    pendingGroupAdds = pendingGroupAdds.orEmpty() + added
+                    groupSessionImports = (groupSessionImports.orEmpty() + added).distinct()
+                }
                 else -> Toast.makeText(context, R.string.media_added, Toast.LENGTH_SHORT).show()
             }
             showFailures(failed)
         }
     }
 
-    val goHome = {
+    val leaveEditor = {
         editorDirty = false
         confirmDiscard = false
-        // Every way out of the group editor comes through here: files it did not take never reach another group.
         pendingGroupAdds = null
+        groupSessionImports = null
         screen = Screen.Home
+    }
+    val goHome = {
+        val ungroupedImports = groupSessionImports.orEmpty().toSet()
+        if (ungroupedImports.isNotEmpty()) {
+            repository.deleteAll(ungroupedImports)
+        }
+        leaveEditor()
     }
     val requestBack: () -> Unit = {
         val freshImport = (screen as? Screen.MediaEditor)?.takeIf { it.fresh }?.initial
@@ -523,9 +535,14 @@ fun ZlipRoot(
         }
     }
     val save: (CoverItem) -> Unit = { item ->
+        val usedIds = (item as? CoverItem.Group)?.items?.mapTo(HashSet()) { it.id }.orEmpty()
+        val leftoverImports = groupSessionImports.orEmpty().filterNot { it in usedIds }.toSet()
+        if (leftoverImports.isNotEmpty()) {
+            repository.deleteAll(leftoverImports)
+        }
         repository.upsert(item)
         repository.select(item.id)
-        goHome()
+        leaveEditor()
     }
 
     // Shared to Zlip or asked for by a shortcut. An editor with unsaved changes is never replaced: this waits
@@ -925,6 +942,7 @@ fun ZlipRoot(
                         TextButton(onClick = {
                             batchResult = null
                             editorDirty = false
+                            groupSessionImports = result.ids
                             screen = Screen.GroupEditor(null, prefill = result.ids)
                         }) { Text(stringResource(R.string.import_batch_make_group)) }
                     } else {

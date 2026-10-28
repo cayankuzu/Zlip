@@ -160,10 +160,11 @@ class CoverPlayback(
 
     /**
      * Where the group on the cover is ("Adım 2/5"): its step in this pass's play order, so a shuffled group still
-     * counts 1, 2, 3. Null unless the selected item is a group that reported a step.
+     * counts 1, 2, 3. Null unless the active item (draft or selected) is a group that reported a step.
      */
-    val groupProgress: StateFlow<GroupProgress?> = combine(repository.selectedItem, stepShown, CoverNav::progress)
-        .stateIn(scope, SharingStarted.Eagerly, null)
+    val groupProgress: StateFlow<GroupProgress?> = combine(repository.draft, repository.selectedItem, stepShown) { draft, selected, step ->
+        CoverNav.progress(draft ?: selected, step)
+    }.stateIn(scope, SharingStarted.Eagerly, null)
 
     /**
      * A group is on the cover and the rotation has something else to go to: [nextItem] and [previousItem] leave the
@@ -186,12 +187,13 @@ class CoverPlayback(
     val manualMoves: SharedFlow<CoverMove> = _manualMoves.asSharedFlow()
 
     /**
-     * What the cover shows: the selected item, or the step its group is on. The step as the group holds it now, so an
-     * edit of that step (a new framing) shows here at once rather than when the group next moves on.
+     * What the cover shows: the active item (draft or selected), or the step its group is on. The step as the group holds
+     * it now, so an edit of that step (a new framing) shows here at once rather than when the group next moves on.
      */
-    val shownItem: StateFlow<CoverItem?> = combine(repository.selectedItem, stepShown) { selected, step ->
-        val shown = step?.takeIf { it.groupId == selected?.id }?.child
-        if (shown == null) selected else (selected as? CoverItem.Group)?.items?.firstOrNull { it.id == shown.id } ?: shown
+    val shownItem: StateFlow<CoverItem?> = combine(repository.draft, repository.selectedItem, stepShown) { draft, selected, step ->
+        val current = draft ?: selected
+        val shown = step?.takeIf { it.groupId == current?.id }?.child
+        if (shown == null) current else (current as? CoverItem.Group)?.items?.firstOrNull { it.id == shown.id } ?: shown
     }.stateIn(scope, SharingStarted.Eagerly, null)
 
     /**
@@ -304,20 +306,22 @@ class CoverPlayback(
     fun previousItem() = move(forward = false, byStep = false)
 
     private fun move(forward: Boolean, byStep: Boolean) {
-        // While an editor streams a draft the selection is hidden; changing it would be invisible.
-        if (editing.value) return
-        val before = repository.currentSelected?.id
         val stayed = CoverNav.staysInGroup(byStep) { stepGroup(forward) }
         if (stayed) {
             credit.clear()
             manualSteps.update { it + 1 }
-        } else {
-            if (forward) repository.selectNext(shuffle = CoverNav.MANUAL_SHUFFLE) else repository.selectPrevious()
-            // Nowhere to go (one item in the rotation): nothing moved, so nothing resumes or says where it went.
-            if (repository.currentSelected?.id == before) return
+            _paused.value = false
+            _manualMoves.tryEmit(CoverMove.STEP)
+            return
         }
+        // While an editor streams a draft the selection is hidden; changing it would be invisible.
+        if (editing.value || repository.draft.value != null) return
+        val before = repository.currentSelected?.id
+        if (forward) repository.selectNext(shuffle = CoverNav.MANUAL_SHUFFLE) else repository.selectPrevious()
+        // Nowhere to go (one item in the rotation): nothing moved, so nothing resumes or says where it went.
+        if (repository.currentSelected?.id == before) return
         _paused.value = false
-        _manualMoves.tryEmit(if (stayed) CoverMove.STEP else CoverMove.ITEM)
+        _manualMoves.tryEmit(CoverMove.ITEM)
     }
 
     /**
@@ -334,9 +338,10 @@ class CoverPlayback(
     /** Moves inside the group on the cover; false when there is no group or no step that way. */
     private fun stepGroup(forward: Boolean): Boolean {
         val (groupId, stepper) = groupStepper ?: return false
-        if (groupId != repository.currentSelected?.id) return false
-        // Alone in the sequence there is nothing to move on to: the group goes round instead.
-        val alone = repository.currentSequence.none { it.id != groupId }
+        val activeId = (repository.draft.value ?: repository.currentSelected)?.id
+        if (groupId != activeId) return false
+        // Alone in the sequence (or editing a group draft) there is nothing to move on to: the group goes round instead.
+        val alone = repository.draft.value != null || repository.currentSequence.none { it.id != groupId }
         return if (forward) stepper.next(wrap = alone) else stepper.previous(wrap = alone)
     }
 

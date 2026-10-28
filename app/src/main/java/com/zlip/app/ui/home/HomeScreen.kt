@@ -584,21 +584,22 @@ fun HomeScreen(
                         MirrorControlsCard(settings, onSettingsChange, onBrightnessBounds = reportSlider, sliderEndRoom = fabOverSlider)
                     } else {
                         val isGroupActive = groupProgress?.takeIf { it.groupId == selectedItem?.id } != null
+                        val previewItem = shownOnCover ?: selectedItem
+                        val activeVideoDurMs = videoDurationMs.takeIf { it > 0L }
+                            ?: (previewItem as? CoverItem.Media)?.takeIf { it.kind == MediaKind.VIDEO }?.durationMs
+                            ?: 0L
                         ControlsCard(
                             settings = settings,
                             paused = paused,
                             stepping = isGroupActive,
-                            itemSkip = itemSkip,
                             onTogglePause = onTogglePause,
                             onNext = onNext,
                             onPrevious = onPrevious,
-                            onNextItem = onNextItem,
-                            onPreviousItem = onPreviousItem,
                             onSettingsChange = onSettingsChange,
                             onBrightnessBounds = reportSlider,
                             sliderEndRoom = fabOverSlider,
                             videoPositionMs = videoPositionMs,
-                            videoDurationMs = videoDurationMs,
+                            videoDurationMs = activeVideoDurMs,
                             onSeek = onSeek,
                         )
                     }
@@ -647,13 +648,14 @@ fun HomeScreen(
                     ) {
                         LibraryFilter.entries.forEach { entry ->
                             if (entry == LibraryFilter.PLAYLIST && playlist.isEmpty()) return@forEach
+                            val count = items.count { entry.accepts(it, playlist) }
                             // A type the library does not have yet is only clutter (unless it is the one in use).
                             val typeFilter = entry != LibraryFilter.ALL && entry != LibraryFilter.PLAYLIST
-                            if (typeFilter && entry != activeFilter && items.none { entry.accepts(it, playlist) }) return@forEach
+                            if (typeFilter && entry != activeFilter && count == 0) return@forEach
                             FilterChip(
                                 selected = activeFilter == entry,
                                 onClick = { onFilterChange(entry) },
-                                label = { Text(stringResource(entry.label)) },
+                                label = { Text("${stringResource(entry.label)} ($count)") },
                                 leadingIcon = if (entry == LibraryFilter.PLAYLIST) {
                                     { Icon(Icons.AutoMirrored.Filled.PlaylistPlay, contentDescription = null, modifier = Modifier.size(18.dp)) }
                                 } else {
@@ -1395,12 +1397,9 @@ private fun ControlsCard(
     settings: CoverSettings,
     paused: Boolean,
     stepping: Boolean,
-    itemSkip: Boolean,
     onTogglePause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
-    onNextItem: () -> Unit,
-    onPreviousItem: () -> Unit,
     onSettingsChange: (CoverSettings) -> Unit,
     onBrightnessBounds: ((Rect) -> Unit)? = null,
     sliderEndRoom: Boolean = false,
@@ -1450,19 +1449,6 @@ private fun ControlsCard(
                     .padding(horizontal = 4.dp),
             )
         }
-        // Out of the group in one tap; a group alone in the rotation goes round instead, so there is nowhere to go.
-        if (stepping && itemSkip) {
-            Spacer(Modifier.height(6.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ItemSkipButton(Icons.Filled.SkipPrevious, R.string.action_previous_item, iconFirst = true, onClick = onPreviousItem)
-                ItemSkipButton(Icons.Filled.SkipNext, R.string.action_next_item, iconFirst = false, onClick = onNextItem)
-            }
-        }
         Spacer(Modifier.height(8.dp))
         BrightnessRow(settings, onSettingsChange, Modifier.reportBounds(onBrightnessBounds), endRoom = sliderEndRoom)
         Spacer(Modifier.height(6.dp))
@@ -1497,28 +1483,6 @@ private fun ControlsCard(
                 )
                 AdvanceSecondsChip(settings, onSettingsChange)
             }
-        }
-    }
-}
-
-/** One of the two "leave the group" buttons: the icon on the outer side, the words always whole (two lines if need be). */
-@Composable
-private fun RowScope.ItemSkipButton(icon: ImageVector, @StringRes label: Int, iconFirst: Boolean, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-        modifier = Modifier
-            .weight(1f)
-            .fillMaxHeight(),
-    ) {
-        if (iconFirst) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-        }
-        Text(stringResource(label), textAlign = TextAlign.Center)
-        if (!iconFirst) {
-            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-            Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
         }
     }
 }

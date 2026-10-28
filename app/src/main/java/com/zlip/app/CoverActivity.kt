@@ -66,18 +66,7 @@ class CoverActivity : ComponentActivity() {
     private val app: ZlipApp get() = application as ZlipApp
     private val displays by lazy { getSystemService(DisplayManager::class.java) }
     private val keyguard by lazy { getSystemService(KeyguardManager::class.java) }
-
-    /** Unlocking the folded phone (fingerprint, PIN, pattern, face) closes the screen saver like its ×. */
-    private val unlockClose = UnlockClose()
-    private var unlockRegistered = false
-
-    private val unlockReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            unlockClose.unlocked()
-            // Shown: decide now. Otherwise when it is shown again, after any widget tap that brought it back.
-            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) closeIfUnlocked()
-        }
-    }
+    private val transitions by lazy { CoverGuard.DarkTransitions(displays) }
 
     /** Uptime of the last touch (or wake); the stay-on timer counts from here. */
     private val lastTouch = MutableStateFlow(SystemClock.uptimeMillis())
@@ -106,7 +95,7 @@ class CoverActivity : ComponentActivity() {
             .distinctUntilChanged()
     }
 
-    /** The first start lights the cover for the full period; later wakes only get what is left of it. */
+    /** The first start lights the cover for the full period; later wakes also refresh the stay-lit timer. */
     private var startedOnce = false
 
     private val batteryReceiver = object : BroadcastReceiver() {
@@ -117,8 +106,19 @@ class CoverActivity : ComponentActivity() {
 
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayChanged(displayId: Int) {
+            val wentDark = transitions.justWentDark(displayId)
             // The inner screen lit up: the phone was opened. Step aside so it behaves exactly as usual.
-            if (displayId == Display.DEFAULT_DISPLAY && displays.getDisplay(displayId)?.state == Display.STATE_ON) leave()
+            if (displayId == Display.DEFAULT_DISPLAY && displays.getDisplay(displayId)?.state == Display.STATE_ON) {
+                leave()
+                return
+            }
+            // When the cover screen goes dark while folded, bring CoverActivity back in front of the lock screen
+            // so the next power-button wake always shows the live CoverScreen.
+            if (wentDark && displayId != Display.DEFAULT_DISPLAY && !innerScreenOn() && inBack) {
+                if (CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true)) {
+                    CoverGuard.showOnCover(this@CoverActivity)
+                }
+            }
         }
 
         override fun onDisplayAdded(displayId: Int) = Unit
@@ -152,12 +152,8 @@ class CoverActivity : ComponentActivity() {
             showRequestedItem(intent)
             if (!startedOver) app.playback.startOver()
         }
+        transitions // capture current display states before listening
         displays.registerDisplayListener(displayListener, Handler(Looper.getMainLooper()))
-        // Also while the cover is dark: unlocking a folded phone with the fingerprint wakes and opens it at once.
-        // Exported because SystemUI (an app uid, not the system) sends USER_PRESENT, and a not-exported receiver
-        // never gets it. It is a protected broadcast, so no app can fake it.
-        ContextCompat.registerReceiver(this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_EXPORTED)
-        unlockRegistered = true
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -266,20 +262,10 @@ class CoverActivity : ComponentActivity() {
         super.onNewIntent(intent)
         // A widget tap is the user asking for it; the always-show service re-arming a dark cover is not.
         if (intent.openedByUser()) {
-            unlockClose.openedByUser(locked = keyguard.isKeyguardLocked)
             used()
             app.playback.resume()
         }
         showRequestedItem(intent)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        closeIfUnlocked()
-    }
-
-    private fun closeIfUnlocked() {
-        if (unlockClose.shown(secure = keyguard.isDeviceSecure, locked = keyguard.isKeyguardLocked)) close()
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -345,7 +331,7 @@ class CoverActivity : ComponentActivity() {
             return
         }
         // A fold or unfold whose display event is late starts over here at the latest.
-        val startedOver = app.sessions.check()
+        app.sessions.check()
         inBack = false
         // A new look: a clip with sound holds the cover only once the user touches it again.
         visibleSince = SystemClock.uptimeMillis()
@@ -357,19 +343,11 @@ class CoverActivity : ComponentActivity() {
         // The sticky broadcast answers at once with the current charging state.
         ContextCompat.registerReceiver(this, batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
             ?.let { charging.value = it.isCharging() }
-        // Opening it starts a stay-on period. A later wake on its own (a notification, the fold, a key in a
-        // bag) does not: the timer still counts from the last touch, so the cover follows its own timeout
-        // unless the user touches it. Always-on and the nightstand rest at once instead.
-        if (!startedOnce) {
-            startedOnce = true
-            // Opened from the widget: a tap on the cover, so the user is looking.
-            if (intent.openedByUser()) used() else wake()
-        } else {
-            // Every wake is a fresh look: the content plays from its beginning, not from where the cover slept.
-            // (A touch that only wakes a resting screen saver is the same look, so it does not start over.)
-            if (!startedOver) app.playback.startOver()
-            resting.value = false
-        }
+        // Refresh the stay-on period on every wake so pressing the power button to wake the cover screen
+        // always keeps the live CoverScreen active and responsive.
+        startedOnce = true
+        if (intent.openedByUser()) used() else wake()
+        app.playback.resume()
     }
 
     override fun onStop() {
@@ -379,7 +357,6 @@ class CoverActivity : ComponentActivity() {
             app.playback.liveViewStopped()
             unregisterReceiver(batteryReceiver)
         }
-        unlockClose.stopped()
         super.onStop()
         // The cover going dark only pauses the screen saver; opening the phone ends it.
         if (innerScreenOn()) leave()
@@ -392,21 +369,20 @@ class CoverActivity : ComponentActivity() {
 
     override fun onDestroy() {
         displays.unregisterDisplayListener(displayListener)
-        if (unlockRegistered) unregisterReceiver(unlockReceiver)
         if (isFinishing) alive = false
         super.onDestroy()
     }
 
-    /** Swipe down: back to the cover's lock screen. The screen saver stays ready for the widget. */
+    /** Swipe down: back to the cover's lock screen. The screen saver stays ready for the next wake or widget tap. */
     private fun toLockScreen() {
         inBack = true
         moveTaskToBack(true)
     }
 
-    /** The close button: the screen saver is done until it is opened again. */
+    /** The close button: hides the cover screen until the next cover wake or widget tap. */
     private fun close() {
-        alive = false
-        finishAndRemoveTask()
+        inBack = true
+        moveTaskToBack(true)
     }
 
     /** Leaves without a trace, never over the main screen's lock screen. */

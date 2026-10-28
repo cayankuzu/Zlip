@@ -92,8 +92,6 @@ private val OptionsSaver = Saver<List<String>, ArrayList<String>>(save = { Array
 private val WHEEL_PRESETS = listOf(
     R.string.toy_preset_yes_no to R.array.toy_preset_yes_no_items,
     R.string.toy_preset_dinner to R.array.toy_preset_dinner_items,
-    R.string.toy_preset_rps to R.array.toy_preset_rps_items,
-    R.string.toy_preset_truth to R.array.toy_preset_truth_items,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -230,21 +228,20 @@ fun ToyEditorScreen(
             }
 
             if (kind.usesOptions) {
-                val wheel = kind == ToyKind.WHEEL
                 val filled = ToyLogic.cleanOptions(options).size
-                val replaced = stringResource(if (wheel) R.string.toy_editor_choices_replaced else R.string.toy_editor_answers_replaced)
+                val replaced = stringResource(R.string.toy_editor_choices_replaced)
                 SectionCard {
-                    SectionTitle(if (wheel) R.string.toy_editor_choices else R.string.toy_editor_answers) {
+                    SectionTitle(R.string.toy_editor_choices) {
                         if (options.isNotEmpty()) {
                             TextButton(onClick = { replaceOptions(emptyList(), replaced) }) { Text(stringResource(R.string.toy_editor_builtin)) }
                         }
                     }
                     HintText(
                         when {
-                            filled == 0 -> stringResource(if (wheel) R.string.toy_editor_choices_hint else R.string.toy_editor_answers_hint)
-                            wheel && filled < ToyLogic.MIN_WHEEL_SLICES -> stringResource(R.string.toy_editor_choices_one)
+                            filled == 0 -> stringResource(R.string.toy_editor_choices_hint)
+                            filled < ToyLogic.MIN_WHEEL_SLICES -> stringResource(R.string.toy_editor_choices_one)
                             else -> pluralStringResource(
-                                if (wheel) R.plurals.toy_editor_choice_count else R.plurals.toy_editor_answer_count,
+                                R.plurals.toy_editor_choice_count,
                                 filled,
                                 filled,
                                 ToyLogic.MAX_OPTIONS,
@@ -252,7 +249,7 @@ fun ToyEditorScreen(
                         },
                     )
                     // Quick fills are for starting out; once the user has typed choices, a stray tap must not swap them.
-                    AnimatedVisibility(visible = wheel && filled == 0) {
+                    AnimatedVisibility(visible = filled == 0) {
                         Column {
                             Spacer(Modifier.height(12.dp))
                             Label(R.string.toy_editor_presets)
@@ -265,16 +262,13 @@ fun ToyEditorScreen(
                             onValueChange = { typed ->
                                 options = options.toMutableList().also { it[index] = typed.replace('\n', ' ').takeSafe(ToyLogic.MAX_OPTION_CHARS) }
                             },
-                            label = { Text(stringResource(if (wheel) R.string.toy_editor_choice_n else R.string.toy_editor_answer_n, index + 1)) },
+                            label = { Text(stringResource(R.string.toy_editor_choice_n, index + 1)) },
                             singleLine = true,
                             trailingIcon = {
                                 IconButton(onClick = { options = options.filterIndexed { at, _ -> at != index } }) {
                                     Icon(
                                         Icons.Filled.Close,
-                                        contentDescription = stringResource(
-                                            if (wheel) R.string.toy_editor_remove_choice else R.string.toy_editor_remove_answer,
-                                            index + 1,
-                                        ),
+                                        contentDescription = stringResource(R.string.toy_editor_remove_choice, index + 1),
                                     )
                                 }
                             },
@@ -295,7 +289,7 @@ fun ToyEditorScreen(
                         ) {
                             Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text(stringResource(if (wheel) R.string.toy_editor_add_choice else R.string.toy_editor_add_answer))
+                            Text(stringResource(R.string.toy_editor_add_choice))
                         }
                     }
                 }
@@ -304,13 +298,12 @@ fun ToyEditorScreen(
             SectionCard {
                 SectionTitle(R.string.toy_editor_colors)
                 Spacer(Modifier.height(12.dp))
-                Label(if (kind == ToyKind.MAGIC_BALL) R.string.toy_editor_ball_color else R.string.toy_editor_color)
+                Label(R.string.toy_editor_color)
                 ColorSwatchRow(colors = DefaultPalette, selected = color, onSelect = { color = it })
                 Spacer(Modifier.height(14.dp))
                 Label(R.string.pixel_background)
                 ColorSwatchRow(colors = DefaultPalette, selected = background, onSelect = { background = it })
-                // The magic ball is always black, so only its answer color matters.
-                if (color == background && kind != ToyKind.MAGIC_BALL) {
+                if (color == background) {
                     HintText(stringResource(R.string.toy_editor_same_colors))
                 }
             }
@@ -391,34 +384,26 @@ private fun WheelPresets(onPick: (List<String>) -> Unit) {
 @Composable
 private fun presetChoices(@ArrayRes items: Int): List<String> = stringArrayResource(items).toList()
 
-private val ToyKind.usesOptions: Boolean get() = this == ToyKind.MAGIC_BALL || this == ToyKind.WHEEL
+private val ToyKind.usesOptions: Boolean get() = this == ToyKind.WHEEL
 
 @StringRes
 private fun ToyKind.title(): Int = when (this) {
     ToyKind.DICE -> R.string.toy_dice
     ToyKind.COIN -> R.string.toy_coin
-    ToyKind.MAGIC_BALL -> R.string.toy_ball
-    ToyKind.BOTTLE -> R.string.toy_bottle
     ToyKind.WHEEL -> R.string.toy_wheel
     ToyKind.COUNTER -> R.string.toy_counter
     ToyKind.POMODORO -> R.string.toy_pomodoro
     ToyKind.STOPWATCH -> R.string.toy_stopwatch
-    ToyKind.FLASHLIGHT -> R.string.toy_flashlight
-    ToyKind.RPS -> R.string.toy_rps
 }
 
 @StringRes
 private fun ToyKind.description(): Int = when (this) {
     ToyKind.DICE -> R.string.toy_dice_desc
     ToyKind.COIN -> R.string.toy_coin_desc
-    ToyKind.MAGIC_BALL -> R.string.toy_ball_desc
-    ToyKind.BOTTLE -> R.string.toy_bottle_desc
     ToyKind.WHEEL -> R.string.toy_wheel_desc
     ToyKind.COUNTER -> R.string.toy_counter_desc
     ToyKind.POMODORO -> R.string.toy_pomodoro_desc
     ToyKind.STOPWATCH -> R.string.toy_stopwatch_desc
-    ToyKind.FLASHLIGHT -> R.string.toy_flashlight_desc
-    ToyKind.RPS -> R.string.toy_rps_desc
 }
 
 @Composable

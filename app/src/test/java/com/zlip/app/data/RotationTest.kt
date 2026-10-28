@@ -70,4 +70,16 @@ class RotationTest {
         val items = listOf(a, text("b"), group("g1", a, text("b2")), group("g2", a))
         assertEquals(listOf("b", "g1", "g2"), ids(Rotation.of(items, emptyList())))
     }
+
+    @Test
+    fun libraryCleanerRemovesGroupMembersAndDeduplicatesContent() {
+        val a = text("a")
+        val aDuplicate = CoverItem.Text(id = "a_dup", name = "Copy", text = "a")
+        val b = text("b")
+        val bCloneInGroup = CoverItem.Text(id = "b_clone", name = "b", text = "b")
+        val c = text("c")
+        val grp = group("g1", bCloneInGroup, c)
+        val cleaned = LibraryCleaner.clean(listOf(a, aDuplicate, b, c, grp))
+        assertEquals(listOf("a", "g1"), ids(cleaned))
+    }
 }

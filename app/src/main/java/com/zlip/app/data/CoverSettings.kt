@@ -88,9 +88,9 @@ data class CoverSettings(
     val alwaysOnWhileCharging: Boolean = true,
     /**
      * Show the screen saver every time the phone is folded or the cover wakes, even after it was closed.
-     * Needs "Appear on top" and a quiet background service; off by default.
+     * Needs "Appear on top" and a quiet background service; on by default.
      */
-    val autoShowOnCover: Boolean = false,
+    val autoShowOnCover: Boolean = true,
     /**
      * Videos with audio play with sound each time the cover turns on (a fold, an unfold, a cover wake).
      * The cover's sound button, the notification and volume up change it only until the cover starts over.
@@ -197,7 +197,7 @@ data class CoverSettings(
                 coverClock = json.optBoolean("coverClock", true),
                 stayOnSeconds = if (stayOn in STAY_ON_OPTIONS) stayOn else defaults.stayOnSeconds,
                 alwaysOnWhileCharging = json.optBoolean("alwaysOnWhileCharging", true),
-                autoShowOnCover = json.optBoolean("autoShowOnCover", false),
+                autoShowOnCover = json.optBoolean("autoShowOnCover", true),
                 // The old "videoSoundDefault" only seeded new imports; the cover now starts with sound unless set.
                 startWithSound = json.optBoolean("startWithSound", true),
                 ledMatrix = json.optBoolean("ledMatrix", false),

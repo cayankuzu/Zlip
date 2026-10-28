@@ -65,7 +65,13 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
      * What [load] found: [isNew] for a first launch, [clean] when every entry could be read, [keepFile] when the
      * library file itself could not be read and must be left alone.
      */
-    private class Loaded(val state: State, val isNew: Boolean = false, val clean: Boolean = true, val keepFile: Boolean = false)
+    private class Loaded(
+        val state: State,
+        val isNew: Boolean = false,
+        val clean: Boolean = true,
+        val keepFile: Boolean = false,
+        val modified: Boolean = false,
+    )
 
     private val appContext = context.applicationContext
     private val store = AtomicFile(File(appContext.filesDir, STORE_FILE))
@@ -104,8 +110,8 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
         }
         state.value = loaded.state
         keepStoreFile = loaded.keepFile
-        // Write the first-launch sample items right away so their ids are stable from now on.
-        if (loaded.isNew) persist()
+        // Write the first-launch sample items or cleaned library right away so disk matches memory.
+        if (loaded.isNew || loaded.modified) persist()
         if (!loaded.keepFile) scope.launch { fillVideoDurations() }
     }
 
@@ -170,11 +176,43 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
     }
 
     fun upsert(item: CoverItem) = mutate { s ->
-        val index = s.items.indexOfFirst { it.id == item.id }
-        val items = if (index >= 0) s.items.toMutableList().also { it[index] = item } else s.items + item
+        val fileSizeOf: (String) -> Long = { fileName -> MediaStorage.file(appContext, fileName).length() }
+        val idIndex = s.items.indexOfFirst { it.id == item.id }
+        val isContainer = item is CoverItem.Group || item is CoverItem.Collage
+        val sig = LibraryCleaner.contentSignature(item, fileSizeOf)
+        val sigIndex = if (idIndex >= 0 || isContainer) {
+            -1
+        } else {
+            s.items.indexOfFirst { existing ->
+                existing !is CoverItem.Group &&
+                    existing !is CoverItem.Collage &&
+                    LibraryCleaner.contentSignature(existing, fileSizeOf) == sig
+            }
+        }
+        val targetIndex = if (idIndex >= 0) idIndex else sigIndex
+        val raw = if (targetIndex >= 0) {
+            s.items.toMutableList().also { it[targetIndex] = item }
+        } else {
+            s.items + item
+        }
         // Collages and groups hold copies: an edit reaches them too, while deleting the original leaves them be.
-        val updated = s.copy(items = items.map { it.replacingCopies(item) })
-        if (index >= 0) updated else updated.withInPlaylist(listOf(item.id))
+        val withReplaced = raw.map { it.replacingCopies(item) }
+        val cleaned = LibraryCleaner.clean(withReplaced, fileSizeOf)
+        val stillUsed = cleaned.flatMapTo(HashSet()) { it.mediaFiles() }
+        val unused = withReplaced.flatMapTo(HashSet()) { it.mediaFiles() }.filterNot { it in stillUsed }
+        if (unused.isNotEmpty()) {
+            scope.launch(Dispatchers.IO) { unused.forEach { MediaStorage.file(appContext, it).delete() } }
+        }
+        val validIds = cleaned.mapTo(HashSet()) { it.id }
+        val updated = s.copy(
+            items = cleaned,
+            selectedId = item.id.takeIf { it in validIds }
+                ?: s.selectedId?.takeIf { it in validIds }
+                ?: cleaned.firstOrNull { top -> top.leaves().any { it.id == item.id } }?.id
+                ?: cleaned.firstOrNull()?.id,
+            playlist = s.playlist.filter { it in validIds }.distinct(),
+        )
+        if (targetIndex >= 0 || item.id !in validIds) updated else updated.withInPlaylist(listOf(item.id))
     }
 
     /**
@@ -428,6 +466,24 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
             return Result.failure(MediaUnreadableException(e))
         }
 
+        val fileSizeOf: (String) -> Long = { fileName -> MediaStorage.file(appContext, fileName).length() }
+        val newSig = LibraryCleaner.contentSignature(item, fileSizeOf)
+        val currentState = state.value
+        val existingLeaf = currentState.items
+            .flatMap { it.leaves() }
+            .filterIsInstance<CoverItem.Media>()
+            .firstOrNull { LibraryCleaner.contentSignature(it, fileSizeOf) == newSig }
+        if (existingLeaf != null) {
+            withContext(Dispatchers.IO) { created.forEach(File::delete) }
+            val containerId = currentState.items.firstOrNull { top ->
+                top.id == existingLeaf.id || top.leaves().any { it.id == existingLeaf.id }
+            }?.id
+            if (select && containerId != null) {
+                select(containerId)
+            }
+            return Result.success(existingLeaf)
+        }
+
         state.update { s ->
             val added = s.copy(items = s.items + item)
             if (select) added.copy(selectedId = item.id).withInPlaylist(listOf(item.id)) else added
@@ -516,24 +572,37 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
             val array = json.optJSONArray("items") ?: JSONArray()
             val decoded = mutableListOf<CoverItem>()
             val unreadable = mutableListOf<Any>()
+            var droppedLegacy = false
             for (index in 0 until array.length()) {
                 val entry = array.opt(index) ?: continue
-                val item = (entry as? JSONObject)?.let(CoverItemJson::decode)
+                val obj = entry as? JSONObject
+                if (obj != null && CoverItemJson.isRemovedToy(obj)) {
+                    droppedLegacy = true
+                    continue
+                }
+                val item = obj?.let(CoverItemJson::decode)
                 if (item != null) decoded += item else unreadable += entry
             }
             // Media files are not in the cloud backup, so a restore can bring back items without files.
-            val items = decoded.mapNotNull { it.withoutMissingMedia() }
+            val existingMedia = decoded.mapNotNull { it.withoutMissingMedia() }
+            val items = LibraryCleaner.clean(existingMedia) { fileName -> MediaStorage.file(appContext, fileName).length() }
+            val rawSelectedId = json.optString("selectedId")
+            val resolvedSelectedId = rawSelectedId.takeIf { id -> items.any { it.id == id } }
+                ?: items.firstOrNull { top -> top.leaves().any { it.id == rawSelectedId } }?.id
+                ?: items.firstOrNull()?.id
             val state = State(
                 items = items,
-                selectedId = json.optString("selectedId").takeIf { id -> items.any { it.id == id } },
+                selectedId = resolvedSelectedId,
                 settings = CoverSettings.fromJson(json.optJSONObject("settings")),
                 playlist = json.optJSONArray("playlist")?.let { array -> List(array.length()) { array.optString(it) } }
                     ?.filter { id -> items.any { it.id == id } }
+                    ?.distinct()
                     .orEmpty(),
                 unreadable = unreadable,
             )
             if (unreadable.isNotEmpty()) Log.w(TAG, "${unreadable.size} library entries could not be read; keeping them as they are")
-            Loaded(state, clean = unreadable.isEmpty())
+            val modified = droppedLegacy || items != decoded
+            Loaded(state, clean = unreadable.isEmpty(), modified = modified)
         } catch (e: Throwable) {
             // Damaged (JSONException), not readable (IOException), or anything else, such as a file too big for
             // memory (OutOfMemoryError): never treat it as an empty library that the next save writes out.
@@ -655,6 +724,94 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
             "................",
             "................",
         )
+    }
+}
+
+/** Deduplicates the library and ensures items inside a group or collage do not also appear in the main library. */
+internal object LibraryCleaner {
+    fun contentSignature(item: CoverItem, fileSizeOf: (String) -> Long = { -1L }): String = when (item) {
+        is CoverItem.Media -> {
+            val size = fileSizeOf(item.fileName)
+            when {
+                item.kind == MediaKind.VIDEO && item.durationMs > 0L ->
+                    "video:${item.name.trim().lowercase()}:${item.durationMs / 250L}:${item.hasAudio}"
+                size > 0L ->
+                    "media:${item.kind.name}:${item.name.trim().lowercase()}:$size"
+                else ->
+                    "media-file:${item.fileName}"
+            }
+        }
+        is CoverItem.PixelArt ->
+            "pixel:${item.width}x${item.height}:${item.background}:${item.pixels.hashCode()}:${item.extraFrames.hashCode()}"
+        is CoverItem.Text ->
+            "text:${item.text.trim().lowercase()}:${item.textColor}:${item.background}:${item.sizeSp}:${item.scroll}:${item.bold}"
+        is CoverItem.Countdown ->
+            "countdown:${item.title.trim().lowercase()}:${item.targetMillis}:${item.countUp}"
+        is CoverItem.Qr ->
+            "qr:${item.kind.name}:${item.payload.trim()}"
+        is CoverItem.Toy ->
+            "toy:${item.kind.name}:${item.options.map { it.trim().lowercase() }}"
+        is CoverItem.Collage ->
+            "collage:${item.layout.name}:${item.cells.map { cell -> cell.map { contentSignature(it, fileSizeOf) } }}"
+        is CoverItem.Group ->
+            "group:${item.items.map { contentSignature(it, fileSizeOf) }}"
+    }
+
+    fun clean(raw: List<CoverItem>, fileSizeOf: (String) -> Long = { -1L }): List<CoverItem> {
+        val normalized = raw.mapNotNull { item ->
+            when (item) {
+                is CoverItem.Group -> {
+                    val seenStepIds = HashSet<String>()
+                    val seenStepSigs = HashSet<String>()
+                    val uniqueSteps = item.items.filter { step ->
+                        seenStepIds.add(step.id) && seenStepSigs.add(contentSignature(step, fileSizeOf))
+                    }
+                    if (uniqueSteps.isEmpty()) null else item.copy(items = uniqueSteps)
+                }
+                is CoverItem.Collage -> {
+                    val cleanedCells = item.cells.map { cell ->
+                        val seenIds = HashSet<String>()
+                        val seenSigs = HashSet<String>()
+                        cell.filter { leaf ->
+                            seenIds.add(leaf.id) && seenSigs.add(contentSignature(leaf, fileSizeOf))
+                        }
+                    }
+                    item.copy(cells = cleanedCells)
+                }
+                else -> item
+            }
+        }
+
+        val memberIds = HashSet<String>()
+        val memberFiles = HashSet<String>()
+        val memberSignatures = HashSet<String>()
+        for (item in normalized) {
+            if (item is CoverItem.Group || item is CoverItem.Collage) {
+                for (leaf in item.leaves()) {
+                    memberIds += leaf.id
+                    if (leaf is CoverItem.Media) memberFiles += leaf.fileName
+                    memberSignatures += contentSignature(leaf, fileSizeOf)
+                }
+            }
+        }
+
+        val seenTopIds = HashSet<String>()
+        val seenTopSignatures = HashSet<String>()
+        val result = mutableListOf<CoverItem>()
+        for (item in normalized) {
+            val sig = contentSignature(item, fileSizeOf)
+            val isContainer = item is CoverItem.Group || item is CoverItem.Collage
+            if (!isContainer) {
+                val inContainer = item.id in memberIds ||
+                    (item is CoverItem.Media && item.fileName in memberFiles) ||
+                    sig in memberSignatures
+                if (inContainer) continue
+            }
+            if (!seenTopIds.add(item.id)) continue
+            if (!seenTopSignatures.add(sig)) continue
+            result += item
+        }
+        return result
     }
 }
 

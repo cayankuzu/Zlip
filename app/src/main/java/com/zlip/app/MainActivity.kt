@@ -169,17 +169,13 @@ class MainActivity : ComponentActivity() {
     private val transitions by lazy { CoverGuard.DarkTransitions(displays) }
     private val foldListener = object : DisplayManager.DisplayListener {
         override fun onDisplayChanged(displayId: Int) {
-            // Folded right after using the cover: carry on as the screen saver on the closed phone. Only at
-            // the moment the inner screen goes dark, never again for later changes while it stays dark, and
-            // not when the user had just turned the cover off.
+            // Folded while using Zlip: carry on seamlessly on the closed phone's cover screen.
             val innerDark = displayId == Display.DEFAULT_DISPLAY && transitions.justWentDark(displayId)
-            val recentlyActive = app.cover.status.value == CoverStatus.ACTIVE ||
-                (coverActiveAt > 0 && SystemClock.uptimeMillis() - coverActiveAt < FOLD_GRACE_MS)
-            if (innerDark && recentlyActive && !app.cover.endedByUser.value && !CoverActivity.alive) {
+            if (innerDark && !app.cover.endedByUser.value && CoverActivity.needsArming) {
                 // Locking an open phone darkens the inner screen too; only a closed hinge means folded. Never
                 // over a call that is ringing or going on.
                 CoverGuard.ifFolded(this@MainActivity) {
-                    if (CoverGuard.shouldArm(CoverGuard.audioMode(this@MainActivity), needsArming = !CoverActivity.alive, folded = true)) {
+                    if (CoverGuard.shouldArm(CoverGuard.audioMode(this@MainActivity), needsArming = CoverActivity.needsArming, folded = true)) {
                         CoverGuard.showOnCover(this@MainActivity)
                     }
                 }

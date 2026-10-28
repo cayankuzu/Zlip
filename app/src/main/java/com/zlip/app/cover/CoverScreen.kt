@@ -17,10 +17,15 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -135,7 +140,7 @@ import kotlin.random.Random
 fun CoverScreen(
     repository: ContentRepository,
     playback: CoverPlayback,
-    lockTouches: Boolean = true,
+    lockTouches: Boolean = false,
     onClose: (() -> Unit)? = null,
     onDismiss: (() -> Unit)? = null,
     ambient: Boolean = false,
@@ -158,8 +163,8 @@ fun CoverScreen(
     val mirrorOn = mirror?.state?.collectAsState()?.value == MirrorState.ON
     val mirroring = mirror?.takeIf { mirrorOn }
     val currentMirroring by rememberUpdatedState(mirroring)
-    // Drafts belong to the open phone while the editor is in view; otherwise the cover keeps the playlist.
-    val editing = lockTouches && draft != null && !inPip
+    // Show the active draft (if an editor is open) or the selected item identically on both open and folded covers.
+    val editing = draft != null && !inPip
     val item = if (editing) draft else selected
     // A group reports the step on screen, so LED and brightness follow that step rather than the whole group.
     // Seeded with step one, where every showing starts, so the first frame is never judged by the whole group
@@ -170,7 +175,7 @@ fun CoverScreen(
     val lock = remember { TouchLock(autoLock = lockTouches, idleTimeoutMs = 4_000) }
     var unlocked by remember { mutableStateOf(false) }
     var controlsShown by remember { mutableStateOf(false) }
-    val menuAllowed = !lockTouches
+    val menuAllowed = true
     var menuShown by remember { mutableStateOf(false) }
     var lastTouch by remember { mutableLongStateOf(0L) }
     val controlsVisible = if (lockTouches) unlocked else controlsShown && !menuShown
@@ -193,11 +198,10 @@ fun CoverScreen(
     // The same words as Home, the notification and the Mini kapak on the open phone; the screen saver closes itself.
     val closeLabel = stringResource(if (lockTouches) R.string.action_cover_off else R.string.cover_close)
     // What the moves do here, the same as the buttons: steps inside a group, items otherwise.
-    val inGroup = !editing && item is CoverItem.Group
+    val inGroup = item is CoverItem.Group
     val itemSkip = !editing && itemSkipAvailable
-    // A group alone in the playlist goes round its steps; a single item alone has nowhere to go. An item outside the
-    // playlist (picked by hand) always has: both ways lead into the playlist.
-    val canSkip = !editing && CoverNav.canMove(item, sequence)
+    // A group steps through its items even while editing; otherwise move through the playlist.
+    val canSkip = if (editing) (item is CoverItem.Group && item.items.size > 1) else CoverNav.canMove(item, sequence)
     val previousLabel = stringResource(if (inGroup) R.string.action_previous_step else R.string.action_previous)
     val nextLabel = stringResource(if (inGroup) R.string.action_next_step else R.string.action_next)
     val previousItemLabel = stringResource(R.string.action_previous_item)
@@ -218,8 +222,9 @@ fun CoverScreen(
     val framing = remember(repository) { CoverFraming(repository) }
     val glideScope = rememberCoroutineScope()
     val framingOf = remember(framing) { { media: CoverItem.Media -> framing.framingOf(media) } }
+    val shownMedia = mediaOnScreen(item, groupStep)
     // Not while resting, mirroring or showing an editor's draft, nor under the menu.
-    val media = mediaOnScreen(item, groupStep).takeIf { mirroring == null && !ambient && !menuShown && !editing }
+    val media = shownMedia.takeIf { mirroring == null && !ambient && !menuShown && !editing }
     // The picture's shape, read from its file; fingers frame it only once it is known.
     val measured by produceState<Pair<String, Float>?>(null, media?.fileName) {
         val shown = media ?: return@produceState
@@ -661,9 +666,8 @@ fun CoverScreen(
         val judged = if (item is CoverItem.Group) groupStep else item
         val showsQr = mirroring == null && judged?.showsQr() == true
         val led = LedStyle.of(settings).takeUnless { showsQr }
-        // Not over what fills the corner: a QR code's finder pattern and quiet zone (no corner is free, so
-        // hidden rather than moved), or a toy's result band while it is played.
-        val clockShown = showClock && !showsQr && !(judged is CoverItem.Toy && !ambient)
+        // Only show the resting clock when ambient mode is active, so the awake cover screen matches the open phone rear display.
+        val clockShown = ambient && showClock && !showsQr
         // A mirror takes the content's place: the inner screen, composed by the display hardware (no decoding).
         if (mirroring != null) MirrorSurface(mirroring, Modifier.fillMaxSize()) else Box(
             modifier = Modifier
@@ -754,6 +758,40 @@ fun CoverScreen(
             PausedBadge()
         }
 
+        // Interactive toys consume canvas taps, so offer a subtle floating button at top-right to open controls with one tap.
+        AnimatedVisibility(
+            visible = judged is CoverItem.Toy && !controlsVisible && !ambient && !menuShown && mirroring == null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .windowInsetsPadding(WindowInsets.displayCutout)
+                .padding(end = 12.dp, top = 10.dp),
+        ) {
+            IconButton(
+                onClick = {
+                    lastTouch = SystemClock.uptimeMillis()
+                    currentOnUserActivity()
+                    if (lockTouches) {
+                        lock.unlock(lastTouch)
+                        unlocked = true
+                    } else {
+                        controlsShown = true
+                    }
+                },
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(Color.Black.copy(alpha = 0.52f), CircleShape),
+            ) {
+                Icon(
+                    Icons.Filled.Tune,
+                    contentDescription = showControlsLabel,
+                    tint = Color.White,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
+        }
+
         AnimatedVisibility(
             visible = toyHint && !controlsVisible && !menuShown,
             enter = fadeIn(),
@@ -783,8 +821,7 @@ fun CoverScreen(
             visible = zoomHint && look != null,
             enter = fadeIn(),
             exit = fadeOut(),
-            // Under the title while the controls show (their item pills and bottom row take the lower half); otherwise
-            // at the bottom, above the clock in the bottom-left corner.
+            // Under the title while the controls show; otherwise at the bottom.
             modifier = Modifier
                 .align(if (controlsVisible) Alignment.TopCenter else Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.displayCutout)
@@ -825,14 +862,11 @@ fun CoverScreen(
 
         AnimatedVisibility(visible = controlsVisible, enter = fadeIn(), exit = fadeOut()) {
             Box(Modifier.fillMaxSize()) {
-                if (lockTouches) {
-                    // Unlocked frame: the cover is listening to touches now.
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .border(3.dp, Brush.linearGradient(BrandGradient), RoundedCornerShape(20.dp)),
-                    )
-                }
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .border(2.dp, Brush.linearGradient(BrandGradient), RoundedCornerShape(20.dp)),
+                )
                 // Mirroring shows the frame and its × alone: taps and swipes steer the mirror, there is no playlist to
                 // control.
                 if (mirroring != null) {
@@ -843,6 +877,11 @@ fun CoverScreen(
                 val index = sequence.indexOfFirst { it.id == shown?.id }
                 // Only the cover's sound for now, so an editor's draft may switch it too.
                 val canSwitchSound = hasSoundToSwitch(shown)
+                val effectiveVideoDurationMs = if (shownMedia?.kind == com.zlip.app.data.MediaKind.VIDEO) {
+                    videoDurationMs.takeIf { it > 0L } ?: shownMedia.durationMs
+                } else {
+                    0L
+                }
                 CoverControls(
                     title = shown?.name.orEmpty(),
                     position = if (!editing && index >= 0 && sequence.size > 1) "${index + 1}/${sequence.size}" else null,
@@ -872,7 +911,7 @@ fun CoverScreen(
                     },
                     onClose = onClose,
                     closeLabel = closeLabel,
-                    mediaFit = look?.fit,
+                    mediaFit = look?.fit ?: shownMedia?.fit,
                     onSwitchFit = {
                         lastTouch = SystemClock.uptimeMillis()
                         currentOnUserActivity()
@@ -886,28 +925,17 @@ fun CoverScreen(
                     } else {
                         null
                     },
-                    compact = shown is CoverItem.Toy,
+                    compact = judged is CoverItem.Toy,
                     // Until the group reports its step, it is at step one: every showing starts there.
                     group = (shown as? CoverItem.Group)?.takeIf { inGroup }?.let { group ->
                         groupProgress?.takeIf { it.groupId == group.id } ?: GroupProgress(group.id, 1, group.items.size)
                     },
-                    itemSkip = itemSkip,
                     videoPositionMs = videoPositionMs,
-                    videoDurationMs = videoDurationMs,
+                    videoDurationMs = effectiveVideoDurationMs,
                     onSeek = { targetMs ->
                         lastTouch = SystemClock.uptimeMillis()
                         currentOnUserActivity()
                         playback.seekTo(targetMs)
-                    },
-                    onPreviousItem = {
-                        lastTouch = SystemClock.uptimeMillis()
-                        currentOnUserActivity()
-                        playback.previousItem()
-                    },
-                    onNextItem = {
-                        lastTouch = SystemClock.uptimeMillis()
-                        currentOnUserActivity()
-                        playback.nextItem()
                     },
                 )
             }

@@ -70,6 +70,7 @@ import com.zlip.app.R
 import com.zlip.app.data.CollageLayout
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
+import com.zlip.app.data.leaves
 import com.zlip.app.render.CoverContent
 import com.zlip.app.render.Playback
 import com.zlip.app.ui.components.ChoiceChips
@@ -117,7 +118,9 @@ fun CollageEditorScreen(
     }
     // A collage keeps its own copies. Saved edits reach them anyway (ContentRepository.upsert), so they match the
     // library; they win so the baseline stays exact and items deleted from the library since stay in their cell.
-    val byId = remember(initial, library) { (library + initial?.cells?.flatten().orEmpty()).associateBy { it.id } }
+    val byId = remember(initial, library) {
+        (library.flatMap { it.leaves() } + library + initial?.cells?.flatten().orEmpty()).associateBy { it.id }
+    }
     val cells = cellIds.map { cell -> cell.mapNotNull(byId::get) }
     var interval by rememberSaveable { mutableIntStateOf(initial?.intervalSeconds ?: 5) }
     var gap by rememberSaveable { mutableIntStateOf(initial?.gapDp ?: 4) }
@@ -126,7 +129,11 @@ fun CollageEditorScreen(
     var pickingCell by rememberSaveable { mutableStateOf<Int?>(null) }
 
     // Anything but another collage or a group can go into a cell (a cell already steps through its items).
-    val choices = remember(library) { library.filter { it !is CoverItem.Collage && it !is CoverItem.Group } }
+    val choices = remember(initial, library) {
+        (initial?.cells?.flatten().orEmpty() + library)
+            .distinctBy { it.id }
+            .filter { it !is CoverItem.Collage && it !is CoverItem.Group }
+    }
     // Dealt out automatically: toys are dead tiles in a cell and QR codes too small to scan there.
     val autoFillChoices = remember(choices) { choices.filter { it !is CoverItem.Toy && it !is CoverItem.Qr } }
     val typeName = stringResource(R.string.type_collage)

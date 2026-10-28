@@ -273,7 +273,7 @@
     <string name="filter_tools">Akıllı kartlar</string>
     <string name="home_add_countdown_desc">Tatile, doğum gününe, her şeye kalan gün</string>
     <string name="home_add_qr_desc">Wi-Fi, bağlantı ya da kartvizit, taranmaya hazır</string>
-    <string name="home_add_toy_desc">Odak sayacı, kronometre, stüdyo ışığı, zar, çark ve fazlası</string>
+    <string name="home_add_toy_desc">Odak sayacı, kronometre, sayaç, zar ve karar çarkı</string>
     <string name="guard_channel">Katlayınca kendiliğinden aç</string>
     <string name="guard_channel_desc">Katlıyken ekran koruyucuyu hazır tutar.</string>
     <string name="guard_notif_title">Ekran koruyucu hazır</string>

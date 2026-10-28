@@ -24,10 +24,7 @@ object ToyLogic {
     /** Built-in wheel: Yes, No, Maybe, Ask again (drawn as symbols, named by string resources). */
     const val BUILT_IN_WHEEL_SLICES = 4
 
-    /** Built-in magic ball answers (a string array resource of exactly this size). */
-    const val BUILT_IN_BALL_ANSWERS = 20
-
-    /** Dots around the spin-the-bottle dial. */
+    /** Dots around the stopwatch dial. */
     const val DIAL_TICKS = 24
 
     /** The tally counter stops here; five LED digits still fit the cover. */
@@ -35,9 +32,6 @@ object ToyLogic {
 
     /** What a resting die shows (thumbnails, widget frames, before the first roll). */
     const val RESTING_FACE = 5
-
-    /** A resting bottle leans to the upper right, which reads as "spin me" better than straight up. */
-    const val RESTING_BOTTLE_ANGLE = 35f
 
     fun rollDie(random: Random = Random): Int = random.nextInt(1, 7)
 
@@ -85,22 +79,11 @@ object ToyLogic {
         return if (fromHeads == toHeads) even else even + 1
     }
 
-    /** A random answer in 0 until [count], never [previous] again when there is any other choice. */
-    fun pickAnswer(count: Int, previous: Int, random: Random = Random): Int {
-        require(count > 0) { "No answers to pick from" }
-        if (count == 1 || previous !in 0 until count) return random.nextInt(count)
-        val pick = random.nextInt(count - 1)
-        return if (pick >= previous) pick + 1 else pick
-    }
-
     /** User answers as stored: one line each, trimmed, at most [MAX_OPTION_CHARS], blanks dropped, at most [MAX_OPTIONS]. */
     fun cleanOptions(options: List<String>): List<String> = options
         .map { it.replace('\n', ' ').trim().takeSafe(MAX_OPTION_CHARS).trim() }
         .filter { it.isNotEmpty() }
         .take(MAX_OPTIONS)
-
-    /** The magic ball's answers: the user's own, or [builtIn] when there are none. */
-    fun ballAnswers(options: List<String>, builtIn: List<String>): List<String> = cleanOptions(options).ifEmpty { builtIn }
 
     /** The user's wheel slices, or null for the built-in wheel (fewer than [MIN_WHEEL_SLICES] of their own). */
     fun customWheelSlices(options: List<String>): List<String>? = cleanOptions(options).takeIf { it.size >= MIN_WHEEL_SLICES }
@@ -142,14 +125,6 @@ object ToyLogic {
         return Spin(start, target, 3_200L + random.nextLong(0, 1_300))
     }
 
-    /** Spin the bottle: a uniformly random direction after 3-5 full turns, in 2-4 s (more turns, longer spin). */
-    fun spinBottle(current: Float, random: Random = Random): Spin {
-        val start = normalize(current)
-        val turns = random.nextInt(3, 6)
-        val target = start + turns * 360f + normalize(random.nextFloat() * 360f - start)
-        return Spin(start, target, 2_000L + (turns - 3) * 700L + random.nextLong(0, 601))
-    }
-
     /** Fast start, gentle stop: how far a decelerating motion has come at [t] (0..1). */
     fun decelerate(t: Float): Float {
         val left = 1f - t.coerceIn(0f, 1f)
@@ -177,24 +152,10 @@ object ToyLogic {
     /** The dial dot (0 until [ticks], 0 at 12 o'clock) nearest to [angle]. */
     fun nearestTick(angle: Float, ticks: Int = DIAL_TICKS): Int = (normalize(angle) / (360f / ticks)).roundToInt() % ticks
 
-    /** The hour on a clock face that [angle] points to (12 = up), for spoken descriptions. */
-    fun clockHour(angle: Float): Int {
-        val hour = (normalize(angle) / 30f).roundToInt() % 12
-        return if (hour == 0) 12 else hour
-    }
-
     fun nextCount(count: Int): Int = (count + 1).coerceIn(0, MAX_COUNT)
 
     /** Default Pomodoro focus session length: 25 minutes. */
     const val POMODORO_DURATION_MS = 25 * 60 * 1_000L
-
-    /** Studio light modes: 0 = Ring light, 1 = Full softbox, 2 = Strobe beacon. */
-    const val FLASHLIGHT_MODES = 3
-
-    /** Rock-Paper-Scissors moves: 0 = Rock, 1 = Paper, 2 = Scissors. */
-    const val RPS_ROCK = 0
-    const val RPS_PAPER = 1
-    const val RPS_SCISSORS = 2
 
     /** Formats remaining timer [millis] (rounded up to whole seconds) as MM:SS. */
     fun formatTimerMmSs(millis: Long): String {
@@ -220,24 +181,5 @@ object ToyLogic {
         val seconds = totalSeconds % 60
         val tenths = (clamped % 1_000L) / 100L
         return "%02d:%02d.%d".format(java.util.Locale.ROOT, minutes, seconds, tenths)
-    }
-
-    /** Fair Rock-Paper-Scissors draw in 0..2. */
-    fun pickRps(random: Random = Random): Int = random.nextInt(3)
-
-    /** Quick cycling sequence of RPS moves ending on [final], with no two adjacent steps identical. */
-    fun tumbleRps(final: Int, steps: Int = 6, random: Random = Random): List<Int> {
-        val list = ArrayList<Int>(steps + 1)
-        var prev = -1
-        for (step in 0 until steps) {
-            var move: Int
-            do {
-                move = random.nextInt(3)
-            } while (move == prev || (step == steps - 1 && move == final))
-            list += move
-            prev = move
-        }
-        list += final.coerceIn(0, 2)
-        return list
     }
 }

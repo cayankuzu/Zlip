@@ -86,14 +86,10 @@ internal fun ToyCover(item: CoverItem.Toy, modifier: Modifier, playback: Playbac
             when (item.kind) {
                 ToyKind.DICE -> DiceToy(item, still, playable)
                 ToyKind.COIN -> CoinToy(item, still, playable)
-                ToyKind.MAGIC_BALL -> MagicBallToy(item, still, playable)
-                ToyKind.BOTTLE -> BottleToy(item, still, playable)
                 ToyKind.WHEEL -> WheelToy(item, still, playable)
                 ToyKind.COUNTER -> CounterToy(item, still, playable)
                 ToyKind.POMODORO -> PomodoroToy(item, still, playable)
                 ToyKind.STOPWATCH -> StopwatchToy(item, still, playable)
-                ToyKind.FLASHLIGHT -> FlashlightToy(item, still, playable)
-                ToyKind.RPS -> RpsToy(item, still, playable)
             }
         }
     }

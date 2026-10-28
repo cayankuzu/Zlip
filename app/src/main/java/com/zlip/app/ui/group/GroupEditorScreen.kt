@@ -90,6 +90,7 @@ import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.GroupTiming
 import com.zlip.app.data.MediaKind
+import com.zlip.app.data.leaves
 import com.zlip.app.render.CoverContent
 import com.zlip.app.render.LocalVideoProgressSink
 import com.zlip.app.render.LocalVideoSyncPosition
@@ -225,12 +226,17 @@ fun GroupEditorScreen(
     var repeat by rememberSaveable { mutableStateOf(start.repeat) }
     var crossfade by rememberSaveable { mutableStateOf(start.crossfade) }
     var picking by rememberSaveable { mutableStateOf(false) }
-    // The group's own copies win, like a collage's: the baseline stays exact, and items deleted from the
-    // library since stay in the group. Saved edits of library items reach these copies anyway.
-    val byId = remember(initial, library) { (library + initial?.items.orEmpty()).associateBy { it.id } }
+    // The group's own copies win, like a collage's: the baseline stays exact, and items inside groups stay findable.
+    val byId = remember(initial, library) {
+        (library.flatMap { it.leaves() } + library + initial?.items.orEmpty()).associateBy { it.id }
+    }
     val items = itemIds.mapNotNull(byId::get)
     // Toys need taps a group step never gets; groups do not nest.
-    val choices = remember(library) { library.filter { it !is CoverItem.Group && it !is CoverItem.Toy } }
+    val choices = remember(initial, library) {
+        (initial?.items.orEmpty() + library)
+            .distinctBy { it.id }
+            .filter { it !is CoverItem.Group && it !is CoverItem.Toy }
+    }
     val typeName = stringResource(R.string.type_group)
     val fallbackName = defaultGroupName(items.map { it.name }, typeName)
 

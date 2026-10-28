@@ -275,7 +275,7 @@
     <string name="filter_tools">Smart cards</string>
     <string name="home_add_countdown_desc">Days until a trip, a birthday, anything</string>
     <string name="home_add_qr_desc">Wi-Fi, a link or your contact, ready to scan</string>
-    <string name="home_add_toy_desc">Focus timer, stopwatch, studio light, dice, wheel and more</string>
+    <string name="home_add_toy_desc">Focus timer, stopwatch, counter, dice and decision wheel</string>
     <string name="guard_channel">Open when folded</string>
     <string name="guard_channel_desc">Keeps the screen saver ready while the phone is folded.</string>
     <string name="guard_notif_title">Screen saver is ready</string>

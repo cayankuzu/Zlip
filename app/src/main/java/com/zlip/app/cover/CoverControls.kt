@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,6 +35,7 @@ import androidx.compose.material.icons.filled.Pinch
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,43 +45,37 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.zlip.app.ui.components.VideoSeekBar
-import com.zlip.app.ui.theme.BrandMint
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleStartEffect
 import com.zlip.app.R
 import com.zlip.app.data.MediaFit
+import com.zlip.app.ui.components.VideoSeekBar
+import com.zlip.app.ui.theme.BrandMint
 import java.text.DateFormat
 import java.util.Date
 
 /**
- * On-cover controls, shown after a tap (folded) or the unlocking double tap (open phone). Big targets
- * for a small screen: previous / play-pause / next in the middle, sound and close at the edges, Fit / Fill
- * for a photo or video, and on the folded cover the labelled way into its menu. Kept clear of the cover's camera
- * cutout, if it has one, and of the screen-saver clock's corner (bottom left).
- *
- * A [group] on the cover makes the middle buttons steps: chevrons in place of the skip icons, "Adım 2/5" under the
- * title, and a stories-style bar along the top for up to [MAX_SEGMENTS] steps. With [itemSkip] two labelled pills
- * under them leave the group for the previous or next item, so getting past a long group takes one press.
+ * Unified, clutter-free on-cover controls shown on both the open phone rear display and the folded cover display.
+ * Keeps the middle of the screen completely clear so the artwork or video stays visible, with a clean header row
+ * at the top (title, step/position subtitle, sound, fit/fill, menu, close) and a compact bottom transport bar
+ * (seekbar + previous / play-pause / next).
  */
 @Composable
 internal fun CoverControls(
@@ -109,13 +102,9 @@ internal fun CoverControls(
     compact: Boolean = false,
     /** The group on the cover and the step it shows; null for anything else. */
     group: GroupProgress? = null,
-    /** The group can be left for another item ([CoverPlayback.itemSkipAvailable]): show the item pills. */
-    itemSkip: Boolean = false,
     videoPositionMs: Long = 0L,
     videoDurationMs: Long = 0L,
     onSeek: (Long) -> Unit = {},
-    onPreviousItem: () -> Unit = {},
-    onNextItem: () -> Unit = {},
 ) {
     val previousIcon = if (group != null) Icons.AutoMirrored.Filled.KeyboardArrowLeft else Icons.Filled.SkipPrevious
     val nextIcon = if (group != null) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.Filled.SkipNext
@@ -128,206 +117,161 @@ internal fun CoverControls(
         position
     }
     val segments = group?.takeIf { it.count in 2..MAX_SEGMENTS }
-    val hasVideo = !compact && videoDurationMs > 0
-    val inlineItemSkip = itemSkip && onOpenMenu == null
-    val stackedItemSkip = itemSkip && onOpenMenu != null
-    val hasBottomActions = soundOn != null || mediaFit != null || onOpenMenu != null || inlineItemSkip
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.32f))
-            .windowInsetsPadding(WindowInsets.displayCutout),
-    ) {
-        if (segments != null) {
-            StepSegments(
-                step = segments.step,
-                count = segments.count,
+    val hasVideo = !compact && videoDurationMs > 0L
+
+    Box(Modifier.fillMaxSize()) {
+        // Subtle top and bottom scrims so the center of the cover stays clear and bright.
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(84.dp)
+                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.68f), Color.Transparent))),
+        )
+        if (!compact) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(if (hasVideo) 118.dp else 82.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f)))),
+            )
+        }
+
+        Box(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.displayCutout),
+        ) {
+            if (segments != null) {
+                StepSegments(
+                    step = segments.step,
+                    count = segments.count,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 6.dp),
+                )
+            }
+
+            // Clean top header: title & subtitle on the left, compact action icons on the right.
+            Row(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .padding(start = 18.dp, end = 18.dp, top = 8.dp),
-            )
-        }
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(start = 18.dp, end = 14.dp, top = if (segments != null) 15.dp else 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (subtitle != null) {
+                    .padding(start = 16.dp, end = 12.dp, top = if (segments != null) 14.dp else 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Column(Modifier.weight(1f)) {
                     Text(
-                        text = subtitle,
-                        color = Color.White.copy(alpha = 0.76f),
-                        fontSize = 12.sp,
+                        text = title,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            color = Color.White.copy(alpha = 0.78f),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-            }
-            if (onClose != null) ControlButton(Icons.Filled.Close, closeLabel, onClose, size = 42)
-        }
-
-        if (compact) {
-            if (canSkip) {
-                Box(Modifier.align(Alignment.CenterStart).padding(start = 10.dp)) {
-                    ControlButton(previousIcon, previousLabel, onPrevious, size = 44)
-                }
-                Box(Modifier.align(Alignment.CenterEnd).padding(end = 10.dp)) {
-                    ControlButton(nextIcon, nextLabel, onNext, size = 44)
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (canSkip) ControlButton(previousIcon, previousLabel, onPrevious, size = 48)
-                ControlButton(
-                    if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                    stringResource(if (paused) R.string.action_resume else R.string.action_pause),
-                    onTogglePause,
-                    size = 62,
-                    filled = true,
-                )
-                if (canSkip) ControlButton(nextIcon, nextLabel, onNext, size = 48)
-            }
-        }
-
-        // Bottom dock: video seekbar + item skip pills + sound / fit / menu actions neatly aligned at the bottom
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (hasVideo) {
-                VideoSeekBar(
-                    positionMs = videoPositionMs,
-                    durationMs = videoDurationMs,
-                    onSeek = onSeek,
-                    compact = true,
-                    activeColor = BrandMint,
-                    inactiveColor = Color.White.copy(alpha = 0.28f),
-                    totalTimeColor = Color.White.copy(alpha = 0.82f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.62f), RoundedCornerShape(50))
-                        .padding(horizontal = 14.dp, vertical = 2.dp),
-                )
-            }
-
-            if (stackedItemSkip) {
-                ItemPills(onPreviousItem = onPreviousItem, onNextItem = onNextItem)
-            }
-
-            if (hasBottomActions) {
-                val bottomEndTaken = mediaFit != null || onOpenMenu != null || inlineItemSkip
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = if (bottomEndTaken) Arrangement.SpaceBetween else Arrangement.Center,
                 ) {
                     if (soundOn != null) {
                         ControlButton(
                             if (soundOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                             stringResource(if (soundOn) R.string.action_sound_off else R.string.action_sound_on),
                             onToggleSound,
-                            size = 42,
+                            size = 36,
                         )
-                    } else if (inlineItemSkip && mediaFit != null) {
-                        Spacer(Modifier.size(42.dp))
                     }
+                    if (mediaFit != null) {
+                        val fitted = mediaFit == MediaFit.FIT
+                        ControlButton(
+                            if (fitted) Icons.Filled.ZoomOutMap else Icons.Filled.FitScreen,
+                            stringResource(if (fitted) R.string.media_fit_fill else R.string.media_fit_fit),
+                            onSwitchFit,
+                            size = 36,
+                        )
+                    }
+                    if (onOpenMenu != null) {
+                        ControlButton(
+                            Icons.Filled.Tune,
+                            stringResource(R.string.cover_menu_open),
+                            onOpenMenu,
+                            size = 36,
+                        )
+                    }
+                    if (onClose != null) {
+                        ControlButton(Icons.Filled.Close, closeLabel, onClose, size = 36)
+                    }
+                }
+            }
 
-                    if (inlineItemSkip) {
-                        ItemPills(
-                            onPreviousItem = onPreviousItem,
-                            onNextItem = onNextItem,
+            if (compact) {
+                if (canSkip) {
+                    Box(Modifier.align(Alignment.CenterStart).padding(start = 10.dp)) {
+                        ControlButton(previousIcon, previousLabel, onPrevious, size = 38)
+                    }
+                    Box(Modifier.align(Alignment.CenterEnd).padding(end = 10.dp)) {
+                        ControlButton(nextIcon, nextLabel, onNext, size = 38)
+                    }
+                }
+            } else {
+                // Unified bottom transport bar: video seekbar + Previous / Play-Pause / Next
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(start = 14.dp, end = 14.dp, bottom = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (hasVideo) {
+                        VideoSeekBar(
+                            positionMs = videoPositionMs,
+                            durationMs = videoDurationMs,
+                            onSeek = onSeek,
                             compact = true,
+                            activeColor = BrandMint,
+                            inactiveColor = Color.White.copy(alpha = 0.28f),
+                            totalTimeColor = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 6.dp),
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.56f), RoundedCornerShape(50))
+                                .padding(horizontal = 12.dp, vertical = 2.dp),
                         )
-                    } else if (bottomEndTaken) {
-                        Spacer(Modifier.weight(1f))
                     }
-
-                    if (mediaFit != null || onOpenMenu != null) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (mediaFit != null) {
-                                val fitted = mediaFit == MediaFit.FIT
-                                ControlButton(
-                                    if (fitted) Icons.Filled.ZoomOutMap else Icons.Filled.FitScreen,
-                                    stringResource(if (fitted) R.string.media_fit_fill else R.string.media_fit_fit),
-                                    onSwitchFit,
-                                    size = 42,
-                                )
-                            }
-                            if (onOpenMenu != null) {
-                                ControlPill(
-                                    icon = Icons.Filled.KeyboardArrowUp,
-                                    text = stringResource(R.string.cover_menu_label),
-                                    onClick = onOpenMenu,
-                                    onClickLabel = stringResource(R.string.cover_menu_open),
-                                    height = 42.dp,
-                                )
-                            }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (canSkip) {
+                            ControlButton(previousIcon, previousLabel, onPrevious, size = 40)
                         }
-                    } else if (inlineItemSkip && soundOn != null) {
-                        Spacer(Modifier.size(42.dp))
+                        ControlButton(
+                            if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                            stringResource(if (paused) R.string.action_resume else R.string.action_pause),
+                            onTogglePause,
+                            size = 48,
+                            filled = true,
+                        )
+                        if (canSkip) {
+                            ControlButton(nextIcon, nextLabel, onNext, size = 40)
+                        }
                     }
                 }
             }
         }
-    }
-}
-
-/** "Önceki içerik" and "Sonraki içerik": leave the group on the cover for another item, whatever step it is on. */
-@Composable
-private fun ItemPills(
-    onPreviousItem: () -> Unit,
-    onNextItem: () -> Unit,
-    modifier: Modifier = Modifier,
-    compact: Boolean = false,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // Each may shrink (its text ends in "…") so both still fit at a large font size.
-        ControlPill(
-            icon = Icons.Filled.SkipPrevious,
-            text = stringResource(R.string.action_previous_item),
-            onClick = onPreviousItem,
-            height = if (compact) 38.dp else 40.dp,
-            compact = compact,
-            modifier = Modifier.weight(1f, fill = false),
-        )
-        ControlPill(
-            icon = Icons.Filled.SkipNext,
-            text = stringResource(R.string.action_next_item),
-            onClick = onNextItem,
-            iconFirst = false,
-            height = if (compact) 38.dp else 40.dp,
-            compact = compact,
-            modifier = Modifier.weight(1f, fill = false),
-        )
     }
 }
 
@@ -359,51 +303,15 @@ private fun ControlButton(icon: ImageVector, description: String, onClick: () ->
     }
 }
 
-/** A labelled button, for what an icon alone would not say. Grows with the font size rather than clipping its text. */
-@Composable
-private fun ControlPill(
-    icon: ImageVector,
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    iconFirst: Boolean = true,
-    onClickLabel: String? = null,
-    height: Dp = 40.dp,
-    compact: Boolean = false,
-) {
-    Row(
-        modifier = modifier
-            .heightIn(min = height)
-            .clip(RoundedCornerShape(50))
-            .background(Color.Black.copy(alpha = 0.58f))
-            .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
-            .padding(horizontal = if (compact) 10.dp else 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val iconSize = if (compact) 16.dp else 18.dp
-        if (iconFirst) Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(iconSize))
-        Text(
-            text = text,
-            color = Color.White,
-            fontSize = if (compact) 12.sp else 13.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
-        if (!iconFirst) Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(iconSize))
-    }
-}
-
 /** The controls' ×, on its own: the mirroring frame shows it in the same corner when the cover is unlocked. */
 @Composable
 internal fun CoverCloseButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier
             .windowInsetsPadding(WindowInsets.displayCutout)
-            .padding(end = 14.dp, top = 10.dp),
+            .padding(end = 12.dp, top = 10.dp),
     ) {
-        ControlButton(Icons.Filled.Close, label, onClick, size = 42)
+        ControlButton(Icons.Filled.Close, label, onClick, size = 36)
     }
 }
 
