@@ -338,6 +338,11 @@ fun ZlipRoot(
         if (saveFailed) Toast.makeText(context, R.string.save_failed, Toast.LENGTH_LONG).show()
     }
 
+    // Silently check for app updates from GitHub in the background
+    LaunchedEffect(Unit) {
+        com.zlip.app.system.AppUpdateManager.checkForUpdates(context, silentIfUpToDate = true)
+    }
+
     // The system page alone does not say what to turn on there; a line first does.
     fun openNotificationSettings() {
         Toast.makeText(context, R.string.notif_settings_toast, Toast.LENGTH_LONG).show()

@@ -105,7 +105,14 @@
     <string name="settings_tile_desc">Kapağı hızlı ayarlardan aç ya da kapat.</string>
     <string name="settings_tile_add">Kutucuğu ekle</string>
     <string name="settings_version">Sürüm %1$s</string>
-    <string name="settings_privacy">Zlip\'in internet erişimi yoktur ve hiçbir veri toplamaz. Fotoğrafların ve videoların telefonundan asla çıkmaz.</string>
+    <string name="settings_privacy">Zlip hiçbir veri toplamaz ve reklam/takip içermez. İnternet erişimi yalnızca uygulama güncellemelerini denetlemek ve yüklemek için kullanılır.</string>
+    <string name="settings_check_updates">Güncellemeleri denetle</string>
+    <string name="settings_checking_updates">Denetleniyor…</string>
+    <string name="settings_update_available">Yeni sürüm mevcut (%1$s)</string>
+    <string name="settings_update_now">Şimdi güncelle</string>
+    <string name="settings_update_downloading">Güncelleme indiriliyor… %%%1$d</string>
+    <string name="settings_update_install">Güncellemeyi kur</string>
+    <string name="settings_update_latest">Zlip en güncel sürümde.</string>
     <string name="settings_show_intro">Tanıtımı yeniden göster</string>
     <string name="duration_off">Kapalı</string>
     <string name="duration_seconds">%1$d sn</string>

@@ -123,6 +123,10 @@ Yayınlama için bkz. [PLAY_STORE.md](PLAY_STORE.md).
 
 ## Değişiklikler
 
+### 1.0.6
+- Uygulama içi otomatik güncelleme: Ayarlar'dan ya da yeni sürüm çıktığında veriler kaybolmadan tek tıkla güncelleme imkânı eklendi.
+- Galeri ve grup içerik sınırlamaları tamamen kaldırıldı.
+
 ### 1.0.5
 - Grup içerik sınırı (30) kaldırıldı: gruba istenildiği kadar öğe eklenebilir.
 

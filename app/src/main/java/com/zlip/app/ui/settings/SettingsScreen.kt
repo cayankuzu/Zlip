@@ -22,10 +22,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.unit.dp
+import com.zlip.app.system.AppUpdateManager
+import com.zlip.app.system.UpdateState
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.automirrored.filled.AddToHomeScreen
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -272,8 +282,118 @@ fun SettingsScreen(
                 val version = remember(context) {
                     runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
                 }
+                val updateState by AppUpdateManager.state.collectAsState()
+                val scope = rememberCoroutineScope()
+
                 Text(stringResource(R.string.settings_version, version), style = MaterialTheme.typography.bodyLarge)
                 HintText(stringResource(R.string.settings_privacy))
+
+                Spacer(Modifier.height(10.dp))
+
+                when (val state = updateState) {
+                    is UpdateState.Idle -> {
+                        OutlinedButton(
+                            onClick = { scope.launch { AppUpdateManager.checkForUpdates(context) } },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.settings_check_updates))
+                        }
+                    }
+                    is UpdateState.Checking -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Text(stringResource(R.string.settings_checking_updates), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    is UpdateState.UpToDate -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.settings_update_latest), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        TextButton(
+                            onClick = { scope.launch { AppUpdateManager.checkForUpdates(context) } },
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) {
+                            Text(stringResource(R.string.settings_check_updates))
+                        }
+                    }
+                    is UpdateState.Available -> {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.settings_update_available, state.info.versionName),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            if (state.info.releaseNotes.isNotBlank()) {
+                                Text(
+                                    state.info.releaseNotes,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Button(
+                                onClick = { scope.launch { AppUpdateManager.downloadAndInstall(context, state.info) } },
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                            ) {
+                                Icon(Icons.Filled.SystemUpdate, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.settings_update_now))
+                            }
+                        }
+                    }
+                    is UpdateState.Downloading -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                stringResource(R.string.settings_update_downloading, state.progressPercent),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                    is UpdateState.ReadyToInstall -> {
+                        Button(
+                            onClick = { AppUpdateManager.installApk(context, state.apkFile) },
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                        ) {
+                            Icon(Icons.Filled.SystemUpdate, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.settings_update_install))
+                        }
+                    }
+                    is UpdateState.Error -> {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                        OutlinedButton(
+                            onClick = { scope.launch { AppUpdateManager.checkForUpdates(context) } },
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                        ) {
+                            Text(stringResource(R.string.settings_check_updates))
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
                 TextButton(onClick = onShowOnboarding, modifier = Modifier.padding(top = 4.dp)) {
                     Text(stringResource(R.string.settings_show_intro))
                 }
