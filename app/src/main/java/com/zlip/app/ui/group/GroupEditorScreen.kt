@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -53,6 +54,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -302,13 +304,23 @@ fun GroupEditorScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            var previewPaused by remember { mutableStateOf(false) }
             CoverPreviewFrame(
                 Modifier
                     .fillMaxWidth(0.72f)
-                    .align(Alignment.CenterHorizontally),
+                    .align(Alignment.CenterHorizontally)
+                    .clickable { previewPaused = !previewPaused },
             ) {
-                // A still, like the step rows: the cover is where the group plays (and is heard).
-                CoverScale { CoverContent(item = shownStep ?: item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
+                // Live preview: videos and animations play right inside the group editor preview
+                key(shownStep?.id, previewPaused) {
+                    CoverScale {
+                        CoverContent(
+                            item = shownStep ?: item,
+                            modifier = Modifier.fillMaxSize(),
+                            playback = if (previewPaused) Playback.PAUSED else Playback.LIVE,
+                        )
+                    }
+                }
             }
             // "Adım 2/4": the shown step's row, the one marked in the list. "1 içerik" while there is nothing to step.
             val count = if (items.size > 1) {

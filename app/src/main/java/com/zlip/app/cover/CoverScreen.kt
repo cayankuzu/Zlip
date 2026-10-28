@@ -83,7 +83,9 @@ import com.zlip.app.render.LocalMediaFraming
 import com.zlip.app.render.LocalOnSoundLost
 import com.zlip.app.render.LedStyle
 import com.zlip.app.render.LocalVideoOverlay
+import com.zlip.app.render.LocalVideoProgressSink
 import com.zlip.app.render.Playback
+import com.zlip.app.render.VideoProgressSink
 import com.zlip.app.render.ledMatrix
 import com.zlip.app.ui.theme.BrandGradient
 import kotlinx.coroutines.CancellationException
@@ -151,6 +153,8 @@ fun CoverScreen(
     val soundOn by playback.soundOn.collectAsState()
     val groupProgress by playback.groupProgress.collectAsState()
     val itemSkipAvailable by playback.itemSkipAvailable.collectAsState()
+    val videoPositionMs by playback.videoPositionMs.collectAsState()
+    val videoDurationMs by playback.videoDurationMs.collectAsState()
     val mirrorOn = mirror?.state?.collectAsState()?.value == MirrorState.ON
     val mirroring = mirror?.takeIf { mirrorOn }
     val currentMirroring by rememberUpdatedState(mirroring)
@@ -673,6 +677,12 @@ fun CoverScreen(
                     // The cover is where sound plays: whenever its sound is on, never while the screen saver rests.
                     LocalAllowSound provides (soundOn && !ambient),
                     LocalOnSoundLost provides onSoundLost,
+                    LocalVideoProgressSink provides remember(playback) {
+                        VideoProgressSink(
+                            onProgress = { pos, dur -> playback.updateVideoProgress(pos, dur) },
+                            seekFlow = playback.seekRequest,
+                        )
+                    },
                 ) {
                     // A new session builds the content afresh: a video at 0:00, a GIF at its first frame, a group
                     // at step one. Its events are new too, so nothing from before can end the new showing.
@@ -867,6 +877,13 @@ fun CoverScreen(
                         groupProgress?.takeIf { it.groupId == group.id } ?: GroupProgress(group.id, 1, group.items.size)
                     },
                     itemSkip = itemSkip,
+                    videoPositionMs = videoPositionMs,
+                    videoDurationMs = videoDurationMs,
+                    onSeek = { targetMs ->
+                        lastTouch = SystemClock.uptimeMillis()
+                        currentOnUserActivity()
+                        playback.seekTo(targetMs)
+                    },
                     onPreviousItem = {
                         lastTouch = SystemClock.uptimeMillis()
                         currentOnUserActivity()

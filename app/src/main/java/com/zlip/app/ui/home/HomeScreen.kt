@@ -41,6 +41,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -58,6 +60,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.HourglassTop
@@ -118,11 +122,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -153,6 +159,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -168,8 +175,13 @@ import com.zlip.app.data.MediaKind
 import com.zlip.app.data.showsQr
 import com.zlip.app.render.CoverContent
 import com.zlip.app.render.LedStyle
+import com.zlip.app.render.LocalVideoProgressSink
+import com.zlip.app.render.LocalVideoSyncPosition
+import com.zlip.app.render.VideoProgressSink
 import com.zlip.app.render.ledMatrix
 import com.zlip.app.render.Playback
+import com.zlip.app.ui.gallery.InAppGalleryViewer
+import kotlinx.coroutines.flow.MutableSharedFlow
 import com.zlip.app.ui.components.AutoShowControl
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
@@ -296,10 +308,14 @@ fun HomeScreen(
     onSettingsChange: (CoverSettings) -> Unit,
     onAdd: (AddKind) -> Unit,
     onOpenSettings: () -> Unit,
+    videoPositionMs: Long = 0L,
+    videoDurationMs: Long = 0L,
+    onSeek: (Long) -> Unit = {},
 ) {
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
     var showFoldedSteps by rememberSaveable { mutableStateOf(false) }
+    var galleryViewerItemId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
     // Not the composition's own effects: a snackbar must outlive the state change that started it.
     val snackScope = rememberCoroutineScope()
@@ -443,6 +459,11 @@ fun HomeScreen(
                         }
                     },
                     actions = {
+                        if (items.isNotEmpty()) {
+                            IconButton(onClick = { galleryViewerItemId = selectedId ?: items.firstOrNull()?.id }) {
+                                Icon(Icons.Filled.Collections, contentDescription = stringResource(R.string.gallery_title))
+                            }
+                        }
                         IconButton(onClick = onOpenSettings) {
                             Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_title))
                         }
@@ -504,6 +525,12 @@ fun HomeScreen(
                     lastError = lastError,
                     mirror = mirror,
                     staysOnElsewhere = miniCover && settings.keepCoverInOtherApps,
+                    videoPositionMs = videoPositionMs,
+                    videoDurationMs = videoDurationMs,
+                    onSeek = onSeek,
+                    onTogglePause = onTogglePause,
+                    paused = paused,
+                    onOpenGallery = { galleryViewerItemId = (previewItem ?: selectedItem)?.id },
                     onStart = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onStartCover()
@@ -549,6 +576,9 @@ fun HomeScreen(
                             onSettingsChange = onSettingsChange,
                             onBrightnessBounds = reportSlider,
                             sliderEndRoom = fabOverSlider,
+                            videoPositionMs = videoPositionMs,
+                            videoDurationMs = videoDurationMs,
+                            onSeek = onSeek,
                         )
                     }
                 }
@@ -573,15 +603,28 @@ fun HomeScreen(
             item(span = { GridItemSpan(maxLineSpan) }, key = "library-title") {
                 Column {
                     SectionTitle(R.string.home_library, modifier = Modifier.padding(top = 8.dp)) {
-                        Text(
-                            text = if (playlist.isEmpty()) {
-                                items.size.toString()
-                            } else {
-                                pluralStringResource(R.plurals.playlist_count, playlist.size, playlist.size)
-                            },
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (items.isNotEmpty()) {
+                                TextButton(
+                                    onClick = { galleryViewerItemId = selectedId ?: items.firstOrNull()?.id },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                ) {
+                                    Icon(Icons.Filled.Collections, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringResource(R.string.gallery_title), style = MaterialTheme.typography.labelMedium)
+                                }
+                                Spacer(Modifier.width(6.dp))
+                            }
+                            Text(
+                                text = if (playlist.isEmpty()) {
+                                    items.size.toString()
+                                } else {
+                                    pluralStringResource(R.plurals.playlist_count, playlist.size, playlist.size)
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
                     // Wraps rather than scrolls (as ChoiceChips does): a sideways row hid its last chips with nothing to
@@ -714,9 +757,37 @@ fun HomeScreen(
                     },
                     onMove = { delta -> library.onMoveInPlaylist(item.id, delta) },
                     onDelete = { pendingDelete = setOf(item.id) },
+                    onOpenGallery = { galleryViewerItemId = item.id },
                 )
             }
         }
+    }
+
+    galleryViewerItemId?.let { initialId ->
+        InAppGalleryViewer(
+            items = items,
+            initialItemId = initialId,
+            isCoverActive = status == CoverStatus.ACTIVE,
+            coverPlayingId = (shownOnCover ?: selectedItem)?.id,
+            coverPositionMs = videoPositionMs,
+            coverDurationMs = videoDurationMs,
+            onCoverSeek = onSeek,
+            onToggleCoverPause = onTogglePause,
+            isCoverPaused = paused,
+            onSelectCover = { id ->
+                library.onSelect(id)
+                galleryViewerItemId = null
+            },
+            onEdit = { item ->
+                galleryViewerItemId = null
+                library.onEdit(item)
+            },
+            onDelete = { item ->
+                pendingDelete = setOf(item.id)
+                galleryViewerItemId = null
+            },
+            onDismiss = { galleryViewerItemId = null },
+        )
     }
 
     if (showAddSheet && !hovering) {
@@ -915,6 +986,12 @@ private fun HeroSection(
     lastError: CoverError?,
     mirror: MirrorState,
     staysOnElsewhere: Boolean,
+    videoPositionMs: Long = 0L,
+    videoDurationMs: Long = 0L,
+    onSeek: (Long) -> Unit = {},
+    onTogglePause: () -> Unit = {},
+    paused: Boolean = false,
+    onOpenGallery: () -> Unit = {},
     onStart: () -> Unit,
     onStop: () -> Unit,
     onShrinkToMini: () -> Unit,
@@ -922,13 +999,42 @@ private fun HeroSection(
 ) {
     val active = status == CoverStatus.ACTIVE
     val mirroring = active && mirror == MirrorState.ON
+    val isVideo = (item as? CoverItem.Media)?.kind == MediaKind.VIDEO || item is CoverItem.Group
+    val localSeekFlow = remember(item?.id) { MutableSharedFlow<Long>(extraBufferCapacity = 2) }
+    var localPosMs by remember(item?.id) { mutableLongStateOf(0L) }
+    var localDurMs by remember(item?.id) { mutableLongStateOf(0L) }
+    var localPaused by remember(item?.id) { mutableStateOf(false) }
+
+    val localProgressSink = remember(item?.id) {
+        VideoProgressSink(
+            onProgress = { pos, dur ->
+                localPosMs = pos
+                localDurMs = dur
+            },
+            seekFlow = localSeekFlow,
+        )
+    }
+
+    val displayPosMs = if (active) videoPositionMs else localPosMs
+    val displayDurMs = if (active) videoDurationMs else localDurMs
+    val effectivePlayback = when {
+        active -> playback
+        localPaused -> Playback.PAUSED
+        else -> playback
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CoverPreviewFrame(Modifier.fillMaxWidth(0.74f), glowing = active) {
+        CoverPreviewFrame(
+            modifier = Modifier
+                .fillMaxWidth(0.74f)
+                .clickable { onOpenGallery() },
+            glowing = active,
+        ) {
             if (mirroring) {
                 Icon(
                     Icons.AutoMirrored.Filled.ScreenShare,
@@ -939,8 +1045,97 @@ private fun HeroSection(
                         .fillMaxSize(0.34f),
                 )
             } else {
-                // Still while the cover is on (the real thing is on the back), in standby and in the background.
-                CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize().ledMatrix(led), playback = playback) }
+                val syncPos = if (active) videoPositionMs else null
+                val progressSink = if (active) null else localProgressSink
+                CompositionLocalProvider(
+                    LocalVideoSyncPosition provides syncPos,
+                    LocalVideoProgressSink provides progressSink,
+                ) {
+                    CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize().ledMatrix(led), playback = effectivePlayback) }
+                }
+            }
+
+            Surface(
+                color = Color.Black.copy(alpha = 0.55f),
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .clickable { onOpenGallery() },
+            ) {
+                Icon(
+                    Icons.Filled.Fullscreen,
+                    contentDescription = stringResource(R.string.gallery_open),
+                    tint = Color.White,
+                    modifier = Modifier.padding(6.dp).size(20.dp),
+                )
+            }
+        }
+
+        if (isVideo && !active && displayDurMs > 0) {
+            var draggingRatio by remember { mutableStateOf<Float?>(null) }
+            val currentRatio = draggingRatio ?: (displayPosMs.toFloat() / displayDurMs.toFloat()).coerceIn(0f, 1f)
+            val displayMs = draggingRatio?.let { (it * displayDurMs).toLong() } ?: displayPosMs
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.74f)
+                    .padding(top = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = formatTime(displayMs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = formatTime(displayDurMs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Slider(
+                    value = currentRatio,
+                    onValueChange = { draggingRatio = it },
+                    onValueChangeFinished = {
+                        val target = ((draggingRatio ?: currentRatio) * displayDurMs).toLong()
+                        localSeekFlow.tryEmit(target)
+                        localPosMs = target
+                        draggingRatio = null
+                    },
+                    modifier = Modifier.fillMaxWidth().height(22.dp),
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 2.dp),
+                ) {
+                    FilledTonalButton(
+                        onClick = { localPaused = !localPaused },
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    ) {
+                        Icon(
+                            if (localPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(if (localPaused) R.string.action_resume else R.string.action_pause))
+                    }
+                    OutlinedButton(
+                        onClick = onOpenGallery,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Icon(Icons.Filled.Collections, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.gallery_open))
+                    }
+                }
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -1084,6 +1279,13 @@ private fun MirrorControlsCard(
  * ([groupStep] is its "Tatil · Adım 3/8"): ‹ › step inside it, and with [itemSkip] a second row leaves it for the
  * previous or next item in one tap, the same two kinds of move as on the cover and in the notification.
  */
+private fun formatTime(millis: Long): String {
+    val totalSeconds = (millis / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d".format(minutes, seconds)
+}
+
 @Composable
 private fun ControlsCard(
     settings: CoverSettings,
@@ -1099,6 +1301,9 @@ private fun ControlsCard(
     onSettingsChange: (CoverSettings) -> Unit,
     onBrightnessBounds: ((Rect) -> Unit)? = null,
     sliderEndRoom: Boolean = false,
+    videoPositionMs: Long = 0L,
+    videoDurationMs: Long = 0L,
+    onSeek: (Long) -> Unit = {},
 ) {
     val stepping = groupStep != null
     SectionCard {
@@ -1126,6 +1331,45 @@ private fun ControlsCard(
                 } else {
                     Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.action_next))
                 }
+            }
+        }
+
+        if (videoDurationMs > 0) {
+            var draggingRatio by remember { mutableStateOf<Float?>(null) }
+            val currentRatio = draggingRatio ?: (videoPositionMs.toFloat() / videoDurationMs.toFloat()).coerceIn(0f, 1f)
+            val displayMs = draggingRatio?.let { (it * videoDurationMs).toLong() } ?: videoPositionMs
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = formatTime(displayMs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = formatTime(videoDurationMs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Slider(
+                    value = currentRatio,
+                    onValueChange = { draggingRatio = it },
+                    onValueChangeFinished = {
+                        val target = ((draggingRatio ?: currentRatio) * videoDurationMs).toLong()
+                        onSeek(target)
+                        draggingRatio = null
+                    },
+                    modifier = Modifier.fillMaxWidth().height(22.dp),
+                )
             }
         }
         // Out of the group in one tap; a group alone in the rotation goes round instead, so there is nowhere to go.
@@ -1307,6 +1551,7 @@ private fun LibraryCard(
     onTogglePlaylist: () -> Unit,
     onMove: (Int) -> Unit,
     onDelete: () -> Unit,
+    onOpenGallery: () -> Unit = {},
 ) {
     val highlighted = if (selectionMode) checked else onCover
     Surface(
@@ -1404,6 +1649,10 @@ private fun LibraryCard(
                             onDismissRequest = { onMenuOpenChange(false) },
                             modifier = Modifier.wakesStandby(),
                         ) {
+                            MenuItem(Icons.Filled.Collections, R.string.gallery_open) {
+                                onMenuOpenChange(false)
+                                onOpenGallery()
+                            }
                             MenuItem(Icons.Filled.Edit, R.string.action_edit) {
                                 onMenuOpenChange(false)
                                 onEdit()

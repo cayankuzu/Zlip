@@ -234,6 +234,8 @@ fun ZlipRoot(
     val status by app.cover.status.collectAsState()
     val lastError by app.cover.lastError.collectAsState()
     val paused by app.playback.paused.collectAsState()
+    val videoPositionMs by app.playback.videoPositionMs.collectAsState()
+    val videoDurationMs by app.playback.videoDurationMs.collectAsState()
     val isStandby by standby.collectAsState()
     val openSettings by settingsRequested.collectAsState()
     val hovering by inPip.collectAsState()
@@ -281,7 +283,7 @@ fun ZlipRoot(
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val previewAllowed = lifecycleState.isAtLeast(Lifecycle.State.STARTED) && !isStandby && !hovering
     val coverActive = status == CoverStatus.ACTIVE
-    val heroPlayback = if (previewAllowed && !coverActive) Playback.LIVE else Playback.STILL
+    val heroPlayback = if (previewAllowed) Playback.LIVE else Playback.STILL
     val editorPlayback = if (previewAllowed) Playback.LIVE else Playback.STILL
 
     // Standby on every screen: editors count each draft change as a touch (typing never reaches the activity),
@@ -661,6 +663,9 @@ fun ZlipRoot(
                     onNextItem = app.playback::nextItem,
                     onPreviousItem = app.playback::previousItem,
                     onSettingsChange = { updated -> repository.updateSettings { updated } },
+                    videoPositionMs = videoPositionMs,
+                    videoDurationMs = videoDurationMs,
+                    onSeek = app.playback::seekTo,
                     onAdd = { kind ->
                         editorDirty = false
                         when (kind) {

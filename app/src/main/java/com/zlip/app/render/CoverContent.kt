@@ -138,6 +138,17 @@ val LocalAllowSound = compositionLocalOf { false }
  */
 val LocalOnSoundLost = staticCompositionLocalOf<(() -> Unit)?> { null }
 
+/** Sink for reporting video playback position and receiving seek requests. */
+data class VideoProgressSink(
+    val onProgress: (positionMs: Long, durationMs: Long) -> Unit,
+    val seekFlow: kotlinx.coroutines.flow.Flow<Long>? = null,
+)
+
+val LocalVideoProgressSink = staticCompositionLocalOf<VideoProgressSink?> { null }
+
+/** External video position (ms) to synchronize an inner player with the cover screen player. */
+val LocalVideoSyncPosition = staticCompositionLocalOf<Long?> { null }
+
 /**
  * How the cover shows a photo or video right now: while fingers frame it there, ahead of saving it, the framing they
  * left; otherwise its own. Null everywhere else, where every item shows as stored. Read while composing, so only the
@@ -693,6 +704,34 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
         if (item.loop && player.playbackState == Player.STATE_ENDED) player.seekTo(0)
     }
     LaunchedEffect(playing, shown) { player.playWhenReady = playing && shown }
+    val syncPosition = LocalVideoSyncPosition.current
+    LaunchedEffect(syncPosition) {
+        if (syncPosition != null) {
+            val diff = kotlin.math.abs(player.currentPosition - syncPosition)
+            if (diff > 400L) {
+                player.seekTo(syncPosition)
+            }
+        }
+    }
+    val progressSink = LocalVideoProgressSink.current
+    LaunchedEffect(progressSink) {
+        val seek = progressSink?.seekFlow ?: return@LaunchedEffect
+        seek.collect { targetMs ->
+            player.seekTo(targetMs)
+            val pos = player.currentPosition
+            val dur = player.duration.coerceAtLeast(0L)
+            progressSink.onProgress(pos, dur)
+        }
+    }
+    LaunchedEffect(player, playing, shown, progressSink) {
+        if (!playing || !shown || progressSink == null) return@LaunchedEffect
+        while (true) {
+            val pos = player.currentPosition
+            val dur = player.duration.coerceAtLeast(0L)
+            progressSink.onProgress(pos, dur)
+            delay(250)
+        }
+    }
     // Audio focus only while sound is wanted, so a silent loop never touches the user's music. Transient
     // focus: whatever was playing resumes once the clip goes quiet. Losing it (a call, another app) mutes
     // the clip, which keeps looping.

@@ -98,6 +98,29 @@ class CoverPlayback(
     private val _closeLiveView = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val closeLiveView: SharedFlow<Unit> = _closeLiveView.asSharedFlow()
 
+    /** Real-time video position in ms reported by the active video player. */
+    private val _videoPositionMs = MutableStateFlow(0L)
+    val videoPositionMs: StateFlow<Long> = _videoPositionMs.asStateFlow()
+
+    /** Duration of the current video in ms. */
+    private val _videoDurationMs = MutableStateFlow(0L)
+    val videoDurationMs: StateFlow<Long> = _videoDurationMs.asStateFlow()
+
+    /** Seek request sent from controls to the active player. */
+    private val _seekRequest = MutableSharedFlow<Long>(extraBufferCapacity = 2)
+    val seekRequest: SharedFlow<Long> = _seekRequest.asSharedFlow()
+
+    fun updateVideoProgress(positionMs: Long, durationMs: Long) {
+        _videoPositionMs.value = positionMs
+        _videoDurationMs.value = durationMs
+    }
+
+    fun seekTo(positionMs: Long) {
+        _seekRequest.tryEmit(positionMs)
+        _videoPositionMs.value = positionMs
+        noteInteraction()
+    }
+
     /**
      * An editor's draft is on the open-phone cover. The folded live view never shows drafts (the editor is
      * out of sight), so it does not count there.
@@ -201,6 +224,8 @@ class CoverPlayback(
                 .collect {
                     _paused.value = false
                     credit.clear()
+                    _videoPositionMs.value = 0L
+                    _videoDurationMs.value = 0L
                 }
         }
         // The setting changed on the phone: the cover follows it now, not only from its next start.

@@ -336,4 +336,17 @@
     <string name="color_magenta">Eflatun</string>
     <string name="color_brown">Kahverengi</string>
     <string name="color_custom">Özel renk</string>
+    <string name="gallery_title">İç Galeri</string>
+    <string name="gallery_open">Galeride Aç</string>
+    <string name="gallery_set_as_cover">Kapağa Ayarla</string>
+    <string name="gallery_sync_cover">Arka Ekran ile Eş Zamanlı</string>
+    <string name="gallery_type_photo">Fotoğraf</string>
+    <string name="gallery_type_video">Video</string>
+    <string name="gallery_type_group">Grup</string>
+    <string name="gallery_type_collage">Kolaj</string>
+    <string name="gallery_type_pixel">Piksel</string>
+    <string name="gallery_type_text">Metin</string>
+    <string name="gallery_type_countdown">Geri Sayım</string>
+    <string name="gallery_type_qr">QR Kod</string>
+    <string name="gallery_type_toy">Etkileşimli</string>
 </resources>
