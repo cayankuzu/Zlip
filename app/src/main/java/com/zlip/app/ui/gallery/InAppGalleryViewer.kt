@@ -1,17 +1,25 @@
 package com.zlip.app.ui.gallery
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +45,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Forward5
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QrCode
@@ -48,6 +57,8 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideogameAsset
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,7 +72,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,6 +83,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -88,18 +100,13 @@ import com.zlip.app.render.LocalVideoProgressSink
 import com.zlip.app.render.LocalVideoSyncPosition
 import com.zlip.app.render.Playback
 import com.zlip.app.render.VideoProgressSink
-import com.zlip.app.ui.components.CoverPreviewFrame
+import com.zlip.app.ui.components.COVER_ASPECT_RATIO
 import com.zlip.app.ui.components.CoverScale
+import com.zlip.app.ui.components.VideoSeekBar
+import com.zlip.app.ui.theme.BrandGradient
 import com.zlip.app.ui.theme.BrandMint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
-
-private fun formatTime(millis: Long): String {
-    val totalSeconds = (millis / 1000).coerceAtLeast(0)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%02d:%02d".format(minutes, seconds)
-}
 
 private fun getItemKindIconAndName(item: CoverItem): Pair<ImageVector, Int> = when (item) {
     is CoverItem.Media -> if (item.kind == MediaKind.VIDEO) {
@@ -146,6 +153,10 @@ fun InAppGalleryViewer(
     val currentItem = items.getOrNull(pagerState.currentPage) ?: items.first()
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val haptics = LocalHapticFeedback.current
+
+    var controlsVisible by remember { mutableStateOf(true) }
+    var menuExpanded by remember { mutableStateOf(false) }
 
     // Scroll thumbnail strip when page changes
     LaunchedEffect(pagerState.currentPage) {
@@ -175,6 +186,18 @@ fun InAppGalleryViewer(
     val displayDurationMs = if (isCurrentItemOnCover) coverDurationMs else localDurationMs
     val isPlaying = if (isCurrentItemOnCover) !isCoverPaused else !localPaused
 
+    // Subtle pulsing animation for cover sync badge
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "pulseAlpha",
+    )
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -185,343 +208,409 @@ fun InAppGalleryViewer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0D0F14)),
+                .background(Color(0xFF08090C))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { controlsVisible = !controlsVisible },
+                ),
         ) {
-            Column(
+            // Pager Viewport (Centered cleanly between top bar and bottom dock)
+            val bottomClearance = when {
+                !controlsVisible -> 16.dp
+                isVideo -> 172.dp
+                else -> 88.dp
+            }
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding(),
-            ) {
-                // Top Bar
-                Row(
+                    .padding(
+                        top = if (controlsVisible) 68.dp else 16.dp,
+                        bottom = bottomClearance,
+                    ),
+            ) { page ->
+                val item = items[page]
+                val isCoverPage = isCoverActive && item.id == coverPlayingId
+
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    IconButton(
-                        onClick = onDismiss,
-                        colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-
-                    val (icon, typeRes) = getItemKindIconAndName(currentItem)
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp),
-                    ) {
-                        Text(
-                            text = currentItem.name.ifBlank { stringResource(typeRes) },
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                icon,
-                                contentDescription = null,
-                                tint = BrandMint,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Text(
-                                text = stringResource(typeRes) + " · ${pagerState.currentPage + 1}/${items.size}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.7f),
-                            )
-                        }
-                    }
-
-                    // Actions
-                    FilledTonalButton(
-                        onClick = { onSelectCover(currentItem.id) },
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = BrandMint.copy(alpha = 0.2f),
-                            contentColor = BrandMint,
-                        ),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier.padding(end = 4.dp),
-                    ) {
-                        Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            stringResource(R.string.gallery_set_as_cover),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            onDismiss()
-                            onEdit(currentItem)
-                        },
-                        colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                    ) {
-                        Icon(Icons.Filled.Edit, contentDescription = null)
-                    }
-
-                    IconButton(
-                        onClick = { onDelete(currentItem) },
-                        colors = IconButtonDefaults.iconButtonColors(contentColor = Color(0xFFFF5252)),
-                    ) {
-                        Icon(Icons.Filled.Delete, contentDescription = null)
-                    }
-                }
-
-                // Sync badge
-                AnimatedVisibility(
-                    visible = isCurrentItemOnCover,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                ) {
-                    Surface(
-                        color = BrandMint.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BrandMint.copy(alpha = 0.4f)),
-                        modifier = Modifier.padding(bottom = 6.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .background(BrandMint, CircleShape),
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.gallery_sync_cover),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = BrandMint,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
-                }
-
-                // Pager
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                ) { page ->
-                    val item = items[page]
-                    val isCoverPage = isCoverActive && item.id == coverPlayingId
-
+                    val frameShape = RoundedCornerShape(22.dp)
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center,
+                            .fillMaxWidth(0.92f)
+                            .aspectRatio(COVER_ASPECT_RATIO)
+                            .clip(frameShape)
+                            .background(Color.Black)
+                            .border(
+                                border = if (isCoverPage) {
+                                    BorderStroke(2.5.dp, Brush.linearGradient(BrandGradient))
+                                } else {
+                                    BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                                },
+                                shape = frameShape,
+                            ),
                     ) {
-                        CoverPreviewFrame(
-                            modifier = Modifier.fillMaxSize(0.92f),
-                            glowing = isCoverPage,
-                        ) {
-                            val playbackMode = when {
-                                isCoverPage -> if (isCoverPaused) Playback.PAUSED else Playback.LIVE
-                                page == pagerState.currentPage -> if (localPaused) Playback.PAUSED else Playback.LIVE
-                                else -> Playback.STILL
-                            }
-
-                            val progressSink = if (isCoverPage) null else localProgressSink
-                            val syncPos = if (isCoverPage) coverPositionMs else null
-
-                            CompositionLocalProvider(
-                                LocalVideoProgressSink provides progressSink,
-                                LocalVideoSyncPosition provides syncPos,
-                            ) {
-                                CoverScale {
-                                    CoverContent(
-                                        item = item,
-                                        modifier = Modifier.fillMaxSize(),
-                                        playback = playbackMode,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Media Player Controls (for videos or animated items)
-                if (isVideo) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 4.dp),
-                    ) {
-                        // Time & Scrubber Bar
-                        if (displayDurationMs > 0) {
-                            var draggingRatio by remember { mutableStateOf<Float?>(null) }
-                            val currentRatio = draggingRatio ?: (displayPositionMs.toFloat() / displayDurationMs.toFloat()).coerceIn(0f, 1f)
-                            val displayTimeMs = draggingRatio?.let { (it * displayDurationMs).toLong() } ?: displayPositionMs
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(
-                                    text = formatTime(displayTimeMs),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = BrandMint,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    text = formatTime(displayDurationMs),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.6f),
-                                )
-                            }
-                            Slider(
-                                value = currentRatio,
-                                onValueChange = { draggingRatio = it },
-                                onValueChangeFinished = {
-                                    val target = ((draggingRatio ?: currentRatio) * displayDurationMs).toLong()
-                                    if (isCurrentItemOnCover) {
-                                        onCoverSeek(target)
-                                    } else {
-                                        localSeekFlow.tryEmit(target)
-                                        localPositionMs = target
-                                    }
-                                    draggingRatio = null
-                                },
-                                colors = SliderDefaults.colors(
-                                    thumbColor = BrandMint,
-                                    activeTrackColor = BrandMint,
-                                    inactiveTrackColor = Color.White.copy(alpha = 0.2f),
-                                ),
-                                modifier = Modifier.fillMaxWidth().height(24.dp),
-                            )
+                        val playbackMode = when {
+                            isCoverPage -> if (isCoverPaused) Playback.PAUSED else Playback.LIVE
+                            page == pagerState.currentPage -> if (localPaused) Playback.PAUSED else Playback.LIVE
+                            else -> Playback.STILL
                         }
 
-                        // Playback Action Buttons Row
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            // Previous Item
-                            IconButton(
-                                onClick = {
-                                    if (pagerState.currentPage > 0) {
-                                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
-                                    }
-                                },
-                                enabled = pagerState.currentPage > 0,
-                                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                            ) {
-                                Icon(Icons.Filled.SkipPrevious, contentDescription = null, modifier = Modifier.size(28.dp))
-                            }
+                        val progressSink = if (isCoverPage) null else localProgressSink
+                        val syncPos = if (isCoverPage) coverPositionMs else null
 
-                            // Rewind 5s
-                            IconButton(
-                                onClick = {
-                                    val target = (displayPositionMs - 5000L).coerceAtLeast(0L)
-                                    if (isCurrentItemOnCover) onCoverSeek(target) else localSeekFlow.tryEmit(target)
-                                },
-                                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                            ) {
-                                Icon(Icons.Filled.Replay5, contentDescription = null)
-                            }
-
-                            // Play / Pause Button
-                            FilledTonalButton(
-                                onClick = {
-                                    if (isCurrentItemOnCover) {
-                                        onToggleCoverPause()
-                                    } else {
-                                        localPaused = !localPaused
-                                    }
-                                },
-                                shape = CircleShape,
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = BrandMint,
-                                    contentColor = Color.Black,
-                                ),
-                                modifier = Modifier.size(54.dp),
-                                contentPadding = PaddingValues(0.dp),
-                            ) {
-                                Icon(
-                                    if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
-                                )
-                            }
-
-                            // Forward 5s
-                            IconButton(
-                                onClick = {
-                                    val target = if (displayDurationMs > 0) {
-                                        (displayPositionMs + 5000L).coerceAtMost(displayDurationMs)
-                                    } else {
-                                        displayPositionMs + 5000L
-                                    }
-                                    if (isCurrentItemOnCover) onCoverSeek(target) else localSeekFlow.tryEmit(target)
-                                },
-                                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                            ) {
-                                Icon(Icons.Filled.Forward5, contentDescription = null)
-                            }
-
-                            // Next Item
-                            IconButton(
-                                onClick = {
-                                    if (pagerState.currentPage < items.size - 1) {
-                                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                                    }
-                                },
-                                enabled = pagerState.currentPage < items.size - 1,
-                                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                            ) {
-                                Icon(Icons.Filled.SkipNext, contentDescription = null, modifier = Modifier.size(28.dp))
-                            }
-                        }
-                    }
-                }
-
-                // Thumbnail Strip
-                LazyRow(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    itemsIndexed(items, key = { _, it -> it.id }) { index, item ->
-                        val isSelected = index == pagerState.currentPage
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .border(
-                                    width = if (isSelected) 2.dp else 1.dp,
-                                    color = if (isSelected) BrandMint else Color.White.copy(alpha = 0.2f),
-                                    shape = RoundedCornerShape(8.dp),
-                                )
-                                .clickable {
-                                    scope.launch { pagerState.animateScrollToPage(index) }
-                                },
+                        CompositionLocalProvider(
+                            LocalVideoProgressSink provides progressSink,
+                            LocalVideoSyncPosition provides syncPos,
                         ) {
                             CoverScale {
                                 CoverContent(
                                     item = item,
                                     modifier = Modifier.fillMaxSize(),
-                                    playback = Playback.STILL,
+                                    playback = playbackMode,
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Top Bar Overlay
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Black.copy(alpha = 0.85f), Color.Transparent),
+                            ),
+                        )
+                        .statusBarsPadding()
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(
+                            onClick = onDismiss,
+                            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        }
+
+                        val (icon, typeRes) = getItemKindIconAndName(currentItem)
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 6.dp),
+                        ) {
+                            Text(
+                                text = currentItem.name.ifBlank { stringResource(typeRes) },
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Icon(
+                                    icon,
+                                    contentDescription = null,
+                                    tint = BrandMint,
+                                    modifier = Modifier.size(13.dp),
+                                )
+                                Text(
+                                    text = "${stringResource(typeRes)} · ${pagerState.currentPage + 1} / ${items.size}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.7f),
+                                )
+                            }
+                        }
+
+                        if (isCurrentItemOnCover) {
+                            Surface(
+                                color = BrandMint.copy(alpha = 0.16f),
+                                shape = RoundedCornerShape(20.dp),
+                                border = BorderStroke(1.dp, BrandMint.copy(alpha = 0.45f)),
+                                modifier = Modifier.padding(end = 4.dp),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(BrandMint.copy(alpha = pulseAlpha), CircleShape),
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(R.string.home_on_cover),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = BrandMint,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                        } else {
+                            FilledTonalButton(
+                                onClick = {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onSelectCover(currentItem.id)
+                                },
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = BrandMint.copy(alpha = 0.22f),
+                                    contentColor = BrandMint,
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                border = BorderStroke(1.dp, BrandMint.copy(alpha = 0.5f)),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(end = 4.dp),
+                            ) {
+                                Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    stringResource(R.string.gallery_set_as_cover),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+
+                        // More options dropdown
+                        Box {
+                            IconButton(
+                                onClick = { menuExpanded = true },
+                                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                            ) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = null)
+                            }
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_edit)) },
+                                    leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onDismiss()
+                                        onEdit(currentItem)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_delete)) },
+                                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFF5252)) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onDelete(currentItem)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Bottom Controls & Filmstrip Overlay
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.95f)),
+                            ),
+                        )
+                        .navigationBarsPadding()
+                        .padding(bottom = 8.dp),
+                ) {
+                    // Media Player Controls Card (for Videos & Groups)
+                    if (isVideo) {
+                        Surface(
+                            color = Color(0xFF14171F).copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            ) {
+                                // Scrubber & Timestamps
+                                if (displayDurationMs > 0) {
+                                    VideoSeekBar(
+                                        positionMs = displayPositionMs,
+                                        durationMs = displayDurationMs,
+                                        onSeek = { target ->
+                                            if (isCurrentItemOnCover) {
+                                                onCoverSeek(target)
+                                            } else {
+                                                localSeekFlow.tryEmit(target)
+                                                localPositionMs = target
+                                            }
+                                        },
+                                        activeColor = BrandMint,
+                                        inactiveColor = Color.White.copy(alpha = 0.22f),
+                                        totalTimeColor = Color.White.copy(alpha = 0.68f),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+
+                                // Playback buttons
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 2.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    // Previous Item
+                                    IconButton(
+                                        onClick = {
+                                            if (pagerState.currentPage > 0) {
+                                                scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                            }
+                                        },
+                                        enabled = pagerState.currentPage > 0,
+                                        colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                    ) {
+                                        Icon(Icons.Filled.SkipPrevious, contentDescription = null, modifier = Modifier.size(26.dp))
+                                    }
+
+                                    // Rewind 5s (only when a video with duration is active)
+                                    if (displayDurationMs > 0) {
+                                        IconButton(
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                val target = (displayPositionMs - 5000L).coerceAtLeast(0L)
+                                                if (isCurrentItemOnCover) {
+                                                    onCoverSeek(target)
+                                                } else {
+                                                    localSeekFlow.tryEmit(target)
+                                                    localPositionMs = target
+                                                }
+                                            },
+                                            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                        ) {
+                                            Icon(Icons.Filled.Replay5, contentDescription = null)
+                                        }
+                                    }
+
+                                    // Center Play / Pause Button
+                                    FilledTonalButton(
+                                        onClick = {
+                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            if (isCurrentItemOnCover) {
+                                                onToggleCoverPause()
+                                            } else {
+                                                localPaused = !localPaused
+                                            }
+                                        },
+                                        shape = CircleShape,
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = BrandMint,
+                                            contentColor = Color.Black,
+                                        ),
+                                        modifier = Modifier.size(48.dp),
+                                        contentPadding = PaddingValues(0.dp),
+                                    ) {
+                                        Icon(
+                                            if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(26.dp),
+                                        )
+                                    }
+
+                                    // Forward 5s (only when a video with duration is active)
+                                    if (displayDurationMs > 0) {
+                                        IconButton(
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                val target = (displayPositionMs + 5000L).coerceAtMost(displayDurationMs)
+                                                if (isCurrentItemOnCover) {
+                                                    onCoverSeek(target)
+                                                } else {
+                                                    localSeekFlow.tryEmit(target)
+                                                    localPositionMs = target
+                                                }
+                                            },
+                                            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                        ) {
+                                            Icon(Icons.Filled.Forward5, contentDescription = null)
+                                        }
+                                    }
+
+                                    // Next Item
+                                    IconButton(
+                                        onClick = {
+                                            if (pagerState.currentPage < items.size - 1) {
+                                                scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                            }
+                                        },
+                                        enabled = pagerState.currentPage < items.size - 1,
+                                        colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                    ) {
+                                        Icon(Icons.Filled.SkipNext, contentDescription = null, modifier = Modifier.size(26.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Filmstrip: Horizontal Mini-Thumbnails
+                    LazyRow(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        itemsIndexed(items, key = { _, it -> it.id }) { index, item ->
+                            val isSelected = index == pagerState.currentPage
+                            Box(
+                                modifier = Modifier
+                                    .width(46.dp)
+                                    .aspectRatio(COVER_ASPECT_RATIO)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(
+                                        width = if (isSelected) 2.5.dp else 1.dp,
+                                        color = if (isSelected) BrandMint else Color.White.copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(8.dp),
+                                    )
+                                    .clickable {
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        scope.launch { pagerState.animateScrollToPage(index) }
+                                    },
+                            ) {
+                                CoverScale {
+                                    CoverContent(
+                                        item = item,
+                                        modifier = Modifier.fillMaxSize(),
+                                        playback = Playback.STILL,
+                                    )
+                                }
                             }
                         }
                     }

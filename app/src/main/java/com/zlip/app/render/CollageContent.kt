@@ -57,8 +57,13 @@ internal fun CollageCover(item: CoverItem.Collage, modifier: Modifier, playback:
         val inner = Modifier.padding(gap / 2)
         val width = maxWidth - gap
         val height = maxHeight - gap
-        // Hardware video overlays cannot be clipped to a cell; cells never play sound either.
-        CompositionLocalProvider(LocalVideoOverlay provides false, LocalAllowSound provides false) {
+        // Hardware video overlays cannot be clipped to a cell; cells never play sound or report single-video progress.
+        CompositionLocalProvider(
+            LocalVideoOverlay provides false,
+            LocalAllowSound provides false,
+            LocalVideoProgressSink provides null,
+            LocalVideoSyncPosition provides null,
+        ) {
             Box(inner.fillMaxSize()) {
                 item.layout.cells.forEachIndexed { index, rect ->
                     val cell = item.cells.getOrElse(index) { emptyList() }

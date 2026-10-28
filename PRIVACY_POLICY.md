@@ -1,12 +1,12 @@
 # Zlip Gizlilik Politikası / Privacy Policy
 
-_Son güncelleme / Last updated: 2026-10-27_
+_Son güncelleme / Last updated: 2026-10-28_
 
 ## Türkçe
 
 Zlip hiçbir kişisel veri toplamaz, saklamaz veya paylaşmaz.
 
-- Uygulamanın internet izni yoktur; hiçbir veri cihazınızdan dışarı gönderilmez.
+- İnternet izni yalnızca GitHub Releases üzerinden yeni uygulama sürümü olup olmadığını kontrol etmek ve isteğinizle güncellemeyi uygulama içinden indirmek için kullanılır; hiçbir kişisel veri veya içerik cihazınızdan dışarı gönderilmez.
 - Galeriden seçtiğiniz fotoğraf, GIF ve videolar Android'in sistem fotoğraf seçicisiyle yalnızca sizin seçtiğiniz dosyalar olarak alınır. Kapak ekranı için küçültülmüş bir kopyası tamamen cihazınızda hazırlanır ve uygulama klasöründe saklanır. Orijinal dosyalarınız değiştirilmez.
 - Başka bir uygulamadan Zlip'e paylaştığınız fotoğraf, video, bağlantı ve yazılar da aynı şekilde yalnızca cihazınızda işlenir ve saklanır.
 - Ekran yansıtma yalnızca siz başlattığınızda ve Android'in her seferinde sorduğu izni verdiğinizde çalışır. Ekranınızın görüntüsü yalnızca telefonunuzun kapak ekranında gösterilir; hiçbir zaman kaydedilmez, saklanmaz ya da herhangi bir yere gönderilmez. Yansıtma; siz durdurduğunuzda, telefon kilitlendiğinde ya da katlandığında biter.
@@ -23,7 +23,7 @@ Zlip hiçbir kişisel veri toplamaz, saklamaz veya paylaşmaz.
 
 Zlip does not collect, store or share any personal data.
 
-- The app has no internet permission; no data ever leaves your device.
+- Internet access is used solely to check GitHub Releases for app updates and download new versions in-place when requested; no personal data or user content ever leaves your device.
 - Photos, GIFs and videos you pick are obtained through Android's system photo picker (only the files you choose). A smaller copy for the cover screen is prepared entirely on your device and kept in the app's private folder. Your original files are never modified.
 - Photos, videos, links and text you share to Zlip from another app are likewise processed and stored only on your device.
 - Screen mirroring only runs when you start it and grant the permission Android asks for every time. Your screen's content is shown only on your phone's cover screen; it is never recorded, stored or transmitted anywhere. Mirroring ends when you stop it, or when the phone locks or folds.

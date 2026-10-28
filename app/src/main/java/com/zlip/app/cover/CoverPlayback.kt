@@ -255,6 +255,8 @@ class CoverPlayback(
         failedItems.value = emptySet()
         _soundOn.value = repository.settings.value.startWithSound
         stepShown.value = null
+        _videoPositionMs.value = 0L
+        _videoDurationMs.value = 0L
         _session.update { it + 1 }
         Log.i(TAG, "Starting over, session ${_session.value}")
     }
@@ -396,7 +398,12 @@ class CoverPlayback(
         }
 
         override fun onStepAt(child: CoverItem, position: Int, count: Int) {
+            val changed = stepShown.value?.child?.id != child.id
             stepShown.value = StepShown(itemId, child, position, count)
+            if (changed) {
+                _videoPositionMs.value = 0L
+                _videoDurationMs.value = 0L
+            }
             onGroupStep(child)
         }
 

@@ -83,6 +83,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.VerticalAlignBottom
@@ -104,6 +105,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -113,6 +115,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -125,6 +128,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -180,6 +184,8 @@ import com.zlip.app.render.LocalVideoSyncPosition
 import com.zlip.app.render.VideoProgressSink
 import com.zlip.app.render.ledMatrix
 import com.zlip.app.render.Playback
+import com.zlip.app.system.AppUpdateManager
+import com.zlip.app.system.UpdateState
 import com.zlip.app.ui.gallery.InAppGalleryViewer
 import kotlinx.coroutines.flow.MutableSharedFlow
 import com.zlip.app.ui.components.AutoShowControl
@@ -190,6 +196,7 @@ import com.zlip.app.ui.components.GradientButton
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.IconBadge
 import com.zlip.app.ui.components.LocalHovering
+import com.zlip.app.ui.components.MediaPlayerBar
 import com.zlip.app.ui.components.MirrorViewControls
 import com.zlip.app.ui.components.MoveButtons
 import com.zlip.app.ui.components.ReorderableList
@@ -198,6 +205,7 @@ import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SectionTitle
 import com.zlip.app.ui.components.SegmentLabel
 import com.zlip.app.ui.components.StatusPill
+import com.zlip.app.ui.components.VideoSeekBar
 import com.zlip.app.ui.components.badgeLabel
 import com.zlip.app.ui.components.durationLabel
 import com.zlip.app.ui.components.miniCoverSupported
@@ -383,10 +391,11 @@ fun HomeScreen(
         checked = if (id in checked) checked - id else checked + id
     }
 
-    // The "Add" button floats over the list. Wide at the top, where it introduces itself; a round "+" once
-    // the list is scrolled, so it covers less of the cards. While the brightness slider passes under it, it stays
-    // a round "+" and the slider ends before it, so dragging to full brightness never ends on the button.
-    val fabExpanded by remember { derivedStateOf { gridState.firstVisibleItemIndex == 0 } }
+    // The "Add" button floats over the list. Wide at the top when the cover is off, where it introduces itself;
+    // a round "+" once the list is scrolled or the active controls card is on screen, so it never overlaps buttons.
+    val fabExpanded by remember(status) { derivedStateOf { gridState.firstVisibleItemIndex == 0 && status != CoverStatus.ACTIVE } }
+    val updateState by AppUpdateManager.state.collectAsState()
+    var updateDismissed by rememberSaveable { mutableStateOf(false) }
     var sliderBounds by remember { mutableStateOf<Rect?>(null) }
     // Kept while the button is hidden (it has no bounds then), so hiding it cannot by itself bring it back.
     var fabBounds by remember { mutableStateOf<Rect?>(null) }
@@ -512,6 +521,21 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
+            val showUpdateBanner = !updateDismissed && (
+                updateState is UpdateState.Available ||
+                    updateState is UpdateState.Downloading ||
+                    updateState is UpdateState.ReadyToInstall
+                )
+            if (showUpdateBanner) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "update-banner") {
+                    UpdateBannerCard(
+                        state = updateState,
+                        onUpdateNow = { info -> snackScope.launch { AppUpdateManager.downloadAndInstall(context, info) } },
+                        onInstall = { file -> AppUpdateManager.installApk(context, file) },
+                        onDismiss = { updateDismissed = true },
+                    )
+                }
+            }
             item(span = { GridItemSpan(maxLineSpan) }, key = "hero") {
                 // With the cover on, exactly what it shows: a group's current step, not always its first.
                 val previewItem = if (status == CoverStatus.ACTIVE) shownOnCover ?: selectedItem else selectedItem
@@ -603,28 +627,15 @@ fun HomeScreen(
             item(span = { GridItemSpan(maxLineSpan) }, key = "library-title") {
                 Column {
                     SectionTitle(R.string.home_library, modifier = Modifier.padding(top = 8.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (items.isNotEmpty()) {
-                                TextButton(
-                                    onClick = { galleryViewerItemId = selectedId ?: items.firstOrNull()?.id },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                ) {
-                                    Icon(Icons.Filled.Collections, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(stringResource(R.string.gallery_title), style = MaterialTheme.typography.labelMedium)
-                                }
-                                Spacer(Modifier.width(6.dp))
-                            }
-                            Text(
-                                text = if (playlist.isEmpty()) {
-                                    items.size.toString()
-                                } else {
-                                    pluralStringResource(R.plurals.playlist_count, playlist.size, playlist.size)
-                                },
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        Text(
+                            text = if (playlist.isEmpty()) {
+                                items.size.toString()
+                            } else {
+                                pluralStringResource(R.plurals.playlist_count, playlist.size, playlist.size)
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                     // Wraps rather than scrolls (as ChoiceChips does): a sideways row hid its last chips with nothing to
@@ -1016,7 +1027,10 @@ private fun HeroSection(
     }
 
     val displayPosMs = if (active) videoPositionMs else localPosMs
-    val displayDurMs = if (active) videoDurationMs else localDurMs
+    val displayDurMs = (if (active) videoDurationMs else localDurMs)
+        .takeIf { it > 0L }
+        ?: (item as? CoverItem.Media)?.takeIf { it.kind == MediaKind.VIDEO }?.durationMs
+        ?: 0L
     val effectivePlayback = when {
         active -> playback
         localPaused -> Playback.PAUSED
@@ -1026,12 +1040,12 @@ private fun HeroSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 8.dp),
+            .padding(top = 2.dp, bottom = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         CoverPreviewFrame(
             modifier = Modifier
-                .fillMaxWidth(0.74f)
+                .fillMaxWidth(0.66f)
                 .clickable { onOpenGallery() },
             glowing = active,
         ) {
@@ -1055,90 +1069,46 @@ private fun HeroSection(
                 }
             }
 
+            // Unobtrusive fullscreen/gallery corner icon button
             Surface(
                 color = Color.Black.copy(alpha = 0.55f),
                 shape = CircleShape,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
+                    .padding(10.dp)
+                    .size(32.dp)
+                    .clip(CircleShape)
                     .clickable { onOpenGallery() },
             ) {
-                Icon(
-                    Icons.Filled.Fullscreen,
-                    contentDescription = stringResource(R.string.gallery_open),
-                    tint = Color.White,
-                    modifier = Modifier.padding(6.dp).size(20.dp),
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Filled.Fullscreen,
+                        contentDescription = stringResource(R.string.gallery_open),
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
 
-        if (isVideo && !active && displayDurMs > 0) {
-            var draggingRatio by remember { mutableStateOf<Float?>(null) }
-            val currentRatio = draggingRatio ?: (displayPosMs.toFloat() / displayDurMs.toFloat()).coerceIn(0f, 1f)
-            val displayMs = draggingRatio?.let { (it * displayDurMs).toLong() } ?: displayPosMs
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(0.74f)
-                    .padding(top = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = formatTime(displayMs),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = formatTime(displayDurMs),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Slider(
-                    value = currentRatio,
-                    onValueChange = { draggingRatio = it },
-                    onValueChangeFinished = {
-                        val target = ((draggingRatio ?: currentRatio) * displayDurMs).toLong()
-                        localSeekFlow.tryEmit(target)
-                        localPosMs = target
-                        draggingRatio = null
-                    },
-                    modifier = Modifier.fillMaxWidth().height(22.dp),
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 2.dp),
-                ) {
-                    FilledTonalButton(
-                        onClick = { localPaused = !localPaused },
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                    ) {
-                        Icon(
-                            if (localPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(if (localPaused) R.string.action_resume else R.string.action_pause))
-                    }
-                    OutlinedButton(
-                        onClick = onOpenGallery,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    ) {
-                        Icon(Icons.Filled.Collections, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.gallery_open))
-                    }
-                }
-            }
+        // Dedicated media player bar below the preview when cover is off and a video is shown
+        if (isVideo && !active && displayDurMs > 0L) {
+            Spacer(Modifier.height(10.dp))
+            MediaPlayerBar(
+                paused = localPaused,
+                onTogglePause = { localPaused = !localPaused },
+                positionMs = displayPosMs,
+                durationMs = displayDurMs,
+                onSeek = { targetMs ->
+                    localSeekFlow.tryEmit(targetMs)
+                    localPosMs = targetMs
+                },
+                modifier = Modifier.fillMaxWidth(0.84f),
+            )
         }
-        Spacer(Modifier.height(16.dp))
+
+        Spacer(Modifier.height(12.dp))
         val (label, color) = when (status) {
             CoverStatus.ACTIVE -> R.string.status_active_title to BrandMint
             CoverStatus.AVAILABLE -> R.string.status_available_title to BrandBlue
@@ -1147,7 +1117,7 @@ private fun HeroSection(
             CoverStatus.CHECKING -> R.string.status_checking_title to MaterialTheme.colorScheme.onSurfaceVariant
         }
         StatusPill(stringResource(label), color)
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             // Blank (but keeping its line) until the library is read, rather than a wrong "nothing selected".
             text = when {
@@ -1176,7 +1146,7 @@ private fun HeroSection(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
         )
         if (lastError != null && !active) {
             Text(
@@ -1186,45 +1156,72 @@ private fun HeroSection(
                 textAlign = TextAlign.Center,
             )
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         when (status) {
             CoverStatus.AVAILABLE -> GradientButton(
                 text = stringResource(R.string.home_cover_start),
                 onClick = onStart,
                 icon = Icons.Filled.PlayArrow,
-                modifier = Modifier.fillMaxWidth(0.8f),
+                modifier = Modifier.fillMaxWidth(0.84f),
             )
-            CoverStatus.ACTIVE -> OutlinedButton(
-                onClick = onStop,
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .height(52.dp),
-            ) {
-                Icon(Icons.Filled.PowerSettingsNew, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.home_cover_stop), style = MaterialTheme.typography.titleMedium)
+            CoverStatus.ACTIVE -> if (staysOnElsewhere) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(0.92f),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(
+                        onClick = onStop,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                    ) {
+                        Icon(Icons.Filled.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            stringResource(R.string.home_cover_stop),
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = onShrinkToMini,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                    ) {
+                        Icon(Icons.Filled.PictureInPictureAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            stringResource(R.string.home_shrink_mini),
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onStop,
+                    modifier = Modifier
+                        .fillMaxWidth(0.84f)
+                        .height(48.dp),
+                ) {
+                    Icon(Icons.Filled.PowerSettingsNew, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.home_cover_stop), style = MaterialTheme.typography.titleMedium)
+                }
             }
             else -> Unit
-        }
-        // The Mini kapak was only ever a side effect of leaving Zlip; this offers it, and says what it is.
-        if (active && staysOnElsewhere) {
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onShrinkToMini,
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .heightIn(min = 48.dp),
-            ) {
-                Icon(Icons.Filled.PictureInPictureAlt, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.home_shrink_mini))
-            }
         }
         // What the cover shows: the playlist, or the inner screen mirrored. Only where the cover can stay on
         // in other apps; otherwise a mirror could only ever show Zlip itself.
         if (coverHoverSupported && (status == CoverStatus.AVAILABLE || active)) {
-            Spacer(Modifier.height(14.dp))
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth(0.8f)) {
+            Spacer(Modifier.height(10.dp))
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth(0.84f)) {
                 // No checkmark, one shrinking line: "Ekranı yansıt" broke onto two lines at larger font sizes.
                 SegmentedButton(
                     selected = mirror == MirrorState.OFF,
@@ -1239,14 +1236,90 @@ private fun HeroSection(
                     icon = {},
                 ) { SegmentLabel(stringResource(R.string.mirror_mode_screen)) }
             }
-            if (mirror != MirrorState.ON) {
-                Text(
-                    text = stringResource(R.string.mirror_consent_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                )
+        }
+    }
+}
+
+/** Non-intrusive top card offering 1-tap in-place OTA update when a newer GitHub release is detected. */
+@Composable
+private fun UpdateBannerCard(
+    state: UpdateState,
+    onUpdateNow: (com.zlip.app.system.UpdateInfo) -> Unit,
+    onInstall: (java.io.File) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+        border = BorderStroke(1.dp, BrandMint.copy(alpha = 0.55f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            when (state) {
+                is UpdateState.Available -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(Icons.Filled.SystemUpdate, size = 36.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.settings_update_available, state.info.versionName),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            if (state.info.releaseNotes.isNotBlank()) {
+                                Text(
+                                    text = state.info.releaseNotes.lines().firstOrNull { it.isNotBlank() }.orEmpty().removePrefix("- ").removePrefix("* "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        FilledTonalButton(
+                            onClick = { onUpdateNow(state.info) },
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        ) {
+                            Text(stringResource(R.string.settings_update_now), style = MaterialTheme.typography.labelLarge)
+                        }
+                        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_cancel), modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+                is UpdateState.Downloading -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(Icons.Filled.SystemUpdate, size = 34.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.settings_update_downloading, state.progressPercent),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            LinearProgressIndicator(
+                                progress = { state.progressPercent / 100f },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+                is UpdateState.ReadyToInstall -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(Icons.Filled.SystemUpdate, size = 36.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = stringResource(R.string.settings_update_install),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Button(onClick = { onInstall(state.apkFile) }) {
+                            Text(stringResource(R.string.settings_update_install))
+                        }
+                    }
+                }
+                else -> Unit
             }
         }
     }
@@ -1279,13 +1352,6 @@ private fun MirrorControlsCard(
  * ([groupStep] is its "Tatil · Adım 3/8"): ‹ › step inside it, and with [itemSkip] a second row leaves it for the
  * previous or next item in one tap, the same two kinds of move as on the cover and in the notification.
  */
-private fun formatTime(millis: Long): String {
-    val totalSeconds = (millis / 1000).coerceAtLeast(0)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%02d:%02d".format(minutes, seconds)
-}
-
 @Composable
 private fun ControlsCard(
     settings: CoverSettings,
@@ -1335,42 +1401,18 @@ private fun ControlsCard(
         }
 
         if (videoDurationMs > 0) {
-            var draggingRatio by remember { mutableStateOf<Float?>(null) }
-            val currentRatio = draggingRatio ?: (videoPositionMs.toFloat() / videoDurationMs.toFloat()).coerceIn(0f, 1f)
-            val displayMs = draggingRatio?.let { (it * videoDurationMs).toLong() } ?: videoPositionMs
-
-            Column(
+            Spacer(Modifier.height(6.dp))
+            VideoSeekBar(
+                positionMs = videoPositionMs,
+                durationMs = videoDurationMs,
+                onSeek = onSeek,
+                activeColor = MaterialTheme.colorScheme.primary,
+                inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f),
+                totalTimeColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = formatTime(displayMs),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = formatTime(videoDurationMs),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Slider(
-                    value = currentRatio,
-                    onValueChange = { draggingRatio = it },
-                    onValueChangeFinished = {
-                        val target = ((draggingRatio ?: currentRatio) * videoDurationMs).toLong()
-                        onSeek(target)
-                        draggingRatio = null
-                    },
-                    modifier = Modifier.fillMaxWidth().height(22.dp),
-                )
-            }
+                    .padding(horizontal = 4.dp),
+            )
         }
         // Out of the group in one tap; a group alone in the rotation goes round instead, so there is nowhere to go.
         if (stepping && itemSkip) {

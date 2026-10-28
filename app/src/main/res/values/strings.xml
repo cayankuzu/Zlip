@@ -338,10 +338,10 @@
     <string name="color_magenta">Magenta</string>
     <string name="color_brown">Brown</string>
     <string name="color_custom">Custom color</string>
-    <string name="gallery_title">In-App Gallery</string>
+    <string name="gallery_title">Gallery</string>
     <string name="gallery_open">Open in Gallery</string>
     <string name="gallery_set_as_cover">Set as Cover</string>
-    <string name="gallery_sync_cover">Synchronized with Cover</string>
+    <string name="gallery_sync_cover">Synchronized with Cover Screen</string>
     <string name="gallery_type_photo">Photo</string>
     <string name="gallery_type_video">Video</string>
     <string name="gallery_type_group">Group</string>

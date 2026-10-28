@@ -40,15 +40,13 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.zlip.app.ui.components.VideoSeekBar
 import com.zlip.app.ui.theme.BrandMint
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -184,73 +182,41 @@ internal fun CoverControls(
                 )
             }
         } else {
+            val hasVideo = videoDurationMs > 0
             Column(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(if (hasVideo) 8.dp else 12.dp),
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (hasVideo) 14.dp else 18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (canSkip) ControlButton(previousIcon, previousLabel, onPrevious, size = 56)
+                    if (canSkip) ControlButton(previousIcon, previousLabel, onPrevious, size = if (hasVideo) 50 else 56)
                     ControlButton(
                         if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
                         stringResource(if (paused) R.string.action_resume else R.string.action_pause),
                         onTogglePause,
-                        size = 72,
+                        size = if (hasVideo) 62 else 72,
                         filled = true,
                     )
-                    if (canSkip) ControlButton(nextIcon, nextLabel, onNext, size = 56)
+                    if (canSkip) ControlButton(nextIcon, nextLabel, onNext, size = if (hasVideo) 50 else 56)
                 }
 
-                if (videoDurationMs > 0) {
-                    var draggingRatio by remember { mutableStateOf<Float?>(null) }
-                    val currentRatio = draggingRatio ?: (videoPositionMs.toFloat() / videoDurationMs.toFloat()).coerceIn(0f, 1f)
-                    val displayMs = draggingRatio?.let { (it * videoDurationMs).toLong() } ?: videoPositionMs
-
-                    Column(
+                if (hasVideo) {
+                    VideoSeekBar(
+                        positionMs = videoPositionMs,
+                        durationMs = videoDurationMs,
+                        onSeek = onSeek,
+                        compact = true,
+                        activeColor = BrandMint,
+                        inactiveColor = Color.White.copy(alpha = 0.28f),
+                        totalTimeColor = Color.White.copy(alpha = 0.78f),
                         modifier = Modifier
                             .fillMaxWidth(0.88f)
-                            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                text = formatTime(displayMs),
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = formatTime(videoDurationMs),
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Normal,
-                            )
-                        }
-                        Slider(
-                            value = currentRatio,
-                            onValueChange = { draggingRatio = it },
-                            onValueChangeFinished = {
-                                val target = ((draggingRatio ?: currentRatio) * videoDurationMs).toLong()
-                                onSeek(target)
-                                draggingRatio = null
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(22.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = BrandMint,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.35f),
-                            ),
-                        )
-                    }
+                            .background(Color.Black.copy(alpha = 0.62f), RoundedCornerShape(50))
+                            .padding(horizontal = 14.dp, vertical = 2.dp),
+                    )
                 }
 
                 if (itemSkip) ItemPills(onPreviousItem = onPreviousItem, onNextItem = onNextItem)
@@ -516,10 +482,3 @@ internal fun HintPill(text: String, modifier: Modifier = Modifier, icon: ImageVe
 
 /** Steps a group may have for the controls to draw its segment bar; above that the step line alone says where it is. */
 private const val MAX_SEGMENTS = 12
-
-private fun formatTime(millis: Long): String {
-    val totalSeconds = (millis / 1000).coerceAtLeast(0)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%02d:%02d".format(minutes, seconds)
-}

@@ -744,8 +744,6 @@ fun ZlipRoot(
                     prefill = current.prefill,
                     library = items,
                     hasPlaylist = playlist.isNotEmpty(),
-                    // A still of the step the cover shows, never a second player that drifts apart from it (and decodes
-                    // the same videos twice); the step rows and ‹ › move the cover itself.
                     coverStep = liveGroupStep.takeIf { coverActive },
                     onShowOnCover = { groupId, stepId -> coverActive && app.playback.showGroupStep(groupId, stepId) },
                     onAddFromGallery = { room ->
@@ -759,6 +757,12 @@ fun ZlipRoot(
                     onDirtyChange = onDirtyChange,
                     onSave = save,
                     onBack = requestBack,
+                    coverActive = coverActive,
+                    coverPaused = paused,
+                    onToggleCoverPause = { app.playback.togglePause() },
+                    videoPositionMs = videoPositionMs,
+                    videoDurationMs = videoDurationMs,
+                    onSeek = { app.playback.seekTo(it) },
                 )
                 is Screen.CountdownEditor -> CountdownEditorScreen(
                     initial = current.initial,
@@ -787,12 +791,17 @@ fun ZlipRoot(
                 )
                 is Screen.MediaEditor -> MediaEditorScreen(
                     initial = current.initial,
-                    // The cover is already decoding the video draft; a second decoder here would only cost battery.
-                    previewPlayback = if (coverActive && current.initial.kind == MediaKind.VIDEO) Playback.STILL else editorPlayback,
+                    previewPlayback = editorPlayback,
                     onDraftChange = onDraftChange,
                     onDirtyChange = onDirtyChange,
                     onSave = save,
                     onBack = requestBack,
+                    coverActive = coverActive,
+                    coverPaused = paused,
+                    onToggleCoverPause = { app.playback.togglePause() },
+                    videoPositionMs = videoPositionMs,
+                    videoDurationMs = videoDurationMs,
+                    onSeek = { app.playback.seekTo(it) },
                 )
             }
 

@@ -23,9 +23,9 @@ class GroupStepsTest {
     }
 
     @Test
-    fun addedStepsStopAtWhatAGroupHolds() {
+    fun addedStepsPreserveAllDistinctItems() {
         val merged = withAddedSteps(ids(1..28), ids(29..40))
-        assertEquals(ids(1..max), merged)
+        assertEquals(ids(1..40), merged)
     }
 
     @Test
@@ -33,7 +33,6 @@ class GroupStepsTest {
         assertEquals(max, roomLeft(0))
         assertEquals(2, roomLeft(max - 2))
         assertEquals(0, roomLeft(max))
-        assertEquals(0, roomLeft(max + 5))
     }
 
     @Test
@@ -41,9 +40,8 @@ class GroupStepsTest {
         assertFalse(canSaveSteps(0))
         assertFalse(canSaveSteps(1))
         assertTrue(canSaveSteps(2))
+        assertTrue(canSaveSteps(100))
         assertTrue(canSaveSteps(max))
-        // More would be cut without a word when the library is read again.
-        assertFalse(canSaveSteps(max + 1))
     }
 
     @Test
@@ -82,9 +80,8 @@ class GroupStepsTest {
     }
 
     @Test
-    fun anUndoneRemovalNeverAddsAStepTwiceOrPastTheLimit() {
+    fun anUndoneRemovalNeverAddsAStepTwice() {
         assertEquals(listOf("a", "b"), withStepRestored(listOf("a", "b"), "b", 0))
-        assertEquals(ids(1..max), withStepRestored(ids(1..max), "extra", 0))
     }
 
     @Test

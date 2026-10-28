@@ -1,11 +1,16 @@
 package com.zlip.app.ui.components
 
+import android.os.SystemClock
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,9 +35,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -41,10 +50,16 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -53,19 +68,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zlip.app.R
 import com.zlip.app.ui.theme.BrandGradient
+import com.zlip.app.ui.theme.BrandMint
 
 /** Width / height of the Z Flip5/6/7 FE cover screen (748 x 720 px). */
 const val COVER_ASPECT_RATIO: Float = 748f / 720f
@@ -378,3 +402,220 @@ fun HintText(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun VerticalSpace(height: Dp) = Spacer(Modifier.height(height))
+
+/** Formats milliseconds into mm:ss (or h:mm:ss for clips an hour or longer). */
+fun formatVideoTime(millis: Long): String {
+    val totalSeconds = (millis / 1000).coerceAtLeast(0)
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%02d:%02d".format(minutes, seconds)
+    }
+}
+
+/**
+ * Sleek, custom-drawn video scrubber with mm:ss time labels.
+ * Consumes touch-down and drag events immediately so outer swipe/tap detectors (e.g. on the cover screen
+ * or inside a HorizontalPager) never steal horizontal scrubbing gestures.
+ */
+@Composable
+fun VideoSeekBar(
+    positionMs: Long,
+    durationMs: Long,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+    activeColor: Color = BrandMint,
+    inactiveColor: Color = Color.White.copy(alpha = 0.25f),
+    totalTimeColor: Color = Color.White.copy(alpha = 0.72f),
+    compact: Boolean = false,
+) {
+    val safeDuration = durationMs.coerceAtLeast(1L)
+    var draggingRatio by remember { mutableStateOf<Float?>(null) }
+    var trackWidth by remember { mutableIntStateOf(0) }
+    val currentOnSeek by rememberUpdatedState(onSeek)
+
+    val currentRatio = (draggingRatio ?: (positionMs.toFloat() / safeDuration.toFloat())).coerceIn(0f, 1f)
+    val displayPosMs = draggingRatio?.let { (it * safeDuration).toLong() } ?: positionMs.coerceIn(0L, safeDuration)
+
+    val isDragging = draggingRatio != null
+    val trackHeight by animateDpAsState(
+        targetValue = if (isDragging) 7.dp else 4.5.dp,
+        label = "seek-track-height",
+    )
+    val thumbRadius by animateDpAsState(
+        targetValue = if (isDragging) 8.dp else 6.dp,
+        label = "seek-thumb-radius",
+    )
+    val fontSize = if (compact) 11.sp else 12.sp
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
+    ) {
+        Text(
+            text = formatVideoTime(displayPosMs),
+            color = activeColor,
+            fontSize = fontSize,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(if (compact) 28.dp else 32.dp)
+                .onSizeChanged { trackWidth = it.width }
+                .semantics {
+                    progressBarRangeInfo = ProgressBarRangeInfo(currentRatio, 0f..1f)
+                    setProgress { target ->
+                        val clamped = target.coerceIn(0f, 1f)
+                        currentOnSeek((clamped * safeDuration).toLong())
+                        true
+                    }
+                }
+                .pointerInput(safeDuration) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        down.consume()
+                        val width = trackWidth.toFloat().coerceAtLeast(1f)
+                        var ratio = (down.position.x / width).coerceIn(0f, 1f)
+                        draggingRatio = ratio
+                        var lastSeekAt = SystemClock.uptimeMillis()
+                        currentOnSeek((ratio * safeDuration).toLong())
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: event.changes.firstOrNull()
+                            if (change == null) break
+                            change.consume()
+                            ratio = (change.position.x / width).coerceIn(0f, 1f)
+                            draggingRatio = ratio
+                            val now = SystemClock.uptimeMillis()
+                            if (!change.pressed) {
+                                currentOnSeek((ratio * safeDuration).toLong())
+                                break
+                            } else if (now - lastSeekAt >= 90L) {
+                                lastSeekAt = now
+                                currentOnSeek((ratio * safeDuration).toLong())
+                            }
+                        }
+                        draggingRatio = null
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(Modifier.fillMaxWidth().height(18.dp)) {
+                val barH = trackHeight.toPx()
+                val radius = thumbRadius.toPx()
+                val yCenter = size.height / 2f
+                val barTop = yCenter - barH / 2f
+                val corner = CornerRadius(barH / 2f, barH / 2f)
+
+                // Inactive background track
+                drawRoundRect(
+                    color = inactiveColor,
+                    topLeft = Offset(0f, barTop),
+                    size = Size(size.width, barH),
+                    cornerRadius = corner,
+                )
+
+                // Active progress track
+                val activeW = (size.width * currentRatio).coerceIn(0f, size.width)
+                if (activeW > 0f) {
+                    drawRoundRect(
+                        color = activeColor,
+                        topLeft = Offset(0f, barTop),
+                        size = Size(activeW, barH),
+                        cornerRadius = corner,
+                    )
+                }
+
+                // Thumb with subtle halo when dragging
+                val thumbX = activeW.coerceIn(radius, (size.width - radius).coerceAtLeast(radius))
+                if (isDragging) {
+                    drawCircle(
+                        color = activeColor.copy(alpha = 0.28f),
+                        radius = radius * 1.75f,
+                        center = Offset(thumbX, yCenter),
+                    )
+                }
+                drawCircle(
+                    color = Color.White,
+                    radius = radius,
+                    center = Offset(thumbX, yCenter),
+                )
+                drawCircle(
+                    color = activeColor,
+                    radius = radius * 0.68f,
+                    center = Offset(thumbX, yCenter),
+                )
+            }
+        }
+
+        Text(
+            text = formatVideoTime(safeDuration),
+            color = totalTimeColor,
+            fontSize = fontSize,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * Self-contained media player control bar with Play/Pause toggle, mm:ss timestamps, and interactive seek bar.
+ * Used below live video previews on the Home screen, Group Editor, and Media Editor.
+ */
+@Composable
+fun MediaPlayerBar(
+    paused: Boolean,
+    onTogglePause: () -> Unit,
+    positionMs: Long,
+    durationMs: Long,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 6.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            IconButton(
+                onClick = onTogglePause,
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            ) {
+                Icon(
+                    imageVector = if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                    contentDescription = stringResource(if (paused) R.string.action_resume else R.string.action_pause),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            VideoSeekBar(
+                positionMs = positionMs,
+                durationMs = durationMs,
+                onSeek = onSeek,
+                modifier = Modifier.weight(1f),
+                activeColor = MaterialTheme.colorScheme.primary,
+                inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f),
+                totalTimeColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}

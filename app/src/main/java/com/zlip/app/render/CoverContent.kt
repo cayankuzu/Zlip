@@ -224,6 +224,12 @@ fun CoverContent(
     /** Toys answer taps (the cover, unlocked; editor previews). Thumbnails and collage cells never do. */
     interactive: Boolean = false,
 ) {
+    val progressSink = LocalVideoProgressSink.current
+    LaunchedEffect(item?.id, playback, progressSink) {
+        if (playback != Playback.STILL && item !is CoverItem.Group && !(item is CoverItem.Media && item.kind == MediaKind.VIDEO)) {
+            progressSink?.onProgress(0L, 0L)
+        }
+    }
     when (item) {
         null -> EmptyCover(modifier)
         is CoverItem.PixelArt -> key(item.id) { PixelArtCover(item, modifier, playback, events) }
@@ -645,6 +651,9 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
     val currentPlaying by rememberUpdatedState(playing)
     val currentShouldPlay by rememberUpdatedState(playing && shown)
     val currentEvents by rememberUpdatedState(events)
+    val progressSink = LocalVideoProgressSink.current
+    val currentProgressSink by rememberUpdatedState(progressSink)
+    val currentFallbackDur by rememberUpdatedState(item.durationMs.coerceAtLeast(0L))
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -672,7 +681,12 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
                 // at the end cannot flip it back and forth.
                 if (ended) atEnd = true else if (playbackState == Player.STATE_READY) atEnd = false
                 if (ended) currentEvents?.onCycle()
-                if (playbackState == Player.STATE_READY) currentEvents?.onFailed(false)
+                if (playbackState == Player.STATE_READY) {
+                    currentEvents?.onFailed(false)
+                    val pos = player.currentPosition.coerceAtLeast(0L)
+                    val dur = player.duration.takeIf { it > 0L } ?: currentFallbackDur
+                    currentProgressSink?.onProgress(pos, dur)
+                }
                 // IDLE also follows stop() when the app goes to the background; only READY/ENDED say anything.
                 if (ended || playbackState == Player.STATE_READY) currentEvents?.onEnded(ended)
             }
@@ -713,23 +727,29 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
             }
         }
     }
-    val progressSink = LocalVideoProgressSink.current
     LaunchedEffect(progressSink) {
         val seek = progressSink?.seekFlow ?: return@LaunchedEffect
         seek.collect { targetMs ->
             player.seekTo(targetMs)
-            val pos = player.currentPosition
-            val dur = player.duration.coerceAtLeast(0L)
+            if (currentShouldPlay && player.playbackState == Player.STATE_ENDED) {
+                player.playWhenReady = true
+            }
+            val pos = player.currentPosition.coerceAtLeast(0L)
+            val dur = player.duration.takeIf { it > 0L } ?: item.durationMs.coerceAtLeast(0L)
             progressSink.onProgress(pos, dur)
         }
     }
-    LaunchedEffect(player, playing, shown, progressSink) {
-        if (!playing || !shown || progressSink == null) return@LaunchedEffect
+    LaunchedEffect(player, playing, shown, progressSink, item.durationMs) {
+        if (!shown || progressSink == null) return@LaunchedEffect
+        val initialPos = player.currentPosition.coerceAtLeast(0L)
+        val initialDur = player.duration.takeIf { it > 0L } ?: item.durationMs.coerceAtLeast(0L)
+        progressSink.onProgress(initialPos, initialDur)
+        if (!playing) return@LaunchedEffect
         while (true) {
-            val pos = player.currentPosition
-            val dur = player.duration.coerceAtLeast(0L)
+            val pos = player.currentPosition.coerceAtLeast(0L)
+            val dur = player.duration.takeIf { it > 0L } ?: item.durationMs.coerceAtLeast(0L)
             progressSink.onProgress(pos, dur)
-            delay(250)
+            delay(200)
         }
     }
     // Audio focus only while sound is wanted, so a silent loop never touches the user's music. Transient

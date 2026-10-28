@@ -138,11 +138,15 @@ Hazır olanlar `store/` klasöründe:
 Eksik olan, en az 2 telefon ekran görüntüsü. Telefon bağlıyken şu komutla alınabilir:
 
 ```bash
-adb exec-out screencap -p > ekran1.png
+adb shell screencap -p /sdcard/ekran1.png
+adb pull /sdcard/ekran1.png
 ```
 
 Kapak ekranının görüntüsü için (kapak açıkken):
 
 ```bash
-adb exec-out screencap -d 4633128672291735938 -p > kapak.png
+adb shell screencap -d 4633128672291735938 -p /sdcard/kapak.png
+adb pull /sdcard/kapak.png
 ```
+
+> Not: `adb exec-out screencap -p > dosya.png` kullanmayın. Çok ekranlı cihazlarda adb'nin "[Warning] Multiple displays..." uyarısı PNG'nin başına yazılıyor ve dosya bozuluyor. PowerShell'de `>` yönlendirmesi de ikili veriyi bozabiliyor.

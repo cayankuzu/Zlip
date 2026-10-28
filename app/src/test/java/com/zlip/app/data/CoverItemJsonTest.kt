@@ -93,13 +93,14 @@ class CoverItemJsonTest {
 
     @Test
     fun aGroupKeepsAtMostItsLimitAndDropsUnreadableSteps() {
+        val count = 100
         val items = JSONArray().apply {
             put(JSONObject("""{"id":"broken","type":"media"}"""))
-            repeat(CoverItem.Group.MAX_ITEMS + 5) { put(CoverItemJson.encode(photo.copy(id = "p$it"))) }
+            repeat(count) { put(CoverItemJson.encode(photo.copy(id = "p$it"))) }
         }
         val json = JSONObject().put("id", "g").put("name", "G").put("type", "group").put("items", items)
         val decoded = CoverItemJson.decode(json) as CoverItem.Group
-        assertEquals(CoverItem.Group.MAX_ITEMS, decoded.items.size)
+        assertEquals(count, decoded.items.size)
         assertEquals("p0", decoded.items.first().id)
     }
 

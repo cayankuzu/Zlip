@@ -6,7 +6,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 
 - **APK:** [Zlip.apk](https://github.com/cayankuzu/Zlip/releases/latest/download/Zlip.apk) (her zaman son sürüm; tüm sürümler [Releases](https://github.com/cayankuzu/Zlip/releases) sayfasında). Dosyayı açınca Android, tarayıcına ya da Dosyalarım'a bilinmeyen uygulamaları yükleme izni vermeni ister.
 - Gereken: kapak ekranı olan bir Galaxy Z Flip, Android 14 (One UI 6) ve üstü. Mini kapak ve ekran yansıtma Android 15 ve üstünde çalışır.
-- Zlip'in internet izni yoktur, kendini güncellemez; yeni sürümler Releases sayfasına gelir. Google Play sürümü yakında.
+- **Veri kaybı olmadan uygulama içi OTA güncelleme:** Yeni bir sürüm yayınlandığında Zlip açılışta GitHub Releases üzerinden kontrol eder; Ana Sayfa veya Ayarlar'dan tek dokunuşla indirip mevcut kurulumun üzerine (içeriklerin, grupların ve ayarların silinmeden) günceller.
 - Tanıtım sitesi: https://zlip-web.vercel.app
 
 ## Nasıl çalışıyor
@@ -26,7 +26,8 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 ## İçerik
 
 - **Galeriden**: tek seçicide fotoğraf, GIF ve video; birkaçı birden seçilebilir. Tek dosya düzenleyicide açılır (hiçbir şey değiştirmeden geri çıkınca "Kaldırılsın mı?" diye sorar); birkaç dosya birlikte gelir ve tek dokunuşla **grup** yapılabilir.
-- **Grup**: seçilen içerikler sırayla, tam ekran oynar. Seçenekler: fotoğraf süresi (3 sn-1 dk), videolar sonuna kadar ya da süre dolunca, karışık sıra, tekrarla (kapalıyken son adımda durur), yumuşak geçiş. Düzenleyici toplam süreyi ve her adımın süresini gösterir. Sıra sürükleyerek, oklarla ya da TalkBack eylemleriyle değişir. Düzenleyicinin önizlemesi video oynatmaz: kapakta oynayan adımın durağan karesidir ve o satır işaretlidir. Bir adıma ya da ‹ › oklarına dokununca o adım **kapakta** açılır; sıra değişse, başka bir adım silinse de kapaktaki adım kesilmeden sürer.
+- **Grup**: seçilen içerikler sırayla, tam ekran oynar. Seçenekler: fotoğraf süresi (3 sn-1 dk), videolar sonuna kadar ya da süre dolunca, karışık sıra, tekrarla (kapalıyken son adımda durur), yumuşak geçiş. Düzenleyici toplam süreyi ve her adımın süresini gösterir. Sıra sürükleyerek, oklarla ya da TalkBack eylemleriyle değişir. Düzenleyicinin önizlemesi videoları ve animasyonları canlı oynatır, kapak açıkken kapakla eş zamanlı çalışır ve dakika/saniye ilerleme çubuğundan istenilen saniyeye sarılabilir. Bir adıma ya da ‹ › oklarına dokununca o adım **kapakta** da açılır.
+- **Uygulama İçi Galeri ve Eş Zamanlı Medya Oynatıcı**: Kitaplıktaki tüm içerikler tam ekran uygulama içi galeride gezilebilir; ana sayfa, grup/video düzenleyiciler, galeri ve arka kapak ekranındaki medya oynatıcı çubuğu (`00:00 / 00:00`) ile videolar kapak ekranıyla eş zamanlı olarak istenilen saniyeye sarılabilir.
 - **Video**: ne kadar uzunsa o kadar; içe aktarırken kesilmez. Kapak için 720p'ye dönüştürülür (dakikada yaklaşık 16 MB); yer yetmezse ne kadar gerektiği söylenir. Dönüştürme sürerken ekran açık kalır.
 - **Kolaj**: 2-4 hücre, her hücre kendi içeriklerini döngüde oynatır.
 - **Geri sayım**: tek seferlik, her hafta ya da her yıl tekrarlayan (doğum günü, hafta sonu, yılbaşı); ileri sayım da var.
@@ -48,7 +49,7 @@ Galaxy Z Flip telefonların kapak (arka) ekranını hem telefon **açıkken** he
 
 | Önlem | Etkisi |
 | --- | --- |
-| İnternet ve wakelock yok; arka plan hizmeti yalnızca kullanıcı "Kapakta hep göster"i açarsa (o da sadece ekran olaylarını dinler) | Uygulama kapalıyken sıfıra yakın tüketim |
+| Wakelock yok; arka plan hizmeti yalnızca kullanıcı "Katlayınca kendiliğinden aç"ı açarsa (o da sadece ekran olaylarını dinler) | Uygulama kapalıyken sıfıra yakın tüketim |
 | Ekran koruyucu dinlenme modu: durağan kare, ek karartma | Video/GIF çözücü çalışmaz |
 | Kolajda aynı anda tek video çözülür, diğer video hücreleri önizleme karesi gösterir | Çoklu çözücü yükü yok |
 | Sessiz videolarda ses izi hiç seçilmez (kod çözülmez, ses odağı istenmez) | Müziğin kesilmez, ses donanımı uyur |
@@ -122,6 +123,14 @@ Birim testleri:
 Yayınlama için bkz. [PLAY_STORE.md](PLAY_STORE.md).
 
 ## Değişiklikler
+
+### 1.0.8
+- **AAA Medya Oynatıcı & İlerleme Çubuğu (`VideoSeekBar`)**: Küçük arka kapak ekranı, ana ekran, grup düzenleyici, video düzenleyici ve uygulama içi galeride özel tasarım `mm:ss` zaman göstergeli, dokunma ve sürükleme çakışmalarını önleyen akıcı ilerleme çubuğu.
+- **Canlı ve Eş Zamanlı Grup & Video Önizleme**: Grup ve video düzenleyicilerde videolar artık canlı ve kapak ekranıyla milisaniyesi milisaniyesine eş zamanlı oynar; grup adımları arasında fotoğraf/video geçişlerinde ilerleme çubuğu otomatik senkronize olur.
+- **Ergonomik Ana Ekran & Tek Tıkla OTA Güncelleme Kartı**: Gereksiz tekrar eden galeri/durum butonları temizlendi, kapak açıkken kontrol butonları yan yana kompakt hale getirildi, FAB çakışmaları giderildi ve yeni sürüm çıktığında Ana Sayfa üzerinde veri kaybı olmadan tek dokunuşla uygulama içi güncelleme kartı eklendi.
+
+### 1.0.7
+- Uygulama içi tam ekran galeri sistemi (`InAppGalleryViewer`) ve çift ekran eş zamanlı video kontrolü eklendi.
 
 ### 1.0.6
 - Uygulama içi otomatik güncelleme: Ayarlar'dan ya da yeni sürüm çıktığında veriler kaybolmadan tek tıkla güncelleme imkânı eklendi.

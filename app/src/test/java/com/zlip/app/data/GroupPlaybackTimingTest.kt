@@ -61,9 +61,10 @@ class GroupPlaybackTimingTest {
     fun theLongestPassCoversEveryStepPlayingInFull() {
         // Thirty hour-long clips: the bound must never cut the last one short.
         val hour = 60 * 60_000L
+        val count = 30
         val long = clip.copy(durationMs = hour)
-        val group = CoverItem.Group(id = "g", name = "G", items = List(CoverItem.Group.MAX_ITEMS) { long.copy(id = "v$it") })
-        assertTrue(GroupTiming.maxPassMs(group) > CoverItem.Group.MAX_ITEMS * hour)
+        val group = CoverItem.Group(id = "g", name = "G", items = List(count) { long.copy(id = "v$it") })
+        assertTrue(GroupTiming.maxPassMs(group) > count * hour)
     }
 
     @Test
@@ -105,7 +106,7 @@ class GroupPlaybackTimingTest {
 
     @Test
     fun aShuffledPassPlaysEveryStepOnce() {
-        for (size in 2..CoverItem.Group.MAX_ITEMS) {
+        for (size in 2..30) {
             for (pass in 0 until 20) {
                 val order = GroupTiming.playOrder(size, shuffle = true, seed = 1234L + size, pass = pass)
                 assertEquals((0 until size).toList(), order.sorted())

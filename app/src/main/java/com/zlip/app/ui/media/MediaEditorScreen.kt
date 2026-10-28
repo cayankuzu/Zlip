@@ -37,10 +37,12 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -73,17 +75,22 @@ import com.zlip.app.data.MediaStorage
 import com.zlip.app.data.framed
 import com.zlip.app.data.framing
 import com.zlip.app.render.CoverContent
+import com.zlip.app.render.LocalVideoProgressSink
+import com.zlip.app.render.LocalVideoSyncPosition
 import com.zlip.app.render.Playback
+import com.zlip.app.render.VideoProgressSink
 import com.zlip.app.ui.components.ColorSwatchRow
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
 import com.zlip.app.ui.components.DefaultPalette
 import com.zlip.app.ui.components.EditorTopBar
 import com.zlip.app.ui.components.HintText
+import com.zlip.app.ui.components.MediaPlayerBar
 import com.zlip.app.ui.components.SectionCard
 import com.zlip.app.ui.components.SegmentLabel
 import com.zlip.app.ui.components.SwitchRow
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
@@ -100,6 +107,12 @@ fun MediaEditorScreen(
     onDirtyChange: (dirty: Boolean, canSave: Boolean) -> Unit,
     onSave: (CoverItem.Media) -> Unit,
     onBack: () -> Unit,
+    coverActive: Boolean = false,
+    coverPaused: Boolean = false,
+    onToggleCoverPause: () -> Unit = {},
+    videoPositionMs: Long = 0L,
+    videoDurationMs: Long = 0L,
+    onSeek: (Long) -> Unit = {},
 ) {
     var name by rememberSaveable { mutableStateOf(initial.name) }
     var fit by rememberSaveable { mutableStateOf(initial.fit) }
@@ -155,14 +168,45 @@ fun MediaEditorScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            val isVideo = initial.kind == MediaKind.VIDEO
+            var localPaused by remember(initial.id) { mutableStateOf(false) }
+            var localPosMs by remember(initial.id) { mutableLongStateOf(0L) }
+            var localDurMs by remember(initial.id) { mutableLongStateOf(0L) }
+            val localSeekFlow = remember(initial.id) { MutableSharedFlow<Long>(extraBufferCapacity = 2) }
+            val localProgressSink = remember(initial.id) {
+                VideoProgressSink(
+                    onProgress = { pos, dur ->
+                        localPosMs = pos
+                        localDurMs = dur
+                    },
+                    seekFlow = localSeekFlow,
+                )
+            }
+            val effectivePaused = if (coverActive) coverPaused else localPaused
+            val effectivePosMs = if (coverActive) videoPositionMs else localPosMs
+            val effectiveDurMs = (if (coverActive) videoDurationMs else localDurMs)
+                .takeIf { it > 0L }
+                ?: initial.durationMs.coerceAtLeast(0L)
+            val effectivePlayback = if (isVideo) {
+                if (effectivePaused) Playback.PAUSED else Playback.LIVE
+            } else {
+                previewPlayback
+            }
+
             CoverPreviewFrame(
                 Modifier
-                    .fillMaxWidth(0.72f)
+                    .fillMaxWidth(0.68f)
                     .align(Alignment.CenterHorizontally),
+                glowing = coverActive,
             ) {
                 // Silent, like every inner-screen preview: the cover (showing this draft) is where the clip is heard,
                 // and a preview that blares the moment an editor opens would only startle.
-                CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = previewPlayback) }
+                CompositionLocalProvider(
+                    LocalVideoProgressSink provides if (isVideo && !coverActive) localProgressSink else null,
+                    LocalVideoSyncPosition provides if (isVideo && coverActive) videoPositionMs else null,
+                ) {
+                    CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = effectivePlayback) }
+                }
                 if (framable) {
                     FramingSurface(
                         aspect = aspect,
@@ -171,6 +215,24 @@ fun MediaEditorScreen(
                         modifier = Modifier.matchParentSize(),
                     )
                 }
+            }
+
+            if (isVideo && effectiveDurMs > 0L) {
+                MediaPlayerBar(
+                    paused = effectivePaused,
+                    onTogglePause = { if (coverActive) onToggleCoverPause() else localPaused = !localPaused },
+                    positionMs = effectivePosMs,
+                    durationMs = effectiveDurMs,
+                    onSeek = { targetMs ->
+                        if (coverActive) {
+                            onSeek(targetMs)
+                        } else {
+                            localSeekFlow.tryEmit(targetMs)
+                            localPosMs = targetMs
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             if (initial.kind == MediaKind.VIDEO) {

@@ -534,6 +534,21 @@ fun CoverScreen(
                     if (!lockTouches || unlocked) playback.noteInteraction()
                     // A finger stops a gliding picture where it is.
                     framing.touched()
+                    // A child control (such as the video seek bar) claimed the touch: keep the controls' timer
+                    // alive while the finger scrubs, and never treat it as a swipe, tap-to-hide, or framing pan.
+                    if (down.isConsumed) {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val now = event.changes.firstOrNull()?.uptimeMillis ?: SystemClock.uptimeMillis()
+                            lock.onMove(now)
+                            lastTouch = now
+                            if (event.changes.none { it.pressed }) {
+                                lock.onAllUp(now)
+                                break
+                            }
+                        }
+                        return@awaitEachGesture
+                    }
                     // An unlocked mirror follows the fingers live, like a map; locked, only the double tap below counts.
                     val steered = currentMirroring
                     if (steered != null && lock.isActive) {

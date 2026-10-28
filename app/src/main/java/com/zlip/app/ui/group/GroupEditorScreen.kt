@@ -36,6 +36,9 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
@@ -45,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -52,10 +56,12 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,8 +72,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import com.zlip.app.ui.theme.BrandMint
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -83,7 +91,10 @@ import com.zlip.app.data.CoverItem
 import com.zlip.app.data.GroupTiming
 import com.zlip.app.data.MediaKind
 import com.zlip.app.render.CoverContent
+import com.zlip.app.render.LocalVideoProgressSink
+import com.zlip.app.render.LocalVideoSyncPosition
 import com.zlip.app.render.Playback
+import com.zlip.app.render.VideoProgressSink
 import com.zlip.app.ui.components.ChoiceChips
 import com.zlip.app.ui.components.CoverPreviewFrame
 import com.zlip.app.ui.components.CoverScale
@@ -93,6 +104,7 @@ import com.zlip.app.ui.components.FieldLabel
 import com.zlip.app.ui.components.HintText
 import com.zlip.app.ui.components.ItemPickerSheet
 import com.zlip.app.ui.components.LocalHovering
+import com.zlip.app.ui.components.MediaPlayerBar
 import com.zlip.app.ui.components.ReorderableList
 import com.zlip.app.ui.components.ReorderableRowScope
 import com.zlip.app.ui.components.SectionCard
@@ -105,6 +117,7 @@ import com.zlip.app.ui.components.totalDurationLabel
 import com.zlip.app.ui.components.wakesStandby
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 
 /** Photo time choices: the same rhythm as a collage's interval. */
@@ -186,6 +199,12 @@ fun GroupEditorScreen(
     onDirtyChange: (dirty: Boolean, canSave: Boolean) -> Unit,
     onSave: (CoverItem.Group) -> Unit,
     onBack: () -> Unit,
+    coverActive: Boolean = false,
+    coverPaused: Boolean = false,
+    onToggleCoverPause: () -> Unit = {},
+    videoPositionMs: Long = 0L,
+    videoDurationMs: Long = 0L,
+    onSeek: (Long) -> Unit = {},
 ) {
     val resources = LocalResources.current
     val id = rememberSaveable { initial?.id ?: ContentRepository.newId() }
@@ -304,23 +323,85 @@ fun GroupEditorScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            var previewPaused by remember { mutableStateOf(false) }
+            val isCoverPlayingThisGroup = coverActive && coverStepId != null
+            val isCurrentVideo = (shownStep as? CoverItem.Media)?.kind == MediaKind.VIDEO
+            var localPaused by remember(shownStep?.id) { mutableStateOf(false) }
+            var localPosMs by remember(shownStep?.id) { mutableLongStateOf(0L) }
+            var localDurMs by remember(shownStep?.id) { mutableLongStateOf(0L) }
+            val localSeekFlow = remember(shownStep?.id) { MutableSharedFlow<Long>(extraBufferCapacity = 2) }
+            val localProgressSink = remember(shownStep?.id) {
+                VideoProgressSink(
+                    onProgress = { pos, dur ->
+                        localPosMs = pos
+                        localDurMs = dur
+                    },
+                    seekFlow = localSeekFlow,
+                )
+            }
+            val effectivePaused = if (isCoverPlayingThisGroup) coverPaused else localPaused
+            val effectivePosMs = if (isCoverPlayingThisGroup) videoPositionMs else localPosMs
+            val effectiveDurMs = (if (isCoverPlayingThisGroup) videoDurationMs else localDurMs)
+                .takeIf { it > 0L }
+                ?: (shownStep as? CoverItem.Media)?.takeIf { it.kind == MediaKind.VIDEO }?.durationMs
+                ?: 0L
+            val togglePause = {
+                if (isCoverPlayingThisGroup) onToggleCoverPause() else localPaused = !localPaused
+            }
+
             CoverPreviewFrame(
                 Modifier
-                    .fillMaxWidth(0.72f)
+                    .fillMaxWidth(0.68f)
                     .align(Alignment.CenterHorizontally)
-                    .clickable { previewPaused = !previewPaused },
+                    .clickable(onClick = togglePause),
+                glowing = isCoverPlayingThisGroup,
             ) {
-                // Live preview: videos and animations play right inside the group editor preview
-                key(shownStep?.id, previewPaused) {
-                    CoverScale {
-                        CoverContent(
-                            item = shownStep ?: item,
-                            modifier = Modifier.fillMaxSize(),
-                            playback = if (previewPaused) Playback.PAUSED else Playback.LIVE,
+                CompositionLocalProvider(
+                    LocalVideoProgressSink provides if (isCoverPlayingThisGroup) null else localProgressSink,
+                    LocalVideoSyncPosition provides if (isCoverPlayingThisGroup) videoPositionMs else null,
+                ) {
+                    key(shownStep?.id) {
+                        CoverScale {
+                            CoverContent(
+                                item = shownStep ?: item,
+                                modifier = Modifier.fillMaxSize(),
+                                playback = if (effectivePaused) Playback.PAUSED else Playback.LIVE,
+                            )
+                        }
+                    }
+                }
+
+                if (effectivePaused) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.65f),
+                        shape = CircleShape,
+                        modifier = Modifier.align(Alignment.Center),
+                    ) {
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.padding(12.dp).size(28.dp),
                         )
                     }
                 }
+            }
+
+            if (isCurrentVideo && effectiveDurMs > 0L) {
+                MediaPlayerBar(
+                    paused = effectivePaused,
+                    onTogglePause = togglePause,
+                    positionMs = effectivePosMs,
+                    durationMs = effectiveDurMs,
+                    onSeek = { targetMs ->
+                        if (isCoverPlayingThisGroup) {
+                            onSeek(targetMs)
+                        } else {
+                            localSeekFlow.tryEmit(targetMs)
+                            localPosMs = targetMs
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
             // "Adım 2/4": the shown step's row, the one marked in the list. "1 içerik" while there is nothing to step.
             val count = if (items.size > 1) {

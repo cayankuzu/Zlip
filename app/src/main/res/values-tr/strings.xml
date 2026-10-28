@@ -336,10 +336,10 @@
     <string name="color_magenta">Eflatun</string>
     <string name="color_brown">Kahverengi</string>
     <string name="color_custom">Özel renk</string>
-    <string name="gallery_title">İç Galeri</string>
+    <string name="gallery_title">Galeri</string>
     <string name="gallery_open">Galeride Aç</string>
     <string name="gallery_set_as_cover">Kapağa Ayarla</string>
-    <string name="gallery_sync_cover">Arka Ekran ile Eş Zamanlı</string>
+    <string name="gallery_sync_cover">Kapak Ekranı ile Eş Zamanlı</string>
     <string name="gallery_type_photo">Fotoğraf</string>
     <string name="gallery_type_video">Video</string>
     <string name="gallery_type_group">Grup</string>

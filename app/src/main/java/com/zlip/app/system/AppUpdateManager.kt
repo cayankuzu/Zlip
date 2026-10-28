@@ -3,7 +3,7 @@ package com.zlip.app.system
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.zlip.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -178,6 +178,17 @@ object AppUpdateManager {
 
     fun installApk(context: Context, apkFile: File) {
         try {
+            if (!context.packageManager.canRequestPackageInstalls()) {
+                val permIntent = Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:${context.packageName}"),
+                ).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(permIntent)
+                return
+            }
+
             val authority = "${context.packageName}.updateprovider"
             val uri: Uri = FileProvider.getUriForFile(context, authority, apkFile)
 
@@ -191,10 +202,12 @@ object AppUpdateManager {
         }
     }
 
-    private fun isNewerVersion(remote: String, local: String): Boolean {
-        if (remote.isBlank() || local.isBlank()) return false
-        val remoteParts = remote.split(".").mapNotNull { it.toIntOrNull() }
-        val localParts = local.split(".").mapNotNull { it.toIntOrNull() }
+    internal fun isNewerVersion(remote: String, local: String): Boolean {
+        val cleanRemote = remote.trim().removePrefix("v").substringBefore("-")
+        val cleanLocal = local.trim().removePrefix("v").substringBefore("-")
+        if (cleanRemote.isBlank() || cleanLocal.isBlank()) return false
+        val remoteParts = cleanRemote.split(".").mapNotNull { it.toIntOrNull() }
+        val localParts = cleanLocal.split(".").mapNotNull { it.toIntOrNull() }
         val maxLen = maxOf(remoteParts.size, localParts.size)
 
         for (i in 0 until maxLen) {

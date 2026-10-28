@@ -189,6 +189,11 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
     // The position in play order, so a shuffled group still counts 1, 2, 3; a live edit that moves it tells again.
     LaunchedEffect(step, position, order.size) { currentEvents?.onStepAt(child, position + 1, order.size) }
 
+    val progressSink = LocalVideoProgressSink.current
+    LaunchedEffect(step, progressSink) {
+        if (!step.video) progressSink?.onProgress(0L, 0L)
+    }
+
     // Repeat off: holding the last step is the group's end, like a play-once clip's last frame, so a plan that starts
     // after it stopped moves on instead of waiting for a pass that never comes.
     LaunchedEffect(stopped) { currentEvents?.onEnded(stopped) }
