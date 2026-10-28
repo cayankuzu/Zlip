@@ -143,18 +143,13 @@ class CoverActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             try {
                 setShowWhenLocked(true)
-                setTurnScreenOn(true)
             } catch (e: Throwable) {
-                Log.w("CoverActivity", "Error setting showWhenLocked/turnScreenOn", e)
+                Log.w("CoverActivity", "Error setting showWhenLocked", e)
             }
         }
         @Suppress("DEPRECATION")
         try {
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-            )
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
         } catch (e: Throwable) {
             Log.w("CoverActivity", "Error adding window flags", e)
         }
@@ -291,16 +286,11 @@ class CoverActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             try {
                 setShowWhenLocked(true)
-                setTurnScreenOn(true)
             } catch (_: Throwable) {}
         }
         @Suppress("DEPRECATION")
         try {
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-            )
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
         } catch (_: Throwable) {}
         // A widget tap is the user asking for it; the always-show service re-arming a dark cover is not.
         if (intent.openedByUser()) {
@@ -360,16 +350,11 @@ class CoverActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             try {
                 setShowWhenLocked(true)
-                setTurnScreenOn(true)
             } catch (_: Throwable) {}
         }
         @Suppress("DEPRECATION")
         try {
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-            )
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
         } catch (_: Throwable) {}
         if (!onCover() || innerScreenOn()) {
             leave()
