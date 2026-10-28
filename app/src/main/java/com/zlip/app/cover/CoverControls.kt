@@ -128,12 +128,14 @@ internal fun CoverControls(
         position
     }
     val segments = group?.takeIf { it.count in 2..MAX_SEGMENTS }
-    // Anything along the bottom edge (sound, Fit / Fill, the menu): a toy's item pills sit above it.
-    val bottomRow = soundOn != null || mediaFit != null || onOpenMenu != null
+    val hasVideo = !compact && videoDurationMs > 0
+    val inlineItemSkip = itemSkip && onOpenMenu == null
+    val stackedItemSkip = itemSkip && onOpenMenu != null
+    val hasBottomActions = soundOn != null || mediaFit != null || onOpenMenu != null || inlineItemSkip
     Box(
         Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.35f))
+            .background(Color.Black.copy(alpha = 0.32f))
             .windowInsetsPadding(WindowInsets.displayCutout),
     ) {
         if (segments != null) {
@@ -143,23 +145,36 @@ internal fun CoverControls(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .padding(start = 18.dp, end = 18.dp, top = 6.dp),
+                    .padding(start = 18.dp, end = 18.dp, top = 8.dp),
             )
         }
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 6.dp, top = if (segments != null) 14.dp else 10.dp),
+                .padding(start = 18.dp, end = 14.dp, top = if (segments != null) 15.dp else 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 if (subtitle != null) {
-                    Text(subtitle, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        text = subtitle,
+                        color = Color.White.copy(alpha = 0.76f),
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
-            if (onClose != null) ControlButton(Icons.Filled.Close, closeLabel, onClose, size = 44)
+            if (onClose != null) ControlButton(Icons.Filled.Close, closeLabel, onClose, size = 42)
         }
 
         if (compact) {
@@ -171,104 +186,111 @@ internal fun CoverControls(
                     ControlButton(nextIcon, nextLabel, onNext, size = 44)
                 }
             }
-            // The toy keeps the middle; the pills go along the bottom, above the sound and menu buttons.
-            if (itemSkip) {
-                ItemPills(
-                    onPreviousItem = onPreviousItem,
-                    onNextItem = onNextItem,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = if (bottomRow) 14.dp + 52.dp + 10.dp else 14.dp),
-                )
-            }
         } else {
-            val hasVideo = videoDurationMs > 0
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(if (hasVideo) 8.dp else 12.dp),
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(if (hasVideo) 14.dp else 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (canSkip) ControlButton(previousIcon, previousLabel, onPrevious, size = if (hasVideo) 50 else 56)
-                    ControlButton(
-                        if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                        stringResource(if (paused) R.string.action_resume else R.string.action_pause),
-                        onTogglePause,
-                        size = if (hasVideo) 62 else 72,
-                        filled = true,
-                    )
-                    if (canSkip) ControlButton(nextIcon, nextLabel, onNext, size = if (hasVideo) 50 else 56)
-                }
-
-                if (hasVideo) {
-                    VideoSeekBar(
-                        positionMs = videoPositionMs,
-                        durationMs = videoDurationMs,
-                        onSeek = onSeek,
-                        compact = true,
-                        activeColor = BrandMint,
-                        inactiveColor = Color.White.copy(alpha = 0.28f),
-                        totalTimeColor = Color.White.copy(alpha = 0.78f),
-                        modifier = Modifier
-                            .fillMaxWidth(0.88f)
-                            .background(Color.Black.copy(alpha = 0.62f), RoundedCornerShape(50))
-                            .padding(horizontal = 14.dp, vertical = 2.dp),
-                    )
-                }
-
-                if (itemSkip) ItemPills(onPreviousItem = onPreviousItem, onNextItem = onNextItem)
-            }
-        }
-
-        // Fit and the labelled menu pill take the bottom right, and grow with the font size: the sound button then
-        // moves to the bottom left (the clock there hides while the controls show), so a thumb never hits both.
-        val bottomEndTaken = mediaFit != null || onOpenMenu != null
-        if (soundOn != null) {
-            Box(
-                Modifier
-                    .align(if (bottomEndTaken) Alignment.BottomStart else Alignment.BottomCenter)
-                    .padding(start = if (bottomEndTaken) 10.dp else 0.dp, bottom = 14.dp),
-            ) {
-                ControlButton(
-                    if (soundOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                    stringResource(if (soundOn) R.string.action_sound_off else R.string.action_sound_on),
-                    onToggleSound,
-                    size = 52,
-                )
-            }
-        }
-
-        if (bottomEndTaken) {
             Row(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 10.dp, bottom = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.align(Alignment.Center),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (mediaFit != null) {
-                    // Says what a press does: a fitted picture fills the cover, a filled one fits.
-                    val fitted = mediaFit == MediaFit.FIT
-                    ControlButton(
-                        if (fitted) Icons.Filled.ZoomOutMap else Icons.Filled.FitScreen,
-                        stringResource(if (fitted) R.string.media_fit_fill else R.string.media_fit_fit),
-                        onSwitchFit,
-                        size = 44,
-                    )
-                }
-                if (onOpenMenu != null) {
-                    // Labelled, so the way into the menu is found without knowing the swipe up.
-                    ControlPill(
-                        icon = Icons.Filled.KeyboardArrowUp,
-                        text = stringResource(R.string.cover_menu_label),
-                        onClick = onOpenMenu,
-                        onClickLabel = stringResource(R.string.cover_menu_open),
-                        height = 44.dp,
-                        modifier = Modifier.padding(end = 2.dp),
-                    )
+                if (canSkip) ControlButton(previousIcon, previousLabel, onPrevious, size = 48)
+                ControlButton(
+                    if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                    stringResource(if (paused) R.string.action_resume else R.string.action_pause),
+                    onTogglePause,
+                    size = 62,
+                    filled = true,
+                )
+                if (canSkip) ControlButton(nextIcon, nextLabel, onNext, size = 48)
+            }
+        }
+
+        // Bottom dock: video seekbar + item skip pills + sound / fit / menu actions neatly aligned at the bottom
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (hasVideo) {
+                VideoSeekBar(
+                    positionMs = videoPositionMs,
+                    durationMs = videoDurationMs,
+                    onSeek = onSeek,
+                    compact = true,
+                    activeColor = BrandMint,
+                    inactiveColor = Color.White.copy(alpha = 0.28f),
+                    totalTimeColor = Color.White.copy(alpha = 0.82f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.62f), RoundedCornerShape(50))
+                        .padding(horizontal = 14.dp, vertical = 2.dp),
+                )
+            }
+
+            if (stackedItemSkip) {
+                ItemPills(onPreviousItem = onPreviousItem, onNextItem = onNextItem)
+            }
+
+            if (hasBottomActions) {
+                val bottomEndTaken = mediaFit != null || onOpenMenu != null || inlineItemSkip
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (bottomEndTaken) Arrangement.SpaceBetween else Arrangement.Center,
+                ) {
+                    if (soundOn != null) {
+                        ControlButton(
+                            if (soundOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                            stringResource(if (soundOn) R.string.action_sound_off else R.string.action_sound_on),
+                            onToggleSound,
+                            size = 42,
+                        )
+                    } else if (inlineItemSkip && mediaFit != null) {
+                        Spacer(Modifier.size(42.dp))
+                    }
+
+                    if (inlineItemSkip) {
+                        ItemPills(
+                            onPreviousItem = onPreviousItem,
+                            onNextItem = onNextItem,
+                            compact = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 6.dp),
+                        )
+                    } else if (bottomEndTaken) {
+                        Spacer(Modifier.weight(1f))
+                    }
+
+                    if (mediaFit != null || onOpenMenu != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (mediaFit != null) {
+                                val fitted = mediaFit == MediaFit.FIT
+                                ControlButton(
+                                    if (fitted) Icons.Filled.ZoomOutMap else Icons.Filled.FitScreen,
+                                    stringResource(if (fitted) R.string.media_fit_fill else R.string.media_fit_fit),
+                                    onSwitchFit,
+                                    size = 42,
+                                )
+                            }
+                            if (onOpenMenu != null) {
+                                ControlPill(
+                                    icon = Icons.Filled.KeyboardArrowUp,
+                                    text = stringResource(R.string.cover_menu_label),
+                                    onClick = onOpenMenu,
+                                    onClickLabel = stringResource(R.string.cover_menu_open),
+                                    height = 42.dp,
+                                )
+                            }
+                        }
+                    } else if (inlineItemSkip && soundOn != null) {
+                        Spacer(Modifier.size(42.dp))
+                    }
                 }
             }
         }
@@ -277,10 +299,15 @@ internal fun CoverControls(
 
 /** "Önceki içerik" and "Sonraki içerik": leave the group on the cover for another item, whatever step it is on. */
 @Composable
-private fun ItemPills(onPreviousItem: () -> Unit, onNextItem: () -> Unit, modifier: Modifier = Modifier) {
+private fun ItemPills(
+    onPreviousItem: () -> Unit,
+    onNextItem: () -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
     Row(
-        modifier = modifier.padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Each may shrink (its text ends in "…") so both still fit at a large font size.
@@ -288,6 +315,8 @@ private fun ItemPills(onPreviousItem: () -> Unit, onNextItem: () -> Unit, modifi
             icon = Icons.Filled.SkipPrevious,
             text = stringResource(R.string.action_previous_item),
             onClick = onPreviousItem,
+            height = if (compact) 38.dp else 40.dp,
+            compact = compact,
             modifier = Modifier.weight(1f, fill = false),
         )
         ControlPill(
@@ -295,6 +324,8 @@ private fun ItemPills(onPreviousItem: () -> Unit, onNextItem: () -> Unit, modifi
             text = stringResource(R.string.action_next_item),
             onClick = onNextItem,
             iconFirst = false,
+            height = if (compact) 38.dp else 40.dp,
+            compact = compact,
             modifier = Modifier.weight(1f, fill = false),
         )
     }
@@ -338,27 +369,29 @@ private fun ControlPill(
     iconFirst: Boolean = true,
     onClickLabel: String? = null,
     height: Dp = 40.dp,
+    compact: Boolean = false,
 ) {
     Row(
         modifier = modifier
             .heightIn(min = height)
             .clip(RoundedCornerShape(50))
-            .background(Color.Black.copy(alpha = 0.55f))
+            .background(Color.Black.copy(alpha = 0.58f))
             .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(horizontal = if (compact) 10.dp else 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (iconFirst) Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+        val iconSize = if (compact) 16.dp else 18.dp
+        if (iconFirst) Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(iconSize))
         Text(
             text = text,
             color = Color.White,
-            fontSize = 13.sp,
+            fontSize = if (compact) 12.sp else 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
         )
-        if (!iconFirst) Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+        if (!iconFirst) Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(iconSize))
     }
 }
 
@@ -368,9 +401,9 @@ internal fun CoverCloseButton(label: String, onClick: () -> Unit, modifier: Modi
     Box(
         modifier
             .windowInsetsPadding(WindowInsets.displayCutout)
-            .padding(end = 6.dp, top = 10.dp),
+            .padding(end = 14.dp, top = 10.dp),
     ) {
-        ControlButton(Icons.Filled.Close, label, onClick, size = 44)
+        ControlButton(Icons.Filled.Close, label, onClick, size = 42)
     }
 }
 

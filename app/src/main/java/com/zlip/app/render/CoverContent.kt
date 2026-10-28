@@ -653,6 +653,8 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
     val currentEvents by rememberUpdatedState(events)
     val progressSink = LocalVideoProgressSink.current
     val currentProgressSink by rememberUpdatedState(progressSink)
+    val syncPosition = LocalVideoSyncPosition.current
+    val currentSyncPosition by rememberUpdatedState(syncPosition)
     val currentFallbackDur by rememberUpdatedState(item.durationMs.coerceAtLeast(0L))
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -683,6 +685,10 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
                 if (ended) currentEvents?.onCycle()
                 if (playbackState == Player.STATE_READY) {
                     currentEvents?.onFailed(false)
+                    val targetSync = currentSyncPosition
+                    if (targetSync != null && kotlin.math.abs(player.currentPosition - targetSync) > 300L) {
+                        player.seekTo(targetSync)
+                    }
                     val pos = player.currentPosition.coerceAtLeast(0L)
                     val dur = player.duration.takeIf { it > 0L } ?: currentFallbackDur
                     currentProgressSink?.onProgress(pos, dur)
@@ -718,11 +724,10 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
         if (item.loop && player.playbackState == Player.STATE_ENDED) player.seekTo(0)
     }
     LaunchedEffect(playing, shown) { player.playWhenReady = playing && shown }
-    val syncPosition = LocalVideoSyncPosition.current
     LaunchedEffect(syncPosition) {
         if (syncPosition != null) {
             val diff = kotlin.math.abs(player.currentPosition - syncPosition)
-            if (diff > 400L) {
+            if (diff > 300L) {
                 player.seekTo(syncPosition)
             }
         }

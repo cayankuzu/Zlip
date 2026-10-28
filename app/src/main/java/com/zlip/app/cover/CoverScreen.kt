@@ -167,7 +167,7 @@ fun CoverScreen(
     var groupStep by remember(item?.id, session) { mutableStateOf((item as? CoverItem.Group)?.items?.firstOrNull()) }
     val events = remember(item?.id, session) { item?.let { playback.eventsFor(it.id) { step -> groupStep = step } } }
     val onSoundLost = remember(playback) { { playback.soundLost() } }
-    val lock = remember { TouchLock(autoLock = lockTouches) }
+    val lock = remember { TouchLock(autoLock = lockTouches, idleTimeoutMs = 4_000) }
     var unlocked by remember { mutableStateOf(false) }
     var controlsShown by remember { mutableStateOf(false) }
     val menuAllowed = !lockTouches

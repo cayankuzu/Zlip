@@ -122,6 +122,8 @@ internal fun CoverMenu(
     val sequence by repository.sequence.collectAsState()
     val settings by repository.settings.collectAsState()
     val soundOn by playback.soundOn.collectAsState()
+    val shownOnCover by playback.shownItem.collectAsState()
+    val groupProgress by playback.groupProgress.collectAsState()
     val context = LocalContext.current
     // Read each time the menu opens: the permission can only be granted on the phone.
     val canAppearOnTop = remember { CoverGuard.canAppearOnTop(context) }
@@ -184,10 +186,15 @@ internal fun CoverMenu(
             .windowInsetsPadding(WindowInsets.displayCutout),
     ) {
         val index = sequence.indexOfFirst { it.id == item?.id }
+        val posText = if (index >= 0 && sequence.size > 1) "${index + 1}/${sequence.size}" else null
+        val stepText = groupProgress?.takeIf { it.groupId == item?.id }?.let {
+            stringResource(R.string.cover_group_step, it.step, it.count)
+        }
+        val subtitle = listOfNotNull(stepText, posText).joinToString(" · ").ifEmpty { null }
         val canSwitchSound = hasSoundToSwitch(item)
         MenuHeader(
             title = item?.name.orEmpty(),
-            position = if (index >= 0 && sequence.size > 1) "${index + 1}/${sequence.size}" else null,
+            position = subtitle,
             soundOn = soundOn.takeIf { canSwitchSound },
             onToggleSound = {
                 onUserActivity()
@@ -211,6 +218,8 @@ internal fun CoverMenu(
                 ItemPages(
                     sequence = sequence,
                     currentId = item?.id,
+                    shownOnCover = shownOnCover,
+                    groupProgress = groupProgress,
                     onPick = { picked ->
                         if (picked.id != item?.id) repository.select(picked.id)
                         // Closing counts as use of the cover too (onUserActivity).
@@ -379,6 +388,8 @@ private fun MenuIconButton(icon: ImageVector, description: String, onClick: () -
 private fun ItemPages(
     sequence: List<CoverItem>,
     currentId: String?,
+    shownOnCover: CoverItem?,
+    groupProgress: GroupProgress?,
     onPick: (CoverItem) -> Unit,
     onPageChange: () -> Unit,
     modifier: Modifier = Modifier,
@@ -402,7 +413,15 @@ private fun ItemPages(
                         repeat(COLUMNS) { column ->
                             val tile = tiles.getOrNull(row * COLUMNS + column)
                             if (tile != null) {
-                                ItemTile(tile, current = tile.id == currentId, onClick = { onPick(tile) }, modifier = Modifier.weight(1f))
+                                val isCurrent = tile.id == currentId
+                                ItemTile(
+                                    item = tile,
+                                    previewItem = if (isCurrent && shownOnCover != null) shownOnCover else tile,
+                                    groupProgress = groupProgress?.takeIf { isCurrent && it.groupId == tile.id },
+                                    current = isCurrent,
+                                    onClick = { onPick(tile) },
+                                    modifier = Modifier.weight(1f),
+                                )
                             } else {
                                 Spacer(Modifier.weight(1f))
                             }
@@ -417,7 +436,14 @@ private fun ItemPages(
 
 /** One thumbnail, its name on a soft shade along the bottom (room is short on the cover). */
 @Composable
-private fun ItemTile(item: CoverItem, current: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ItemTile(
+    item: CoverItem,
+    previewItem: CoverItem,
+    groupProgress: GroupProgress?,
+    current: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val showing = stringResource(R.string.cover_menu_showing)
     val badge = stringResource(item.badgeLabel())
     val name = item.name.ifBlank { badge }
@@ -432,7 +458,7 @@ private fun ItemTile(item: CoverItem, current: Boolean, onClick: () -> Unit, mod
             },
     ) {
         CoverPreviewFrame(Modifier.fillMaxWidth().clearAndSetSemantics {}, glowing = current) {
-            CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
+            CoverScale { CoverContent(item = previewItem, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
             Text(
                 text = name,
                 color = if (current) BrandMint else Color.White,
@@ -448,8 +474,13 @@ private fun ItemTile(item: CoverItem, current: Boolean, onClick: () -> Unit, mod
             )
         }
         if (item is CoverItem.Group) {
+            val groupText = if (groupProgress != null) {
+                "$badge · ${groupProgress.step}/${groupProgress.count}"
+            } else {
+                stringResource(R.string.badge_group_count, badge, item.items.size)
+            }
             Text(
-                text = stringResource(R.string.badge_group_count, badge, item.items.size),
+                text = groupText,
                 color = Color.White,
                 fontSize = 11.sp,
                 modifier = Modifier

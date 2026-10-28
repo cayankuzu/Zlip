@@ -468,11 +468,6 @@ fun HomeScreen(
                         }
                     },
                     actions = {
-                        if (items.isNotEmpty()) {
-                            IconButton(onClick = { galleryViewerItemId = selectedId ?: items.firstOrNull()?.id }) {
-                                Icon(Icons.Filled.Collections, contentDescription = stringResource(R.string.gallery_title))
-                            }
-                        }
                         IconButton(onClick = onOpenSettings) {
                             Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_title))
                         }
@@ -539,9 +534,18 @@ fun HomeScreen(
             item(span = { GridItemSpan(maxLineSpan) }, key = "hero") {
                 // With the cover on, exactly what it shows: a group's current step, not always its first.
                 val previewItem = if (status == CoverStatus.ACTIVE) shownOnCover ?: selectedItem else selectedItem
+                val position = rotationPosition(rotation.map { it.id }, selectedItem?.id)
+                val positionLabel = position?.let { (at, of) ->
+                    stringResource(if (playlist.isEmpty()) R.string.home_position_all else R.string.home_position_list, at, of)
+                }
+                val activeStepLabel = groupProgress?.takeIf { status == CoverStatus.ACTIVE && it.groupId == selectedItem?.id }?.let { progress ->
+                    stringResource(R.string.cover_group_step, progress.step, progress.count)
+                }
+                val heroSubtitle = listOfNotNull(activeStepLabel, positionLabel).joinToString(" · ").ifEmpty { null }
                 HeroSection(
                     item = previewItem,
                     title = selectedItem?.name,
+                    subtitle = heroSubtitle,
                     loaded = loaded,
                     playback = heroPlayback,
                     led = LedStyle.of(settings).takeUnless { previewItem?.showsQr() == true },
@@ -554,7 +558,7 @@ fun HomeScreen(
                     onSeek = onSeek,
                     onTogglePause = onTogglePause,
                     paused = paused,
-                    onOpenGallery = { galleryViewerItemId = (previewItem ?: selectedItem)?.id },
+                    onOpenGallery = { galleryViewerItemId = selectedItem?.id },
                     onStart = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onStartCover()
@@ -579,19 +583,12 @@ fun HomeScreen(
                     if (mirror == MirrorState.ON) {
                         MirrorControlsCard(settings, onSettingsChange, onBrightnessBounds = reportSlider, sliderEndRoom = fabOverSlider)
                     } else {
-                        val position = rotationPosition(rotation.map { it.id }, selectedItem?.id)
+                        val isGroupActive = groupProgress?.takeIf { it.groupId == selectedItem?.id } != null
                         ControlsCard(
                             settings = settings,
                             paused = paused,
-                            // "Tatil · Adım 3/8" while a group is on the cover.
-                            groupStep = groupProgress?.takeIf { it.groupId == selectedItem?.id }?.let { progress ->
-                                selectedItem?.name + " · " + stringResource(R.string.cover_group_step, progress.step, progress.count)
-                            },
+                            stepping = isGroupActive,
                             itemSkip = itemSkip,
-                            // "Liste · 2/5" or "Tümü · 2/12": where the cover is, and in what.
-                            position = position?.let { (at, of) ->
-                                stringResource(if (playlist.isEmpty()) R.string.home_position_all else R.string.home_position_list, at, of)
-                            },
                             onTogglePause = onTogglePause,
                             onNext = onNext,
                             onPrevious = onPrevious,
@@ -607,14 +604,6 @@ fun HomeScreen(
                     }
                 }
             }
-            // The folded cover's one switch: whether the screen saver comes up on every wake.
-            if (loaded) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "folded") {
-                    SectionCard {
-                        AutoShowControl(settings, onSettingsChange)
-                    }
-                }
-            }
             if (loaded && !widgetPlaced && !settings.widgetTipDismissed && items.isNotEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "widget-tip") {
                     WidgetTipCard(
@@ -626,15 +615,27 @@ fun HomeScreen(
             }
             item(span = { GridItemSpan(maxLineSpan) }, key = "library-title") {
                 Column {
-                    SectionTitle(R.string.home_library, modifier = Modifier.padding(top = 8.dp)) {
+                    Row(
+                        modifier = Modifier.padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.home_library),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
                         Text(
                             text = if (playlist.isEmpty()) {
                                 items.size.toString()
                             } else {
                                 pluralStringResource(R.plurals.playlist_count, playlist.size, playlist.size)
                             },
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                .padding(horizontal = 10.dp, vertical = 3.dp),
                         )
                     }
                     Spacer(Modifier.height(8.dp))
@@ -731,10 +732,14 @@ fun HomeScreen(
             }
             items(visibleItems, key = { it.id }) { item ->
                 val playlistIndex = playlist.indexOf(item.id)
+                val isSelectedOnCover = item.id == selectedItem?.id
+                val isCoverActiveNow = status == CoverStatus.ACTIVE
                 LibraryCard(
                     item = item,
-                    onCover = item.id == selectedItem?.id,
-                    coverOn = status == CoverStatus.ACTIVE,
+                    previewItem = if (isSelectedOnCover && isCoverActiveNow && shownOnCover != null) shownOnCover else item,
+                    activeGroupProgress = groupProgress?.takeIf { isSelectedOnCover && isCoverActiveNow && it.groupId == item.id },
+                    onCover = isSelectedOnCover,
+                    coverOn = isCoverActiveNow,
                     selectionMode = selecting,
                     checked = item.id in checked,
                     playlistNumber = if (playlistIndex >= 0) playlistIndex + 1 else null,
@@ -775,11 +780,16 @@ fun HomeScreen(
     }
 
     galleryViewerItemId?.let { initialId ->
+        val galleryItems = if (visibleItems.any { it.id == initialId }) visibleItems else items
         InAppGalleryViewer(
-            items = items,
+            items = galleryItems,
             initialItemId = initialId,
             isCoverActive = status == CoverStatus.ACTIVE,
-            coverPlayingId = (shownOnCover ?: selectedItem)?.id,
+            coverPlayingId = selectedItem?.id,
+            shownOnCover = shownOnCover,
+            groupProgress = groupProgress,
+            onPreviousStep = onPrevious,
+            onNextStep = onNext,
             coverPositionMs = videoPositionMs,
             coverDurationMs = videoDurationMs,
             onCoverSeek = onSeek,
@@ -842,6 +852,8 @@ fun HomeScreen(
     if (sortSheetShown) {
         PlaylistSortSheet(
             items = playlist.mapNotNull { id -> items.firstOrNull { it.id == id } },
+            activeItemId = selectedItem?.id.takeIf { status == CoverStatus.ACTIVE },
+            shownOnCover = shownOnCover,
             onMove = library.onMoveInPlaylist,
             onRemove = { id -> removeFromPlaylist(setOf(id)) },
             onDismiss = { showSortSheet = false },
@@ -990,6 +1002,7 @@ private fun SelectionBar(
 private fun HeroSection(
     item: CoverItem?,
     title: String?,
+    subtitle: String? = null,
     loaded: Boolean,
     playback: Playback,
     led: LedStyle?,
@@ -1031,10 +1044,11 @@ private fun HeroSection(
         .takeIf { it > 0L }
         ?: (item as? CoverItem.Media)?.takeIf { it.kind == MediaKind.VIDEO }?.durationMs
         ?: 0L
+    val isPaused = if (active) paused else localPaused
     val effectivePlayback = when {
-        active -> playback
-        localPaused -> Playback.PAUSED
-        else -> playback
+        playback == Playback.STILL -> Playback.STILL
+        isPaused -> Playback.PAUSED
+        else -> Playback.LIVE
     }
 
     Column(
@@ -1067,9 +1081,25 @@ private fun HeroSection(
                 ) {
                     CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize().ledMatrix(led), playback = effectivePlayback) }
                 }
+                if (isPaused && (active || isVideo)) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(48.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = stringResource(R.string.action_resume),
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                }
             }
 
-            // Unobtrusive fullscreen/gallery corner icon button
+            // Visual affordance badge for opening full-screen gallery (frame itself handles the click)
             Surface(
                 color = Color.Black.copy(alpha = 0.55f),
                 shape = CircleShape,
@@ -1077,9 +1107,7 @@ private fun HeroSection(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(10.dp)
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .clickable { onOpenGallery() },
+                    .size(32.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -1129,6 +1157,16 @@ private fun HeroSection(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (loaded && !mirroring && subtitle != null) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (active) BrandMint else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
         val body = when (status) {
             CoverStatus.ACTIVE -> when {
                 mirror == MirrorState.ON -> if (staysOnElsewhere) R.string.mirror_active_body else R.string.mirror_active_body_leave
@@ -1356,9 +1394,8 @@ private fun MirrorControlsCard(
 private fun ControlsCard(
     settings: CoverSettings,
     paused: Boolean,
-    groupStep: String?,
+    stepping: Boolean,
     itemSkip: Boolean,
-    position: String?,
     onTogglePause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
@@ -1371,7 +1408,6 @@ private fun ControlsCard(
     videoDurationMs: Long = 0L,
     onSeek: (Long) -> Unit = {},
 ) {
-    val stepping = groupStep != null
     SectionCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1416,7 +1452,7 @@ private fun ControlsCard(
         }
         // Out of the group in one tap; a group alone in the rotation goes round instead, so there is nowhere to go.
         if (stepping && itemSkip) {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1427,43 +1463,25 @@ private fun ControlsCard(
                 ItemSkipButton(Icons.Filled.SkipNext, R.string.action_next_item, iconFirst = false, onClick = onNextItem)
             }
         }
-        listOfNotNull(groupStep, position).forEach { line ->
-            Text(
-                text = line,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-            )
-        }
         Spacer(Modifier.height(8.dp))
         BrightnessRow(settings, onSettingsChange, Modifier.reportBounds(onBrightnessBounds), endRoom = sliderEndRoom)
-        Spacer(Modifier.height(8.dp))
-        // Quick auto-advance: off/on, then shuffle, loop and photo time, each saying its state in words; videos live in
-        // Settings.
-        Text(
-            text = stringResource(R.string.advance_title),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(4.dp))
-        // Wraps rather than scrolls: the options move to the next line instead of hiding off the edge.
+        Spacer(Modifier.height(6.dp))
+        // Single toggleable chip for auto-advance + its sub-options on the same wrapping row
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
-            listOf(false, true).forEach { on ->
-                FilterChip(
-                    selected = settings.autoAdvance == on,
-                    onClick = { onSettingsChange(settings.copy(autoAdvance = on)) },
-                    label = { Text(stringResource(if (on) R.string.advance_on else R.string.advance_off)) },
-                )
-            }
+            FilterChip(
+                selected = settings.autoAdvance,
+                onClick = { onSettingsChange(settings.copy(autoAdvance = !settings.autoAdvance)) },
+                label = { Text(stringResource(R.string.advance_title)) },
+                leadingIcon = if (settings.autoAdvance) {
+                    { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                } else {
+                    null
+                },
+            )
             if (settings.autoAdvance) {
                 FilterChip(
                     selected = settings.shuffle,
@@ -1577,6 +1595,8 @@ fun BrightnessRow(
 @Composable
 private fun LibraryCard(
     item: CoverItem,
+    previewItem: CoverItem = item,
+    activeGroupProgress: GroupProgress? = null,
     onCover: Boolean,
     coverOn: Boolean,
     selectionMode: Boolean,
@@ -1622,10 +1642,11 @@ private fun LibraryCard(
                         .fillMaxWidth()
                         .padding(8.dp),
                 ) {
-                    CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
+                    CoverScale { CoverContent(item = previewItem, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
                 }
                 TypeBadge(
                     item = item,
+                    activeGroupProgress = activeGroupProgress,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(14.dp),
@@ -1784,6 +1805,8 @@ private fun WidgetTipCard(onHow: () -> Unit, onDismiss: () -> Unit) {
 @Composable
 private fun PlaylistSortSheet(
     items: List<CoverItem>,
+    activeItemId: String? = null,
+    shownOnCover: CoverItem? = null,
     onMove: (id: String, delta: Int) -> Unit,
     onRemove: (id: String) -> Unit,
     onDismiss: () -> Unit,
@@ -1826,7 +1849,8 @@ private fun PlaylistSortSheet(
                             }
                         },
                     ) { item ->
-                        SortRow(item = item, onToTop = { toTop(item) }, onToBottom = { toBottom(item) }, onRemove = { onRemove(item.id) })
+                        val preview = if (item.id == activeItemId && shownOnCover != null) shownOnCover else item
+                        SortRow(item = item, previewItem = preview, onToTop = { toTop(item) }, onToBottom = { toBottom(item) }, onRemove = { onRemove(item.id) })
                     }
                 }
             }
@@ -1837,7 +1861,13 @@ private fun PlaylistSortSheet(
 
 /** One playlist entry in [PlaylistSortSheet]: handle, thumbnail, name and type, arrows and a top/bottom/remove menu. */
 @Composable
-private fun ReorderableRowScope.SortRow(item: CoverItem, onToTop: () -> Unit, onToBottom: () -> Unit, onRemove: () -> Unit) {
+private fun ReorderableRowScope.SortRow(
+    item: CoverItem,
+    previewItem: CoverItem = item,
+    onToTop: () -> Unit,
+    onToBottom: () -> Unit,
+    onRemove: () -> Unit,
+) {
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
@@ -1851,7 +1881,7 @@ private fun ReorderableRowScope.SortRow(item: CoverItem, onToTop: () -> Unit, on
                 .size(width = 52.dp, height = 50.dp)
                 .clip(RoundedCornerShape(8.dp)),
         ) {
-            CoverScale { CoverContent(item = item, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
+            CoverScale { CoverContent(item = previewItem, modifier = Modifier.fillMaxSize(), playback = Playback.STILL) }
         }
         Column(
             Modifier
@@ -1894,11 +1924,15 @@ private fun ReorderableRowScope.SortRow(item: CoverItem, onToTop: () -> Unit, on
 }
 
 @Composable
-private fun TypeBadge(item: CoverItem, modifier: Modifier = Modifier) {
+private fun TypeBadge(item: CoverItem, activeGroupProgress: GroupProgress? = null, modifier: Modifier = Modifier) {
     val label = stringResource(item.badgeLabel())
+    val badgeText = when {
+        item is CoverItem.Group && activeGroupProgress != null -> "$label · ${activeGroupProgress.step}/${activeGroupProgress.count}"
+        item is CoverItem.Group -> stringResource(R.string.badge_group_count, label, item.items.size)
+        else -> label
+    }
     Text(
-        // "Grup · 4": how many steps a group plays.
-        text = if (item is CoverItem.Group) stringResource(R.string.badge_group_count, label, item.items.size) else label,
+        text = badgeText,
         style = MaterialTheme.typography.labelSmall,
         color = Color.White,
         modifier = modifier

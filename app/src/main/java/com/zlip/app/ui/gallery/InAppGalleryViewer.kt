@@ -37,6 +37,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Collections
@@ -93,6 +95,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.zlip.app.R
+import com.zlip.app.cover.GroupProgress
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.MediaKind
 import com.zlip.app.render.CoverContent
@@ -129,6 +132,10 @@ fun InAppGalleryViewer(
     initialItemId: String?,
     isCoverActive: Boolean,
     coverPlayingId: String?,
+    shownOnCover: CoverItem? = null,
+    groupProgress: GroupProgress? = null,
+    onPreviousStep: (() -> Unit)? = null,
+    onNextStep: (() -> Unit)? = null,
     coverPositionMs: Long,
     coverDurationMs: Long,
     onCoverSeek: (Long) -> Unit,
@@ -263,6 +270,7 @@ fun InAppGalleryViewer(
 
                         val progressSink = if (isCoverPage) null else localProgressSink
                         val syncPos = if (isCoverPage) coverPositionMs else null
+                        val renderItem = if (isCoverPage && shownOnCover != null) shownOnCover else item
 
                         CompositionLocalProvider(
                             LocalVideoProgressSink provides progressSink,
@@ -270,9 +278,28 @@ fun InAppGalleryViewer(
                         ) {
                             CoverScale {
                                 CoverContent(
-                                    item = item,
+                                    item = renderItem,
                                     modifier = Modifier.fillMaxSize(),
                                     playback = playbackMode,
+                                )
+                            }
+                        }
+                        if (page == pagerState.currentPage && isVideo && playbackMode == Playback.PAUSED) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .size(56.dp)
+                                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                    .clickable {
+                                        if (isCurrentItemOnCover) onToggleCoverPause() else localPaused = false
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Filled.PlayArrow,
+                                    contentDescription = stringResource(R.string.action_resume),
+                                    tint = Color.White,
+                                    modifier = Modifier.size(32.dp),
                                 )
                             }
                         }
@@ -333,10 +360,18 @@ fun InAppGalleryViewer(
                                     tint = BrandMint,
                                     modifier = Modifier.size(13.dp),
                                 )
+                                val activeGroupProgress = groupProgress?.takeIf { isCurrentItemOnCover && it.groupId == currentItem.id }
+                                val subtitleParts = listOfNotNull(
+                                    stringResource(typeRes),
+                                    activeGroupProgress?.let { stringResource(R.string.cover_group_step, it.step, it.count) },
+                                    "${pagerState.currentPage + 1} / ${items.size}",
+                                )
                                 Text(
-                                    text = "${stringResource(typeRes)} · ${pagerState.currentPage + 1} / ${items.size}",
+                                    text = subtitleParts.joinToString(" · "),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.White.copy(alpha = 0.7f),
+                                    color = Color.White.copy(alpha = 0.75f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
@@ -457,6 +492,45 @@ fun InAppGalleryViewer(
                             Column(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                             ) {
+                                // Group step navigation row when this group is active on cover
+                                val activeGroupProgress = groupProgress?.takeIf { isCurrentItemOnCover && it.groupId == currentItem.id }
+                                if (activeGroupProgress != null && onPreviousStep != null && onNextStep != null) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                onPreviousStep()
+                                            },
+                                            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                            modifier = Modifier.size(34.dp),
+                                        ) {
+                                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.action_previous_step))
+                                        }
+                                        Text(
+                                            text = stringResource(R.string.cover_group_step, activeGroupProgress.step, activeGroupProgress.count),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = BrandMint,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                        IconButton(
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                onNextStep()
+                                            },
+                                            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                            modifier = Modifier.size(34.dp),
+                                        ) {
+                                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.action_next_step))
+                                        }
+                                    }
+                                }
+
                                 // Scrubber & Timestamps
                                 if (displayDurationMs > 0) {
                                     VideoSeekBar(
@@ -589,6 +663,7 @@ fun InAppGalleryViewer(
                     ) {
                         itemsIndexed(items, key = { _, it -> it.id }) { index, item ->
                             val isSelected = index == pagerState.currentPage
+                            val thumbItem = if (isCoverActive && item.id == coverPlayingId && shownOnCover != null) shownOnCover else item
                             Box(
                                 modifier = Modifier
                                     .width(46.dp)
@@ -606,7 +681,7 @@ fun InAppGalleryViewer(
                             ) {
                                 CoverScale {
                                     CoverContent(
-                                        item = item,
+                                        item = thumbItem,
                                         modifier = Modifier.fillMaxSize(),
                                         playback = Playback.STILL,
                                     )
