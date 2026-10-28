@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.hardware.display.DisplayManager
 import android.media.AudioManager
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -138,6 +139,22 @@ class CoverActivity : ComponentActivity() {
             return
         }
         alive = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
         WindowCompat.getInsetsController(window, window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
@@ -179,17 +196,15 @@ class CoverActivity : ComponentActivity() {
         }
 
         setContent {
-            val settings by app.repository.settings.collectAsState()
-            val isResting by resting.collectAsState()
             ZlipTheme {
                 CoverScreen(
                     repository = app.repository,
                     playback = app.playback,
                     lockTouches = false,
                     onClose = ::close,
-                    onDismiss = ::toLockScreen,
-                    ambient = isResting,
-                    showClock = settings.coverClock,
+                    onDismiss = null,
+                    ambient = false,
+                    showClock = false,
                     onUserActivity = ::used,
                 )
             }
@@ -229,7 +244,7 @@ class CoverActivity : ComponentActivity() {
             StayAwake(
                 since = touch,
                 awakeMs = awakeMs,
-                rests = always,
+                rests = false,
                 watching = StayLit.watching(isHeard, touched, visibleSince),
                 touchedAt = touched,
             )
@@ -243,7 +258,7 @@ class CoverActivity : ComponentActivity() {
             // A watched clip holds the cover longer, but never without limit: a loop never ends by itself.
             val until = StayLit.deadline(awake.since, awake.awakeMs, awake.watching, awake.touchedAt)
             delay((until - SystemClock.uptimeMillis()).coerceAtLeast(0))
-            if (awake.rests) resting.value = true else keepScreenOn(false)
+            keepScreenOn(false)
         }
     }
 
@@ -260,6 +275,17 @@ class CoverActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+        )
         // A widget tap is the user asking for it; the always-show service re-arming a dark cover is not.
         if (intent.openedByUser()) {
             used()
@@ -269,11 +295,6 @@ class CoverActivity : ComponentActivity() {
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-        // The first touch only wakes a resting screen saver; it must not also skip or pause.
-        if (resting.value) {
-            if (event.actionMasked == MotionEvent.ACTION_DOWN) used()
-            return true
-        }
         // A touch's start and end are enough for the stay-lit time; each move would run it again.
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> used()
@@ -320,6 +341,17 @@ class CoverActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+        )
         if (!onCover() || innerScreenOn()) {
             leave()
             return

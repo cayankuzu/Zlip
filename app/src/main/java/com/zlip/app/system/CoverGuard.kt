@@ -17,6 +17,7 @@ import android.hardware.SensorManager
 import android.hardware.display.DisplayManager
 import android.media.AudioManager
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -121,8 +122,9 @@ object CoverGuard {
             if (!listener.done) {
                 listener.done = true
                 sensors.unregisterListener(listener)
+                if (hasCoverDisplay(context) && innerScreenDark(context)) action()
             }
-        }, HINGE_TIMEOUT_MS)
+        }, 300L)
     }
 
     /**
@@ -131,9 +133,16 @@ object CoverGuard {
      */
     fun showOnCover(context: Context, itemId: String? = null): Boolean {
         val intent = Intent(context, CoverActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .apply { if (itemId != null) putExtra(CoverActivity.EXTRA_ITEM_ID, itemId) }
-        val options = ActivityOptions.makeBasic().setLaunchDisplayId(coverDisplayId(context))
+        val options = ActivityOptions.makeBasic().setLaunchDisplayId(coverDisplayId(context)).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+                setPendingIntentCreatorBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                @Suppress("DEPRECATION")
+                setPendingIntentCreatorBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+            }
+        }
         return try {
             context.startActivity(intent, options.toBundle())
             true
@@ -261,10 +270,14 @@ class CoverGuardService : Service() {
             if (CoverGuard.hasCoverDisplay(this) && CoverGuard.innerScreenDark(this)) arm(folded = true)
             return
         }
+        val handler = Handler(Looper.getMainLooper())
+        var done = false
         val watch = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
+                if (done) return
                 val folded = event.values.firstOrNull()?.let { it < CoverGuard.FOLDED_MAX_DEGREES } ?: return
                 if (!folded) return
+                done = true
                 stopHingeWatch()
                 arm(folded)
             }
@@ -272,7 +285,14 @@ class CoverGuardService : Service() {
             override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) = Unit
         }
         hingeWatch = watch
-        sensors.registerListener(watch, hinge, SensorManager.SENSOR_DELAY_NORMAL, Handler(Looper.getMainLooper()))
+        sensors.registerListener(watch, hinge, SensorManager.SENSOR_DELAY_NORMAL, handler)
+        handler.postDelayed({
+            if (!done && hingeWatch != null) {
+                done = true
+                stopHingeWatch()
+                if (CoverGuard.hasCoverDisplay(this) && CoverGuard.innerScreenDark(this)) arm(folded = true)
+            }
+        }, 300L)
     }
 
     private fun stopHingeWatch() {

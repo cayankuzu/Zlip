@@ -171,11 +171,11 @@ class MainActivity : ComponentActivity() {
         override fun onDisplayChanged(displayId: Int) {
             // Folded while using Zlip: carry on seamlessly on the closed phone's cover screen.
             val innerDark = displayId == Display.DEFAULT_DISPLAY && transitions.justWentDark(displayId)
-            if (innerDark && !app.cover.endedByUser.value && CoverActivity.needsArming) {
+            if (innerDark && !app.cover.endedByUser.value) {
                 // Locking an open phone darkens the inner screen too; only a closed hinge means folded. Never
                 // over a call that is ringing or going on.
                 CoverGuard.ifFolded(this@MainActivity) {
-                    if (CoverGuard.shouldArm(CoverGuard.audioMode(this@MainActivity), needsArming = CoverActivity.needsArming, folded = true)) {
+                    if (CoverGuard.audioMode(this@MainActivity) == android.media.AudioManager.MODE_NORMAL) {
                         CoverGuard.showOnCover(this@MainActivity)
                     }
                 }
