@@ -121,6 +121,11 @@ Birim testleri:
 
 Yayınlama için bkz. [PLAY_STORE.md](PLAY_STORE.md).
 
+## Değişiklikler
+
+### 1.0.5
+- Grup içerik sınırı (30) kaldırıldı: gruba istenildiği kadar öğe eklenebilir.
+
 ## Lisans
 
 [MIT](LICENSE) © 2026 MeMoDe

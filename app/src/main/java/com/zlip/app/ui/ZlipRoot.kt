@@ -462,13 +462,13 @@ fun ZlipRoot(
 
     // One file: today's flow (it opens in the media editor). Several: they come in together, then the
     // user can make a group of them.
-    val pickGallery = rememberLauncherForActivityResult(remember { ActivityResultContracts.PickMultipleVisualMedia(MAX_GALLERY_PICK) }) { uris ->
+    val pickGallery = rememberLauncherForActivityResult(remember { ActivityResultContracts.PickMultipleVisualMedia() }) { uris ->
         when {
             uris.size == 1 -> importUri(uris.single())
             uris.size > 1 -> importBatch(uris, ::offerBatch)
         }
     }
-    val pickForGroup = rememberLauncherForActivityResult(remember { ActivityResultContracts.PickMultipleVisualMedia(MAX_GALLERY_PICK) }) { uris ->
+    val pickForGroup = rememberLauncherForActivityResult(remember { ActivityResultContracts.PickMultipleVisualMedia() }) { uris ->
         val room = pickingForGroup
         pickingForGroup = null
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
@@ -543,12 +543,7 @@ fun ZlipRoot(
         incoming.value = null
         when (content) {
             is IncomingContent.Media -> {
-                // Like a gallery pick: each file takes a moment (videos are converted), so a big share is cut.
-                val (uris, skipped) = content.uris.takeAtMost(MAX_GALLERY_PICK)
-                if (skipped > 0) {
-                    val message = resources.getQuantityString(R.plurals.share_skipped, skipped, skipped, MAX_GALLERY_PICK)
-                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                }
+                val uris = content.uris
                 when (uris.size) {
                     1 -> importUri(uris.single())
                     else -> importBatch(uris, ::offerBatch)
@@ -934,8 +929,6 @@ private class BatchResult(val ids: List<String>, val failed: Int)
 /** A permission result faster than this came without a dialog: the system had already refused. */
 private const val INSTANT_ANSWER_MS = 400L
 
-/** Most files one gallery pick brings in; each still takes a moment (videos are converted). */
-private const val MAX_GALLERY_PICK = 20
 
 /** How long after standby ends a Back still only wakes the screen (its start already ended standby). */
 private const val WAKE_BACK_GRACE_MS = 600L

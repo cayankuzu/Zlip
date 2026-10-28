@@ -140,8 +140,8 @@ sealed interface CoverItem {
         companion object {
             const val DEFAULT_STEP_SECONDS = 5
 
-            /** Keeps items.json and the widget's frames bounded. */
-            const val MAX_ITEMS = 30
+            /** No hard cap on group size. */
+            const val MAX_ITEMS = Int.MAX_VALUE
         }
     }
 
