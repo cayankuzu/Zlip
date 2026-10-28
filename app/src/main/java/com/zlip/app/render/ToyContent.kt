@@ -90,6 +90,10 @@ internal fun ToyCover(item: CoverItem.Toy, modifier: Modifier, playback: Playbac
                 ToyKind.BOTTLE -> BottleToy(item, still, playable)
                 ToyKind.WHEEL -> WheelToy(item, still, playable)
                 ToyKind.COUNTER -> CounterToy(item, still, playable)
+                ToyKind.POMODORO -> PomodoroToy(item, still, playable)
+                ToyKind.STOPWATCH -> StopwatchToy(item, still, playable)
+                ToyKind.FLASHLIGHT -> FlashlightToy(item, still, playable)
+                ToyKind.RPS -> RpsToy(item, still, playable)
             }
         }
     }

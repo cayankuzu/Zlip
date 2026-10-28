@@ -66,7 +66,7 @@
     <string name="status_checking_title">Kontrol ediliyor…</string>
     <string name="status_checking_body">Kapak ekranı aranıyor.</string>
     <string name="status_unsupported_title">Desteklenmiyor</string>
-    <string name="status_unsupported_body">Bu telefon, açıkken kapak ekranının uygulamalarca kullanılmasına izin vermiyor. Zlip için One UI 6 veya üstü bir Galaxy Z Flip gerekir.</string>
+    <string name="status_unsupported_body">Bu telefon, açıkken kapak ekranının uygulamalarca kullanılmasına izin vermiyor. Zlip için kapak ekranı sunumunu destekleyen bir katlanabilir telefon (Galaxy Z Flip, Xiaomi Mix Flip, Motorola Razr vb.) gerekir.</string>
     <string name="status_unavailable_title">Kullanılamıyor</string>
     <string name="status_unavailable_body">Telefonu tamamen aç ve güç tasarrufunu kapat. Kapak ekranını başka bir uygulama kullanıyor olabilir.</string>
     <string name="status_available_title">Hazır</string>
@@ -273,7 +273,7 @@
     <string name="filter_tools">Akıllı kartlar</string>
     <string name="home_add_countdown_desc">Tatile, doğum gününe, her şeye kalan gün</string>
     <string name="home_add_qr_desc">Wi-Fi, bağlantı ya da kartvizit, taranmaya hazır</string>
-    <string name="home_add_toy_desc">Zar, yazı tura, sihirli küre ve fazlası, tek dokunuşla</string>
+    <string name="home_add_toy_desc">Odak sayacı, kronometre, stüdyo ışığı, zar, çark ve fazlası</string>
     <string name="guard_channel">Katlayınca kendiliğinden aç</string>
     <string name="guard_channel_desc">Katlıyken ekran koruyucuyu hazır tutar.</string>
     <string name="guard_notif_title">Ekran koruyucu hazır</string>
@@ -349,4 +349,8 @@
     <string name="gallery_type_countdown">Geri Sayım</string>
     <string name="gallery_type_qr">QR Kod</string>
     <string name="gallery_type_toy">Etkileşimli</string>
+    <string name="action_save_to_device">Cihaza kaydet</string>
+    <string name="media_saved_to_device">Telefon galerisine kaydedildi</string>
+    <string name="media_save_failed">Galeriye kaydedilemedi</string>
+    <string name="settings_storage_info">Kitaplık depolaması: %1$d medya (%2$s) · Telefon galerinden silsen bile içeriklerin Zlip\'te güvende kalır.</string>
 </resources>

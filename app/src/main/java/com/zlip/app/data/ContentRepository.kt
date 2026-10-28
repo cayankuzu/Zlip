@@ -1,6 +1,9 @@
 package com.zlip.app.data
 
+import android.content.ContentValues
 import android.content.Context
+import android.os.Environment
+import android.provider.MediaStore
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
@@ -687,5 +690,58 @@ object MediaStorage {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         runCatching { BitmapFactory.decodeFile(file(context, name).path, bounds) }
         return if (bounds.outWidth > 0 && bounds.outHeight > 0) bounds.outWidth.toFloat() / bounds.outHeight else 0f
+    }
+
+    /** Returns (mediaCount, totalBytes) of Zlip's internal media directory (`files/media/`). */
+    fun stats(context: Context): Pair<Int, Long> {
+        val files = dir(context).listFiles().orEmpty()
+        var count = 0
+        var bytes = 0L
+        for (f in files) {
+            if (!f.isFile) continue
+            bytes += f.length()
+            if (!f.name.endsWith(".jpg")) count++
+        }
+        return count to bytes
+    }
+
+    /** Exports [media] from Zlip's internal storage back to the phone's Gallery (`Pictures/Zlip` or `Movies/Zlip`). */
+    suspend fun exportToGallery(context: Context, media: CoverItem.Media): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val source = file(context, media.fileName)
+            if (!source.exists()) return@withContext false
+            val isVideo = media.kind == MediaKind.VIDEO
+            val ext = source.extension.lowercase().ifEmpty { if (isVideo) "mp4" else "webp" }
+            val mime = when {
+                isVideo -> "video/mp4"
+                ext == "gif" -> "image/gif"
+                else -> "image/webp"
+            }
+            val safeName = media.name.replace(Regex("[^\\p{L}\\p{N}_\\- ]"), "").trim().ifEmpty { "Zlip_${System.currentTimeMillis()}" }
+            val collection = if (isVideo) {
+                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            } else {
+                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            }
+            val relativeDir = if (isVideo) "${Environment.DIRECTORY_MOVIES}/Zlip" else "${Environment.DIRECTORY_PICTURES}/Zlip"
+            val resolver = context.contentResolver
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "$safeName.$ext")
+                put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, relativeDir)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            val uri = resolver.insert(collection, values) ?: return@withContext false
+            try {
+                val out = resolver.openOutputStream(uri) ?: throw IOException("Could not open MediaStore stream")
+                out.use { stream -> source.inputStream().use { it.copyTo(stream) } }
+                val publish = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                resolver.update(uri, publish, null, null)
+                true
+            } catch (e: Throwable) {
+                resolver.delete(uri, null, null)
+                throw e
+            }
+        }.getOrDefault(false)
     }
 }

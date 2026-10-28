@@ -38,7 +38,13 @@ import kotlinx.coroutines.withTimeoutOrNull
 object CoverGuard {
     private const val TAG = "ZlipGuard"
 
-    /** Samsung documents the Flex Window as display 1; fall back to any other real display. */
+    fun hasCoverDisplay(context: Context): Boolean {
+        val displays = context.getSystemService(DisplayManager::class.java)
+        return displays.getDisplay(COVER_DISPLAY_ID) != null ||
+            displays.displays.any { it.displayId != Display.DEFAULT_DISPLAY && it.flags and Display.FLAG_PRIVATE == 0 }
+    }
+
+    /** Samsung documents the Flex Window as display 1; fall back to any other real display (Xiaomi Mix Flip, Motorola Razr, etc.). */
     fun coverDisplayId(context: Context): Int {
         val displays = context.getSystemService(DisplayManager::class.java)
         if (displays.getDisplay(COVER_DISPLAY_ID) != null) return COVER_DISPLAY_ID
@@ -93,7 +99,10 @@ object CoverGuard {
      */
     fun ifFolded(context: Context, action: () -> Unit) {
         val sensors = context.getSystemService(SensorManager::class.java)
-        val hinge = sensors.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE) ?: return
+        val hinge = sensors.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE) ?: run {
+            if (hasCoverDisplay(context) && innerScreenDark(context)) action()
+            return
+        }
         val handler = Handler(Looper.getMainLooper())
         val listener = object : SensorEventListener {
             var done = false
@@ -248,7 +257,10 @@ class CoverGuardService : Service() {
     /** Arms as soon as the hinge closes; the sensor reports its angle when registered, then each change. */
     private fun watchHinge() {
         if (hingeWatch != null) return
-        val hinge = sensors.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE) ?: return
+        val hinge = sensors.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE) ?: run {
+            if (CoverGuard.hasCoverDisplay(this) && CoverGuard.innerScreenDark(this)) arm(folded = true)
+            return
+        }
         val watch = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
                 val folded = event.values.firstOrNull()?.let { it < CoverGuard.FOLDED_MAX_DEGREES } ?: return

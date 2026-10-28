@@ -7,12 +7,20 @@
     <string name="toy_bottle">Spin the bottle</string>
     <string name="toy_wheel">Decision wheel</string>
     <string name="toy_counter">Counter</string>
+    <string name="toy_pomodoro">Focus timer</string>
+    <string name="toy_stopwatch">Stopwatch</string>
+    <string name="toy_flashlight">Studio light</string>
+    <string name="toy_rps">Rock paper scissors</string>
     <string name="toy_dice_desc">Roll a die from 1 to 6</string>
     <string name="toy_coin_desc">Heads or tails, settled fairly</string>
     <string name="toy_ball_desc">Ask a question, get an answer</string>
     <string name="toy_bottle_desc">Spin it to pick who\'s next</string>
     <string name="toy_wheel_desc">Your own choices on a wheel</string>
     <string name="toy_counter_desc">Tap to count, hold to reset</string>
+    <string name="toy_pomodoro_desc">25 min Pomodoro: tap to start/pause, hold to reset</string>
+    <string name="toy_stopwatch_desc">Precision stopwatch: tap to start/stop, hold to reset</string>
+    <string name="toy_flashlight_desc">Full-brightness ring light, softbox and strobe</string>
+    <string name="toy_rps_desc">Rock, paper or scissors with a single tap</string>
 
     <!-- Hints under a resting toy on the cover -->
     <string name="toy_hint_dice">Tap to roll</string>
@@ -21,10 +29,18 @@
     <string name="toy_hint_bottle">Tap to spin</string>
     <string name="toy_hint_wheel">Tap to spin</string>
     <string name="toy_hint_counter">Tap +1 · Hold to reset</string>
+    <string name="toy_hint_pomodoro">Tap start/pause · Hold to reset</string>
+    <string name="toy_hint_stopwatch">Tap start/stop · Hold to reset</string>
+    <string name="toy_hint_rps">Tap to play</string>
 
     <!-- Results -->
     <string name="toy_heads">Heads</string>
     <string name="toy_tails">Tails</string>
+    <string name="toy_pomodoro_focus">FOCUS</string>
+    <string name="toy_pomodoro_done">DONE</string>
+    <string name="toy_light_ring">Ring light · Tap for mode</string>
+    <string name="toy_light_softbox">Softbox · Tap for mode</string>
+    <string name="toy_light_strobe">Strobe · Tap for mode</string>
 
     <!-- Accessibility: actions and what the toy shows -->
     <string name="toy_action_roll">Roll</string>
@@ -33,12 +49,18 @@
     <string name="toy_action_spin">Spin</string>
     <string name="toy_action_count">Add one</string>
     <string name="toy_action_reset">Reset</string>
+    <string name="toy_action_light_mode">Switch light mode</string>
+    <string name="toy_action_rps">Play rock paper scissors</string>
     <string name="toy_cd_dice">Dice showing %1$d</string>
     <string name="toy_cd_coin">Coin: %1$s</string>
     <string name="toy_cd_ball">Magic ball says: %1$s</string>
     <string name="toy_cd_bottle">The bottle points to %1$d o\'clock</string>
     <string name="toy_cd_wheel">The wheel landed on %1$s</string>
     <string name="toy_cd_counter">Count: %1$d</string>
+    <string name="toy_cd_pomodoro">Focus timer: %1$s</string>
+    <string name="toy_cd_stopwatch">Stopwatch: %1$s</string>
+    <string name="toy_cd_flashlight">Studio light: %1$s</string>
+    <string name="toy_cd_rps">Rock paper scissors: %1$s</string>
 
     <!-- Built-in wheel, in slice order (the wheel shows them as ✓ ✗ ? ↻) -->
     <string-array name="toy_wheel_defaults">

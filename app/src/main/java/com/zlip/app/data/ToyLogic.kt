@@ -184,4 +184,60 @@ object ToyLogic {
     }
 
     fun nextCount(count: Int): Int = (count + 1).coerceIn(0, MAX_COUNT)
+
+    /** Default Pomodoro focus session length: 25 minutes. */
+    const val POMODORO_DURATION_MS = 25 * 60 * 1_000L
+
+    /** Studio light modes: 0 = Ring light, 1 = Full softbox, 2 = Strobe beacon. */
+    const val FLASHLIGHT_MODES = 3
+
+    /** Rock-Paper-Scissors moves: 0 = Rock, 1 = Paper, 2 = Scissors. */
+    const val RPS_ROCK = 0
+    const val RPS_PAPER = 1
+    const val RPS_SCISSORS = 2
+
+    /** Formats remaining timer [millis] (rounded up to whole seconds) as MM:SS. */
+    fun formatTimerMmSs(millis: Long): String {
+        val totalSeconds = ((millis.coerceAtLeast(0L) + 999L) / 1_000L).coerceAtMost(99 * 60 + 59)
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return "%02d:%02d".format(java.util.Locale.ROOT, minutes, seconds)
+    }
+
+    /** Formats elapsed stopwatch [millis] as MM:SS for the main LED matrix. */
+    fun formatStopwatchMmSs(millis: Long): String {
+        val totalSeconds = (millis.coerceAtLeast(0L) / 1_000L).coerceAtMost(99 * 60 + 59)
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return "%02d:%02d".format(java.util.Locale.ROOT, minutes, seconds)
+    }
+
+    /** Formats elapsed stopwatch [millis] with tenths of a second (MM:SS.d) for the result band. */
+    fun formatStopwatchTenths(millis: Long): String {
+        val clamped = millis.coerceAtLeast(0L)
+        val totalSeconds = (clamped / 1_000L).coerceAtMost(99 * 60 + 59)
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        val tenths = (clamped % 1_000L) / 100L
+        return "%02d:%02d.%d".format(java.util.Locale.ROOT, minutes, seconds, tenths)
+    }
+
+    /** Fair Rock-Paper-Scissors draw in 0..2. */
+    fun pickRps(random: Random = Random): Int = random.nextInt(3)
+
+    /** Quick cycling sequence of RPS moves ending on [final], with no two adjacent steps identical. */
+    fun tumbleRps(final: Int, steps: Int = 6, random: Random = Random): List<Int> {
+        val list = ArrayList<Int>(steps + 1)
+        var prev = -1
+        for (step in 0 until steps) {
+            var move: Int
+            do {
+                move = random.nextInt(3)
+            } while (move == prev || (step == steps - 1 && move == final))
+            list += move
+            prev = move
+        }
+        list += final.coerceIn(0, 2)
+        return list
+    }
 }

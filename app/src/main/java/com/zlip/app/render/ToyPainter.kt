@@ -138,6 +138,31 @@ internal class ToyPainter {
                 drawWheelPointer(canvas, cx, wheelY, radius, 0f)
             }
             ToyKind.COUNTER -> drawCounter(canvas, cx, cy, counterDiameter(width, height), 0, color)
+            ToyKind.POMODORO -> drawPomodoro(
+                canvas,
+                cx,
+                cy,
+                counterDiameter(width, height),
+                ToyLogic.POMODORO_DURATION_MS,
+                ToyLogic.POMODORO_DURATION_MS,
+                running = false,
+                color = color,
+            )
+            ToyKind.STOPWATCH -> drawStopwatch(
+                canvas,
+                cx,
+                cy,
+                counterDiameter(width, height),
+                elapsedMs = 0L,
+                running = false,
+                color = color,
+            )
+            ToyKind.FLASHLIGHT -> drawFlashlight(canvas, cx, cy, width, height, mode = 0, pulse = 1f, color = color)
+            ToyKind.RPS -> {
+                val radius = coinRadius(width, height) * 1.08f
+                drawShadow(canvas, cx, cy + radius * 1.12f, radius * 1.65f, 1f)
+                drawRps(canvas, cx, cy, radius, ToyLogic.RPS_SCISSORS, color)
+            }
         }
     }
 
@@ -774,7 +799,310 @@ internal class ToyPainter {
         fill.color = color or BLACK
         canvas.drawDotText(label, left + (grid - columns) / 2 * pitch, top + (grid - DotFont.HEIGHT) / 2 * pitch, pitch, fill)
     }
+
+    // ---- Pomodoro focus timer -----------------------------------------------------------------------
+
+    /**
+     * Circular LED focus timer with a glowing progress ring around the perimeter and MM:SS in dot-matrix
+     * digits at the centre.
+     */
+    fun drawPomodoro(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        diameter: Float,
+        remainingMs: Long,
+        totalMs: Long,
+        running: Boolean,
+        color: Int,
+    ) {
+        if (diameter < 1f) return
+        val opaque = color or BLACK
+        val ringRadius = diameter * 0.46f
+        val ringStroke = max(2f, diameter * 0.042f)
+
+        // Outer track ring
+        stroke.color = faded(opaque, 0.18f)
+        stroke.strokeWidth = ringStroke
+        canvas.drawCircle(cx, cy, ringRadius, stroke)
+
+        // Active progress arc (clockwise from 12 o'clock)
+        val fraction = (remainingMs.toFloat() / totalMs.coerceAtLeast(1L)).coerceIn(0f, 1f)
+        val sweep = 360f * fraction
+        if (sweep > 0.5f) {
+            rect.set(cx - ringRadius, cy - ringRadius, cx + ringRadius, cy + ringRadius)
+            stroke.color = if (running) tint(opaque, 0.18f) else opaque
+            stroke.strokeWidth = ringStroke
+            canvas.drawArc(rect, -90f, sweep, false, stroke)
+
+            // Glowing leading tip dot when detailed
+            if (diameter >= DETAIL_PX) {
+                val tipRad = (-90f + sweep) * PI.toFloat() / 180f
+                val tipX = cx + cos(tipRad) * ringRadius
+                val tipY = cy + sin(tipRad) * ringRadius
+                val halo = ringStroke * 2.2f
+                fill.shader = RadialGradient(tipX, tipY, halo, faded(opaque, 0.65f), faded(opaque, 0f), Shader.TileMode.CLAMP)
+                canvas.drawCircle(tipX, tipY, halo, fill)
+                fill.shader = null
+                fill.color = tint(opaque, 0.45f)
+                canvas.drawCircle(tipX, tipY, ringStroke * 0.68f, fill)
+            }
+        }
+
+        // Inner round LED matrix with MM:SS
+        val innerDiameter = diameter * 0.80f
+        val label = ToyLogic.formatTimerMmSs(remainingMs)
+        val columns = DotFont.width(label)
+        var grid = max(COUNTER_GRID, columns + 4)
+        if (grid % 2 == 0) grid++
+        val pitch = innerDiameter / grid
+        val left = cx - innerDiameter / 2f
+        val top = cy - innerDiameter / 2f
+        val half = grid / 2f
+        val dot = pitch * 0.38f
+        fill.color = faded(opaque, 0.11f)
+        for (y in 0 until grid) {
+            for (x in 0 until grid) {
+                val dx = x + 0.5f - half
+                val dy = y + 0.5f - half
+                if (dx * dx + dy * dy <= half * half) {
+                    canvas.drawCircle(left + (x + 0.5f) * pitch, top + (y + 0.5f) * pitch, dot, fill)
+                }
+            }
+        }
+        fill.color = if (running) tint(opaque, 0.15f) else opaque
+        canvas.drawDotText(label, left + (grid - columns) / 2f * pitch, top + (grid - DotFont.HEIGHT) / 2f * pitch, pitch, fill)
+    }
+
+    // ---- Stopwatch ----------------------------------------------------------------------------------
+
+    /**
+     * Precision LED stopwatch with a 24-tick outer dial, sweeping second indicator and MM:SS LED matrix.
+     */
+    fun drawStopwatch(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        diameter: Float,
+        elapsedMs: Long,
+        running: Boolean,
+        color: Int,
+    ) {
+        if (diameter < 1f) return
+        val opaque = color or BLACK
+        val dialR = diameter * 0.46f
+        val secAngle = ((elapsedMs % 60_000L) / 60_000f) * 360f
+        val litTick = if (running || elapsedMs > 0L) ToyLogic.nearestTick(secAngle) else 0
+        drawDial(canvas, cx, cy, dialR, opaque, litTick, if (running) 1f else 0.65f)
+
+        // Stopwatch crown at 12 o'clock
+        if (diameter >= DETAIL_PX) {
+            val crownW = diameter * 0.11f
+            val crownH = diameter * 0.045f
+            fill.color = faded(opaque, 0.65f)
+            rect.set(cx - crownW / 2f, cy - dialR - crownH * 1.4f, cx + crownW / 2f, cy - dialR - crownH * 0.4f)
+            canvas.drawRoundRect(rect, crownH * 0.4f, crownH * 0.4f, fill)
+        }
+
+        // Inner LED matrix showing MM:SS
+        val innerDiameter = diameter * 0.78f
+        val label = ToyLogic.formatStopwatchMmSs(elapsedMs)
+        val columns = DotFont.width(label)
+        var grid = max(COUNTER_GRID, columns + 4)
+        if (grid % 2 == 0) grid++
+        val pitch = innerDiameter / grid
+        val left = cx - innerDiameter / 2f
+        val top = cy - innerDiameter / 2f
+        val half = grid / 2f
+        val dot = pitch * 0.38f
+        fill.color = faded(opaque, 0.11f)
+        for (y in 0 until grid) {
+            for (x in 0 until grid) {
+                val dx = x + 0.5f - half
+                val dy = y + 0.5f - half
+                if (dx * dx + dy * dy <= half * half) {
+                    canvas.drawCircle(left + (x + 0.5f) * pitch, top + (y + 0.5f) * pitch, dot, fill)
+                }
+            }
+        }
+        fill.color = if (running) tint(opaque, 0.18f) else opaque
+        canvas.drawDotText(label, left + (grid - columns) / 2f * pitch, top + (grid - DotFont.HEIGHT) / 2f * pitch, pitch, fill)
+    }
+
+    // ---- Studio light / Flashlight ------------------------------------------------------------------
+
+    /**
+     * Rear-cover Studio Light / Flashlight in 3 modes:
+     * - Mode 0: Selfie Ring Light (thick high-luminance ring with radial glow)
+     * - Mode 1: Full-screen Softbox (maximum-area diffused studio light)
+     * - Mode 2: Strobe / Beacon (pulsing high-visibility flash)
+     */
+    fun drawFlashlight(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        width: Float,
+        height: Float,
+        mode: Int,
+        pulse: Float,
+        color: Int,
+    ) {
+        val minDim = min(width, height)
+        if (minDim < 1f) return
+        val opaque = color or BLACK
+        val brightCore = tint(opaque, 0.62f)
+        val activePulse = pulse.coerceIn(0.15f, 1f)
+
+        when (mode % ToyLogic.FLASHLIGHT_MODES) {
+            0 -> {
+                // Mode 0: Selfie Ring Light
+                val outerR = minDim * 0.46f
+                val ringWidth = minDim * 0.15f
+                val midR = outerR - ringWidth / 2f
+                // Soft outer ambient halo
+                fill.shader = RadialGradient(
+                    cx,
+                    cy,
+                    outerR * 1.08f,
+                    intArrayOf(faded(opaque, 0.18f), faded(opaque, 0.55f), faded(opaque, 0f)),
+                    floatArrayOf(0.45f, 0.82f, 1f),
+                    Shader.TileMode.CLAMP,
+                )
+                canvas.drawCircle(cx, cy, outerR * 1.08f, fill)
+                fill.shader = null
+
+                // Main outer colored ring
+                stroke.color = opaque
+                stroke.strokeWidth = ringWidth
+                canvas.drawCircle(cx, cy, midR, stroke)
+
+                // Ultra-bright inner core ring for catchlights
+                stroke.color = brightCore
+                stroke.strokeWidth = ringWidth * 0.52f
+                canvas.drawCircle(cx, cy, midR, stroke)
+            }
+            1 -> {
+                // Mode 1: Full-Screen Studio Softbox
+                val padX = width * 0.05f
+                val padY = height * 0.05f
+                val corner = minDim * 0.16f
+                rect.set(cx - width / 2f + padX, cy - height / 2f + padY, cx + width / 2f - padX, cy + height / 2f - padY)
+                fill.shader = RadialGradient(
+                    cx,
+                    cy,
+                    max(width, height) * 0.6f,
+                    intArrayOf(brightCore, tint(opaque, 0.25f), opaque),
+                    floatArrayOf(0f, 0.6f, 1f),
+                    Shader.TileMode.CLAMP,
+                )
+                canvas.drawRoundRect(rect, corner, corner, fill)
+                fill.shader = null
+                stroke.color = WHITE
+                stroke.strokeWidth = max(2f, minDim * 0.018f)
+                canvas.drawRoundRect(rect, corner, corner, stroke)
+            }
+            else -> {
+                // Mode 2: Strobe / Emergency Beacon
+                val maxR = minDim * 0.46f
+                fill.shader = RadialGradient(
+                    cx,
+                    cy,
+                    maxR,
+                    intArrayOf(faded(WHITE, activePulse), faded(brightCore, 0.85f * activePulse), faded(opaque, 0.15f * activePulse)),
+                    floatArrayOf(0f, 0.55f, 1f),
+                    Shader.TileMode.CLAMP,
+                )
+                canvas.drawCircle(cx, cy, maxR, fill)
+                fill.shader = null
+                stroke.color = faded(brightCore, activePulse)
+                stroke.strokeWidth = max(2f, minDim * 0.045f)
+                canvas.drawCircle(cx, cy, maxR * (0.65f + 0.25f * activePulse), stroke)
+            }
+        }
+    }
+
+    // ---- Rock · Paper · Scissors --------------------------------------------------------------------
+
+    /**
+     * Bevelled circular gaming token showing Rock (0), Paper (1) or Scissors (2) as an embossed LED
+     * emblem at the centre.
+     */
+    fun drawRps(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        radius: Float,
+        move: Int,
+        color: Int,
+    ) {
+        if (radius < 1f) return
+        val opaque = color or BLACK
+        fill.shader = RadialGradient(
+            cx - radius * 0.35f,
+            cy - radius * 0.4f,
+            radius * 1.55f,
+            intArrayOf(tint(opaque, 0.36f), opaque, shade(opaque, 0.28f)),
+            floatArrayOf(0f, 0.5f, 1f),
+            Shader.TileMode.CLAMP,
+        )
+        canvas.drawCircle(cx, cy, radius, fill)
+        fill.shader = null
+
+        stroke.color = shade(opaque, 0.26f)
+        stroke.strokeWidth = radius * 0.055f
+        canvas.drawCircle(cx, cy, radius * 0.85f, stroke)
+
+        val glyph = RPS_SYMBOLS[move.mod(RPS_SYMBOLS.size)]
+        val pitch = radius * 0.115f
+        val left = cx - glyph[0].length * pitch / 2f
+        val top = cy - glyph.size * pitch / 2f
+        val offset = radius * 0.018f
+        fill.color = tint(opaque, 0.5f)
+        drawDotGlyph(canvas, glyph, left - offset, top - offset, pitch)
+        fill.color = inkOn(opaque)
+        drawDotGlyph(canvas, glyph, left, top, pitch)
+    }
 }
+
+/** 9x9 LED emblems for Rock (fist), Paper (open hand/sheet) and Scissors (V-blades). */
+private val RPS_SYMBOLS: List<Array<String>> = listOf(
+    // 0: Rock (clenched fist)
+    arrayOf(
+        "..#####..",
+        ".#######.",
+        "#########",
+        "#########",
+        "#########",
+        "#########",
+        ".#######.",
+        "..#####..",
+        ".........",
+    ),
+    // 1: Paper (open palm / page with lines)
+    arrayOf(
+        ".#######.",
+        ".#.....#.",
+        ".#.###.#.",
+        ".#.....#.",
+        ".#.###.#.",
+        ".#.....#.",
+        ".#.###.#.",
+        ".#.....#.",
+        ".#######.",
+    ),
+    // 2: Scissors (open V-blades + finger rings)
+    arrayOf(
+        ".#.....#.",
+        ".##...##.",
+        "..##.##..",
+        "...###...",
+        "....#....",
+        "..##.##..",
+        ".#..#..#.",
+        ".#..#..#.",
+        "..##.##..",
+    ),
+)
 
 /** Dots across the counter's round matrix (Nothing's Glyph Matrix is 25 x 25). */
 private const val COUNTER_GRID = 25

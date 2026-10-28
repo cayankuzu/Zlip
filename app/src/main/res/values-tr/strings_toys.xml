@@ -7,12 +7,20 @@
     <string name="toy_bottle">Şişe çevirmece</string>
     <string name="toy_wheel">Karar çarkı</string>
     <string name="toy_counter">Sayaç</string>
+    <string name="toy_pomodoro">Odak sayacı</string>
+    <string name="toy_stopwatch">Kronometre</string>
+    <string name="toy_flashlight">Stüdyo ışığı</string>
+    <string name="toy_rps">Taş kağıt makas</string>
     <string name="toy_dice_desc">1\'den 6\'ya zar at</string>
     <string name="toy_coin_desc">Yazı mı tura mı, tamamen adil</string>
     <string name="toy_ball_desc">Bir soru sor, cevabını al</string>
     <string name="toy_bottle_desc">Sıradakini seçmek için çevir</string>
     <string name="toy_wheel_desc">Kendi seçeneklerin bir çarkta</string>
     <string name="toy_counter_desc">Saymak için dokun, sıfırlamak için basılı tut</string>
+    <string name="toy_pomodoro_desc">25 dk Pomodoro: başlat/duraklat, basılı tut sıfırla</string>
+    <string name="toy_stopwatch_desc">Saliseli kronometre: dokun başlat, basılı tut sıfırla</string>
+    <string name="toy_flashlight_desc">Tam parlaklıkta halka ışık, softbox ve flaşör</string>
+    <string name="toy_rps_desc">Tek dokunuşla taş, kağıt ya da makas</string>
 
     <!-- Kapakta duran oyuncağın altındaki ipuçları -->
     <string name="toy_hint_dice">Dokun ve at</string>
@@ -21,10 +29,18 @@
     <string name="toy_hint_bottle">Dokun ve çevir</string>
     <string name="toy_hint_wheel">Dokun ve çevir</string>
     <string name="toy_hint_counter">Dokun: +1 · Basılı tut: sıfırla</string>
+    <string name="toy_hint_pomodoro">Dokun: başlat/duraklat · Basılı tut: sıfırla</string>
+    <string name="toy_hint_stopwatch">Dokun: başlat/durdur · Basılı tut: sıfırla</string>
+    <string name="toy_hint_rps">Dokun ve oyna</string>
 
     <!-- Sonuçlar -->
     <string name="toy_heads">Tura</string>
     <string name="toy_tails">Yazı</string>
+    <string name="toy_pomodoro_focus">ODAKLAN</string>
+    <string name="toy_pomodoro_done">TAMAMLANDI</string>
+    <string name="toy_light_ring">Halka ışık · Mod için dokun</string>
+    <string name="toy_light_softbox">Softbox · Mod için dokun</string>
+    <string name="toy_light_strobe">Flaşör · Mod için dokun</string>
 
     <!-- Erişilebilirlik: eylemler ve oyuncağın gösterdiği -->
     <string name="toy_action_roll">Zar at</string>
@@ -33,12 +49,18 @@
     <string name="toy_action_spin">Çevir</string>
     <string name="toy_action_count">Bir ekle</string>
     <string name="toy_action_reset">Sıfırla</string>
+    <string name="toy_action_light_mode">Işık modunu değiştir</string>
+    <string name="toy_action_rps">Taş kağıt makas oyna</string>
     <string name="toy_cd_dice">Zar: %1$d</string>
     <string name="toy_cd_coin">Para: %1$s</string>
     <string name="toy_cd_ball">Sihirli küre diyor ki: %1$s</string>
     <string name="toy_cd_bottle">Şişe saat %1$d yönünü gösteriyor</string>
     <string name="toy_cd_wheel">Çark durdu: %1$s</string>
     <string name="toy_cd_counter">Sayı: %1$d</string>
+    <string name="toy_cd_pomodoro">Odak sayacı: %1$s</string>
+    <string name="toy_cd_stopwatch">Kronometre: %1$s</string>
+    <string name="toy_cd_flashlight">Stüdyo ışığı: %1$s</string>
+    <string name="toy_cd_rps">Taş kağıt makas: %1$s</string>
 
     <!-- Hazır çark, dilim sırasıyla (çarkta ✓ ✗ ? ↻ olarak görünür) -->
     <string-array name="toy_wheel_defaults">

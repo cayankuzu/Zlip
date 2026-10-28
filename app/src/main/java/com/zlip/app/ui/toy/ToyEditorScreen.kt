@@ -401,6 +401,10 @@ private fun ToyKind.title(): Int = when (this) {
     ToyKind.BOTTLE -> R.string.toy_bottle
     ToyKind.WHEEL -> R.string.toy_wheel
     ToyKind.COUNTER -> R.string.toy_counter
+    ToyKind.POMODORO -> R.string.toy_pomodoro
+    ToyKind.STOPWATCH -> R.string.toy_stopwatch
+    ToyKind.FLASHLIGHT -> R.string.toy_flashlight
+    ToyKind.RPS -> R.string.toy_rps
 }
 
 @StringRes
@@ -411,6 +415,10 @@ private fun ToyKind.description(): Int = when (this) {
     ToyKind.BOTTLE -> R.string.toy_bottle_desc
     ToyKind.WHEEL -> R.string.toy_wheel_desc
     ToyKind.COUNTER -> R.string.toy_counter_desc
+    ToyKind.POMODORO -> R.string.toy_pomodoro_desc
+    ToyKind.STOPWATCH -> R.string.toy_stopwatch_desc
+    ToyKind.FLASHLIGHT -> R.string.toy_flashlight_desc
+    ToyKind.RPS -> R.string.toy_rps_desc
 }
 
 @Composable

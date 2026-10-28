@@ -4,12 +4,15 @@ import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -493,6 +496,339 @@ internal fun CounterToy(item: CoverItem.Toy, still: Boolean, playable: Boolean) 
         ) {
             drawIntoCanvas {
                 painter.drawCounter(it.nativeCanvas, center.x, center.y, ToyPainter.counterDiameter(size.width, size.height), count, color)
+            }
+        }
+    }
+}
+
+/** Pomodoro focus timer (25 min): tap to start/pause, long-press to reset. */
+@Composable
+internal fun PomodoroToy(item: CoverItem.Toy, still: Boolean, playable: Boolean) {
+    val painter = remember { ToyPainter() }
+    val haptics = LocalHapticFeedback.current
+    val fps = LocalAnimationFps.current
+    val animator = rememberToyAnimator()
+    var remainingMs by remember(item.id) {
+        mutableLongStateOf(
+            if (still) ToyLogic.POMODORO_DURATION_MS
+            else ToyMemory[item]?.toLong()?.takeIf { it in 0L..ToyLogic.POMODORO_DURATION_MS } ?: ToyLogic.POMODORO_DURATION_MS,
+        )
+    }
+    var running by remember(item.id) { mutableStateOf(false) }
+    val bump = remember { mutableFloatStateOf(0f) }
+    val color = item.color
+
+    LaunchedEffect(running, still) {
+        if (!running || still) return@LaunchedEffect
+        var lastTick = SystemClock.elapsedRealtime()
+        while (running) {
+            delay(200L)
+            val now = SystemClock.elapsedRealtime()
+            val delta = (now - lastTick).coerceAtLeast(0L)
+            lastTick = now
+            val next = (remainingMs - delta).coerceAtLeast(0L)
+            remainingMs = next
+            ToyMemory[item] = next.toFloat()
+            if (next <= 0L) {
+                running = false
+                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+            }
+        }
+    }
+
+    fun pulse(direction: Float) {
+        animator.play {
+            val from = bump.floatValue
+            animateToy(BUMP_MS, fps) { t -> bump.floatValue = from * (1f - t) + direction * sin(t * PI_F) * (1f - abs(from)) }
+        }
+    }
+
+    fun toggle() {
+        if (remainingMs <= 0L) {
+            remainingMs = ToyLogic.POMODORO_DURATION_MS
+            ToyMemory[item] = remainingMs.toFloat()
+            running = true
+        } else {
+            running = !running
+        }
+        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+        pulse(1f)
+    }
+
+    fun reset() {
+        running = false
+        remainingMs = ToyLogic.POMODORO_DURATION_MS
+        ToyMemory[item] = remainingMs.toFloat()
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        pulse(-1f)
+    }
+
+    val timeStr = ToyLogic.formatTimerMmSs(if (still) ToyLogic.POMODORO_DURATION_MS else remainingMs)
+    ToyStage(
+        playable = playable,
+        description = stringResource(R.string.toy_cd_pomodoro, timeStr),
+        tapLabel = stringResource(if (running) R.string.action_pause else R.string.action_resume),
+        onTap = ::toggle,
+        onLongPress = ::reset,
+        longPressLabel = stringResource(R.string.toy_action_reset),
+        band = {
+            when {
+                !still && remainingMs <= 0L -> ToyResult(stringResource(R.string.toy_pomodoro_done), Color(ToyPainter.accentOn(color, item.background))) { 1f }
+                !still && running -> ToyResult(stringResource(R.string.toy_pomodoro_focus), Color(ToyPainter.accentOn(color, item.background))) { 1f }
+                playable -> ToyHint(stringResource(R.string.toy_hint_pomodoro), item.background)
+            }
+        },
+    ) {
+        Canvas(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = 1f + 0.05f * bump.floatValue
+                    scaleY = 1f + 0.05f * bump.floatValue
+                },
+        ) {
+            drawIntoCanvas {
+                painter.drawPomodoro(
+                    it.nativeCanvas,
+                    center.x,
+                    center.y,
+                    ToyPainter.counterDiameter(size.width, size.height),
+                    if (still) ToyLogic.POMODORO_DURATION_MS else remainingMs,
+                    ToyLogic.POMODORO_DURATION_MS,
+                    running && !still,
+                    color,
+                )
+            }
+        }
+    }
+}
+
+/** Stopwatch: tap to start/stop, long-press to reset to 00:00. */
+@Composable
+internal fun StopwatchToy(item: CoverItem.Toy, still: Boolean, playable: Boolean) {
+    val painter = remember { ToyPainter() }
+    val haptics = LocalHapticFeedback.current
+    val fps = LocalAnimationFps.current
+    val animator = rememberToyAnimator()
+    var elapsedMs by remember(item.id) {
+        mutableLongStateOf(if (still) 0L else ToyMemory[item]?.toLong()?.coerceAtLeast(0L) ?: 0L)
+    }
+    var running by remember(item.id) { mutableStateOf(false) }
+    val bump = remember { mutableFloatStateOf(0f) }
+    val color = item.color
+
+    LaunchedEffect(running, still) {
+        if (!running || still) return@LaunchedEffect
+        var lastTick = SystemClock.elapsedRealtime()
+        while (running) {
+            delay(80L)
+            val now = SystemClock.elapsedRealtime()
+            val delta = (now - lastTick).coerceAtLeast(0L)
+            lastTick = now
+            elapsedMs += delta
+            ToyMemory[item] = elapsedMs.toFloat()
+        }
+    }
+
+    fun pulse(direction: Float) {
+        animator.play {
+            val from = bump.floatValue
+            animateToy(BUMP_MS, fps) { t -> bump.floatValue = from * (1f - t) + direction * sin(t * PI_F) * (1f - abs(from)) }
+        }
+    }
+
+    fun toggle() {
+        running = !running
+        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+        pulse(1f)
+    }
+
+    fun reset() {
+        running = false
+        elapsedMs = 0L
+        ToyMemory[item] = 0f
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        pulse(-1f)
+    }
+
+    val shownMs = if (still) 0L else elapsedMs
+    ToyStage(
+        playable = playable,
+        description = stringResource(R.string.toy_cd_stopwatch, ToyLogic.formatStopwatchMmSs(shownMs)),
+        tapLabel = stringResource(if (running) R.string.action_pause else R.string.action_resume),
+        onTap = ::toggle,
+        onLongPress = ::reset,
+        longPressLabel = stringResource(R.string.toy_action_reset),
+        band = {
+            when {
+                shownMs > 0L -> ToyResult(ToyLogic.formatStopwatchTenths(shownMs), Color(ToyPainter.accentOn(color, item.background))) { 1f }
+                playable -> ToyHint(stringResource(R.string.toy_hint_stopwatch), item.background)
+            }
+        },
+    ) {
+        Canvas(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = 1f + 0.05f * bump.floatValue
+                    scaleY = 1f + 0.05f * bump.floatValue
+                },
+        ) {
+            drawIntoCanvas {
+                painter.drawStopwatch(
+                    it.nativeCanvas,
+                    center.x,
+                    center.y,
+                    ToyPainter.counterDiameter(size.width, size.height),
+                    shownMs,
+                    running && !still,
+                    color,
+                )
+            }
+        }
+    }
+}
+
+/** Studio Light / Flashlight: full-brightness Ring Light, Softbox and Strobe on the cover screen. */
+@Composable
+internal fun FlashlightToy(item: CoverItem.Toy, still: Boolean, playable: Boolean) {
+    val painter = remember { ToyPainter() }
+    val haptics = LocalHapticFeedback.current
+    val stored = if (still) 0 else (ToyMemory[item]?.toInt() ?: 0).mod(ToyLogic.FLASHLIGHT_MODES)
+    var mode by remember(item.id, stored) { mutableIntStateOf(stored) }
+    var pulse by remember { mutableFloatStateOf(1f) }
+    val color = item.color
+
+    LaunchedEffect(mode, still) {
+        if (still || mode != 2) {
+            pulse = 1f
+            return@LaunchedEffect
+        }
+        val start = SystemClock.elapsedRealtime()
+        while (true) {
+            delay(32L)
+            val elapsed = SystemClock.elapsedRealtime() - start
+            pulse = 0.2f + 0.8f * ((1f + sin(elapsed / 120f * PI_F)) / 2f)
+        }
+    }
+
+    fun nextMode() {
+        val next = (mode + 1) % ToyLogic.FLASHLIGHT_MODES
+        mode = next
+        ToyMemory[item] = next.toFloat()
+        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+    }
+
+    val modeLabel = stringResource(
+        when (mode) {
+            0 -> R.string.toy_light_ring
+            1 -> R.string.toy_light_softbox
+            else -> R.string.toy_light_strobe
+        },
+    )
+
+    ToyStage(
+        playable = playable,
+        description = stringResource(R.string.toy_cd_flashlight, modeLabel),
+        tapLabel = stringResource(R.string.toy_action_light_mode),
+        onTap = ::nextMode,
+        band = {
+            if (playable) ToyHint(modeLabel, item.background)
+        },
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            drawIntoCanvas {
+                painter.drawFlashlight(
+                    it.nativeCanvas,
+                    center.x,
+                    center.y,
+                    size.width,
+                    size.height,
+                    if (still) 0 else mode,
+                    if (still) 1f else pulse,
+                    color,
+                )
+            }
+        }
+    }
+}
+
+/** Rock · Paper · Scissors: tap to bounce 3 beats and reveal Rock, Paper or Scissors. */
+@Composable
+internal fun RpsToy(item: CoverItem.Toy, still: Boolean, playable: Boolean) {
+    val painter = remember { ToyPainter() }
+    val haptics = LocalHapticFeedback.current
+    val fps = LocalAnimationFps.current
+    val animator = rememberToyAnimator()
+    val stored = if (still) null else ToyMemory[item]?.toInt()?.takeIf { it in 0..2 }
+    val move = stored ?: ToyLogic.RPS_SCISSORS
+    var playing by remember { mutableStateOf(false) }
+    val flash = remember { mutableIntStateOf(-1) }
+    val lift = remember { mutableFloatStateOf(0f) }
+    val tilt = remember { mutableFloatStateOf(0f) }
+    val labelAlpha = remember { mutableFloatStateOf(1f) }
+    val color = item.color
+    val moves = stringArrayResource(R.array.toy_preset_rps_items)
+    val moveName = moves.getOrElse(move) { "" }
+
+    fun playRound() {
+        if (playing) return
+        playing = true
+        val result = ToyLogic.pickRps()
+        val sequence = ToyLogic.tumbleRps(result)
+        animator.play {
+            val fadeFrom = labelAlpha.floatValue
+            animateToy(680L, fps) { t ->
+                val eased = ToyLogic.decelerate(t)
+                flash.intValue = sequence[(eased * sequence.lastIndex).toInt().coerceAtMost(sequence.lastIndex)]
+                lift.floatValue = abs(sin(t * 3f * PI_F)) * (1f - 0.5f * t)
+                tilt.floatValue = sin(t * 6f * PI_F) * 14f * (1f - t)
+                labelAlpha.floatValue = fadeFrom * (1f - (t * 4f).coerceAtMost(1f))
+            }
+            ToyMemory[item] = result.toFloat()
+            flash.intValue = -1
+            lift.floatValue = 0f
+            tilt.floatValue = 0f
+            playing = false
+            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+            animateToy(SETTLE_MS, fps) { labelAlpha.floatValue = it }
+        }
+    }
+
+    ToyStage(
+        playable = playable,
+        description = stringResource(R.string.toy_cd_rps, moveName),
+        tapLabel = stringResource(R.string.toy_action_rps),
+        onTap = ::playRound,
+        band = {
+            when {
+                stored != null && !playing -> ToyResult(moveName, Color(ToyPainter.accentOn(color, item.background))) { labelAlpha.floatValue }
+                playable && !playing -> ToyHint(stringResource(R.string.toy_hint_rps), item.background)
+            }
+        },
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val radius = ToyPainter.coinRadius(size.width, size.height) * 1.08f
+            val up = lift.floatValue
+            drawIntoCanvas {
+                painter.drawShadow(it.nativeCanvas, center.x, center.y + radius * 1.12f, radius * (1.65f - 0.5f * up), 1f - 0.55f * up)
+            }
+        }
+        Canvas(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    val up = lift.floatValue
+                    translationY = -up * size.height * 0.16f
+                    rotationZ = tilt.floatValue
+                    scaleX = 1f + 0.12f * up
+                    scaleY = 1f + 0.12f * up
+                },
+        ) {
+            val radius = ToyPainter.coinRadius(size.width, size.height) * 1.08f
+            val shown = flash.intValue.takeIf { it in 0..2 } ?: move
+            drawIntoCanvas {
+                painter.drawRps(it.nativeCanvas, center.x, center.y, radius, shown, color)
             }
         }
     }

@@ -68,7 +68,7 @@
     <string name="status_checking_title">Checking…</string>
     <string name="status_checking_body">Looking for the cover screen.</string>
     <string name="status_unsupported_title">Not supported</string>
-    <string name="status_unsupported_body">This phone does not let apps use the cover screen while it is open. Zlip needs a Galaxy Z Flip with One UI 6 or newer.</string>
+    <string name="status_unsupported_body">This phone does not let apps use the cover screen while it is open. Zlip supports flip phones with rear-display presentation (Galaxy Z Flip, Xiaomi Mix Flip, Motorola Razr, etc.).</string>
     <string name="status_unavailable_title">Unavailable</string>
     <string name="status_unavailable_body">Open the phone fully and turn off power saving. Another app may also be using the cover screen.</string>
     <string name="status_available_title">Ready</string>
@@ -275,7 +275,7 @@
     <string name="filter_tools">Smart cards</string>
     <string name="home_add_countdown_desc">Days until a trip, a birthday, anything</string>
     <string name="home_add_qr_desc">Wi-Fi, a link or your contact, ready to scan</string>
-    <string name="home_add_toy_desc">Dice, coin, magic ball and more, with a tap</string>
+    <string name="home_add_toy_desc">Focus timer, stopwatch, studio light, dice, wheel and more</string>
     <string name="guard_channel">Open when folded</string>
     <string name="guard_channel_desc">Keeps the screen saver ready while the phone is folded.</string>
     <string name="guard_notif_title">Screen saver is ready</string>
@@ -351,4 +351,8 @@
     <string name="gallery_type_countdown">Countdown</string>
     <string name="gallery_type_qr">QR Code</string>
     <string name="gallery_type_toy">Interactive</string>
+    <string name="action_save_to_device">Save to device</string>
+    <string name="media_saved_to_device">Saved to phone gallery</string>
+    <string name="media_save_failed">Could not save to gallery</string>
+    <string name="settings_storage_info">Library storage: %1$d media files (%2$s) · Kept safe in Zlip even if deleted from your phone gallery.</string>
 </resources>

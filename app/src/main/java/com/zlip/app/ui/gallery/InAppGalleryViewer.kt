@@ -43,6 +43,8 @@ import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Dashboard
+import android.widget.Toast
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Forward5
@@ -86,8 +88,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import com.zlip.app.data.MediaStorage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -161,6 +165,7 @@ fun InAppGalleryViewer(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val haptics = LocalHapticFeedback.current
+    val context = LocalContext.current
 
     var controlsVisible by remember { mutableStateOf(true) }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -427,6 +432,7 @@ fun InAppGalleryViewer(
                         }
 
                         // More options dropdown
+                        val exportableMedia = (if (isCurrentItemOnCover && shownOnCover is CoverItem.Media) shownOnCover else currentItem) as? CoverItem.Media
                         Box {
                             IconButton(
                                 onClick = { menuExpanded = true },
@@ -438,6 +444,23 @@ fun InAppGalleryViewer(
                                 expanded = menuExpanded,
                                 onDismissRequest = { menuExpanded = false },
                             ) {
+                                if (exportableMedia != null) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.action_save_to_device)) },
+                                        leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
+                                        onClick = {
+                                            menuExpanded = false
+                                            scope.launch {
+                                                val ok = MediaStorage.exportToGallery(context, exportableMedia)
+                                                Toast.makeText(
+                                                    context,
+                                                    context.getString(if (ok) R.string.media_saved_to_device else R.string.media_save_failed),
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
+                                            }
+                                        },
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.action_edit)) },
                                     leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },

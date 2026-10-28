@@ -193,4 +193,30 @@ class ToyLogicTest {
         assertEquals(0f, ToyLogic.flapperBend(ToyLogic.rotationFor(0, 0.5f, count), count), 0f)
         assertEquals(0f, ToyLogic.flapperBend(ToyLogic.rotationFor(1, 0.99f, count), count), 0f)
     }
+
+    @Test
+    fun timerAndStopwatchFormatsBehave() {
+        assertEquals("25:00", ToyLogic.formatTimerMmSs(ToyLogic.POMODORO_DURATION_MS))
+        assertEquals("00:01", ToyLogic.formatTimerMmSs(100L))
+        assertEquals("00:00", ToyLogic.formatTimerMmSs(0L))
+        assertEquals("00:00", ToyLogic.formatStopwatchMmSs(0L))
+        assertEquals("01:05", ToyLogic.formatStopwatchMmSs(65_400L))
+        assertEquals("01:05.4", ToyLogic.formatStopwatchTenths(65_400L))
+    }
+
+    @Test
+    fun rpsIsFairAndTumblesCleanly() {
+        val random = Random(42)
+        val counts = IntArray(3)
+        repeat(30_000) { counts[ToyLogic.pickRps(random)]++ }
+        for (move in 0..2) assertTrue("move $move: ${counts[move]}", abs(counts[move] - 10_000) < 450)
+        repeat(200) {
+            val final = ToyLogic.pickRps(random)
+            val seq = ToyLogic.tumbleRps(final, steps = 6, random = random)
+            assertEquals(7, seq.size)
+            assertEquals(final, seq.last())
+            assertTrue(seq.all { it in 0..2 })
+            seq.zipWithNext().forEach { (a, b) -> assertNotEquals(a, b) }
+        }
+    }
 }

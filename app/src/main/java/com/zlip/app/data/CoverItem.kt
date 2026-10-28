@@ -202,7 +202,7 @@ sealed interface CoverItem {
 
 enum class QrKind { LINK, WIFI, CONTACT, TEXT }
 
-enum class ToyKind { DICE, COIN, MAGIC_BALL, BOTTLE, WHEEL, COUNTER }
+enum class ToyKind { DICE, COIN, MAGIC_BALL, BOTTLE, WHEEL, COUNTER, POMODORO, STOPWATCH, FLASHLIGHT, RPS }
 
 /** [this] item, or the plain items it is made of: a collage's cells and a group's steps, all the way down. */
 fun CoverItem.leaves(): List<CoverItem> = when (this) {
@@ -212,7 +212,7 @@ fun CoverItem.leaves(): List<CoverItem> = when (this) {
 }
 
 /** A QR code is on screen (alone, in a collage cell or as a group step): it must stay sharp and bright to scan. */
-fun CoverItem.showsQr(): Boolean = leaves().any { it is CoverItem.Qr }
+fun CoverItem.showsQr(): Boolean = leaves().any { it is CoverItem.Qr || (it is CoverItem.Toy && it.kind == ToyKind.FLASHLIGHT) }
 
 /** Every media file [this] item needs, including those inside collages and groups. */
 fun CoverItem.mediaFiles(): List<String> = leaves().flatMap { if (it is CoverItem.Media) listOfNotNull(it.fileName, it.posterFileName) else emptyList() }

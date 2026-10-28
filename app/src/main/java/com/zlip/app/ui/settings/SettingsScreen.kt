@@ -282,10 +282,23 @@ fun SettingsScreen(
                 val version = remember(context) {
                     runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
                 }
+                val storageStats by androidx.compose.runtime.produceState(0 to 0L, context) {
+                    value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.zlip.app.data.MediaStorage.stats(context)
+                    }
+                }
                 val updateState by AppUpdateManager.state.collectAsState()
                 val scope = rememberCoroutineScope()
 
                 Text(stringResource(R.string.settings_version, version), style = MaterialTheme.typography.bodyLarge)
+                HintText(
+                    stringResource(
+                        R.string.settings_storage_info,
+                        storageStats.first,
+                        android.text.format.Formatter.formatShortFileSize(context, storageStats.second),
+                    ),
+                )
+                Spacer(Modifier.height(6.dp))
                 HintText(stringResource(R.string.settings_privacy))
 
                 Spacer(Modifier.height(10.dp))
