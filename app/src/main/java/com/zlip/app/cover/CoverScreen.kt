@@ -344,7 +344,10 @@ fun CoverScreen(
         playback.setMenuOpen(menuShown)
         onDispose { playback.setMenuOpen(false) }
     }
-    if (menuAllowed) BackHandler(enabled = menuShown, onBack = closeMenu)
+    val backDispatcherOwner = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current
+    if (menuAllowed && backDispatcherOwner != null) {
+        BackHandler(enabled = menuShown, onBack = closeMenu)
+    }
 
     // A toy takes taps itself, so its first showing in each session says where the menu is.
     var toyHint by remember { mutableStateOf(false) }
