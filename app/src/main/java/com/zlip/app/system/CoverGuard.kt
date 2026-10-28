@@ -135,18 +135,11 @@ object CoverGuard {
         val intent = Intent(context, CoverActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .apply { if (itemId != null) putExtra(CoverActivity.EXTRA_ITEM_ID, itemId) }
-        val options = ActivityOptions.makeBasic().setLaunchDisplayId(coverDisplayId(context)).apply {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
-                setPendingIntentCreatorBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS)
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                @Suppress("DEPRECATION")
-                setPendingIntentCreatorBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
-            }
-        }
+        val options = ActivityOptions.makeBasic().setLaunchDisplayId(coverDisplayId(context))
         return try {
             context.startActivity(intent, options.toBundle())
             true
-        } catch (e: RuntimeException) {
+        } catch (e: Throwable) {
             Log.w(TAG, "Could not open the screen saver on the cover", e)
             false
         }
@@ -305,8 +298,8 @@ class CoverGuardService : Service() {
         createChannel()
         try {
             startForeground(NOTIFICATION_ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } catch (e: IllegalStateException) {
-            // ForegroundServiceStartNotAllowedException: the next visit to Zlip (or a reboot) starts it again.
+        } catch (e: Throwable) {
+            // ForegroundServiceStartNotAllowedException / SecurityException: the next visit to Zlip (or a reboot) starts it again.
             Log.w("ZlipGuard", "Cannot run in the foreground now", e)
             stopSelf()
             return

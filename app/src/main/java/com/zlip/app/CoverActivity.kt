@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import android.view.Display
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -140,19 +141,29 @@ class CoverActivity : ComponentActivity() {
         }
         alive = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
+            try {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+            } catch (e: Throwable) {
+                Log.w("CoverActivity", "Error setting showWhenLocked/turnScreenOn", e)
+            }
         }
         @Suppress("DEPRECATION")
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-        )
+        try {
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
+        } catch (e: Throwable) {
+            Log.w("CoverActivity", "Error adding window flags", e)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            window.attributes = window.attributes.apply {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            try {
+                window.attributes.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            } catch (e: Throwable) {
+                Log.w("CoverActivity", "Error setting layoutInDisplayCutoutMode", e)
             }
         }
         WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -264,28 +275,33 @@ class CoverActivity : ComponentActivity() {
 
     /** Only a real change: every window flag update relayouts the window (a call to the window manager). */
     private fun keepScreenOn(on: Boolean) {
-        val isOn = window.attributes.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON != 0
-        if (on == isOn) return
-        if (on) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
+        try {
+            val isOn = window.attributes.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON != 0
+            if (on == isOn) return
+            if (on) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        } catch (_: Throwable) {}
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
+            try {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+            } catch (_: Throwable) {}
         }
         @Suppress("DEPRECATION")
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-        )
+        try {
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
+        } catch (_: Throwable) {}
         // A widget tap is the user asking for it; the always-show service re-arming a dark cover is not.
         if (intent.openedByUser()) {
             used()
@@ -342,16 +358,19 @@ class CoverActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
+            try {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+            } catch (_: Throwable) {}
         }
         @Suppress("DEPRECATION")
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-        )
+        try {
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
+        } catch (_: Throwable) {}
         if (!onCover() || innerScreenOn()) {
             leave()
             return
@@ -373,8 +392,10 @@ class CoverActivity : ComponentActivity() {
         app.playback.liveViewStarted()
         registered = true
         // The sticky broadcast answers at once with the current charging state.
-        ContextCompat.registerReceiver(this, batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
-            ?.let { charging.value = it.isCharging() }
+        try {
+            ContextCompat.registerReceiver(this, batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+                ?.let { charging.value = it.isCharging() }
+        } catch (_: Throwable) {}
         // Refresh the stay-on period on every wake so pressing the power button to wake the cover screen
         // always keeps the live CoverScreen active and responsive.
         startedOnce = true
@@ -387,7 +408,9 @@ class CoverActivity : ComponentActivity() {
             registered = false
             app.playback.setLiveViewResting(false)
             app.playback.liveViewStopped()
-            unregisterReceiver(batteryReceiver)
+            try {
+                unregisterReceiver(batteryReceiver)
+            } catch (_: Throwable) {}
         }
         super.onStop()
         // The cover going dark only pauses the screen saver; opening the phone ends it.
@@ -400,7 +423,9 @@ class CoverActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        displays.unregisterDisplayListener(displayListener)
+        try {
+            displays.unregisterDisplayListener(displayListener)
+        } catch (_: Throwable) {}
         if (isFinishing) alive = false
         super.onDestroy()
     }
@@ -419,10 +444,21 @@ class CoverActivity : ComponentActivity() {
 
     /** Leaves without a trace, never over the main screen's lock screen. */
     private fun leave() {
-        setShowWhenLocked(false)
-        alive = false
-        if (!isFinishing) finishAndRemoveTask()
-        overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(false)
+            }
+            alive = false
+            if (!isFinishing) finishAndRemoveTask()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(0, 0)
+            }
+        } catch (e: Throwable) {
+            Log.w("CoverActivity", "Error during leave", e)
+        }
     }
 
     private fun onCover(): Boolean = (display?.displayId ?: Display.DEFAULT_DISPLAY) != Display.DEFAULT_DISPLAY

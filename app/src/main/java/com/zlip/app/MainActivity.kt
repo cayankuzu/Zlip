@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.service.quicksettings.TileService
+import android.util.Log
 import android.util.Rational
 import android.view.Display
 import android.view.View
@@ -715,8 +716,14 @@ class MainActivity : ComponentActivity() {
         CoverGuard.sync(this)
         // If an update was downloaded and user just granted unknown sources permission, resume install automatically!
         val state = com.zlip.app.system.AppUpdateManager.state.value
-        if (state is com.zlip.app.system.UpdateState.ReadyToInstall && packageManager.canRequestPackageInstalls()) {
-            com.zlip.app.system.AppUpdateManager.installApk(this, state.apkFile)
+        if (state is com.zlip.app.system.UpdateState.ReadyToInstall) {
+            try {
+                if (packageManager.canRequestPackageInstalls()) {
+                    com.zlip.app.system.AppUpdateManager.installApk(this, state.apkFile)
+                }
+            } catch (e: Throwable) {
+                Log.w("MainActivity", "Auto install on resume failed", e)
+            }
         }
     }
 

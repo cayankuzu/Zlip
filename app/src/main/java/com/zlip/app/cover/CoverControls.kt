@@ -143,7 +143,7 @@ internal fun CoverControls(
         Box(
             Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+                .windowInsetsPadding(WindowInsets.displayCutout),
         ) {
             if (segments != null) {
                 StepSegments(
@@ -234,7 +234,7 @@ internal fun CoverControls(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(start = 14.dp, end = 14.dp, bottom = 12.dp),
+                        .padding(start = 14.dp, end = 14.dp, bottom = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
