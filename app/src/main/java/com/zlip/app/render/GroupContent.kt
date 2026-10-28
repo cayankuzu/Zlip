@@ -42,6 +42,10 @@ import kotlin.random.Random
 /** Crossfade between two still steps (when the group has soft transitions); video steps cut instead. */
 private const val CROSSFADE_MS = 500
 
+/** The last group and child item displayed, so waking the screen with shuffle always presents a new random glance. */
+private var lastSeenGroupId: String? = null
+private var lastSeenChildId: String? = null
+
 /**
  * True while fingers frame the step on the cover: the group stays on that step, and the step's time starts again
  * once they let go, as for any other use of the cover.
@@ -113,7 +117,18 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
     var shownId by remember { mutableStateOf<String?>(null) }
     // A new random order each time the group comes on screen; stable while it stays (recomposition, edits).
     val seed = remember { Random.nextLong() }
-    val order = remember(items.size, item.shuffle, pass) { GroupTiming.playOrder(items.size, item.shuffle, seed, pass) }
+    val order = remember(items.size, item.shuffle, pass) {
+        val base = GroupTiming.playOrder(items.size, item.shuffle, seed, pass).toMutableList()
+        if (item.shuffle && items.size > 1 && pass == 0 && lastSeenGroupId == item.id && lastSeenChildId != null) {
+            val firstItem = items.getOrNull(base.firstOrNull() ?: -1)
+            if (firstItem?.id == lastSeenChildId && base.size > 1) {
+                val temp = base[0]
+                base[0] = base[1]
+                base[1] = temp
+            }
+        }
+        base
+    }
     // A live edit (a step moved, removed or added, shuffle switched) keeps the step on screen wherever it went.
     val position = GroupSteps.keptPosition(shownId, index, order.map { items[it].id })
     val child = items[order[position]]
@@ -121,6 +136,8 @@ private fun LiveGroup(item: CoverItem.Group, modifier: Modifier, playback: Playb
     SideEffect {
         index = position
         shownId = child.id
+        lastSeenGroupId = item.id
+        lastSeenChildId = child.id
     }
     val step = Step(pass, child.id, video = child.isVideo())
     val signals = remember(step) { StepSignals() }

@@ -305,9 +305,9 @@ class CoverActivity : ComponentActivity() {
         // A widget tap is the user asking for it; the always-show service re-arming a dark cover is not.
         if (intent.openedByUser()) {
             used()
-            app.playback.resume()
         }
         showRequestedItem(intent)
+        app.playback.startOver()
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -396,11 +396,15 @@ class CoverActivity : ComponentActivity() {
             ContextCompat.registerReceiver(this, batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
                 ?.let { charging.value = it.isCharging() }
         } catch (_: Throwable) {}
-        // Refresh the stay-on period on every wake so pressing the power button to wake the cover screen
-        // always keeps the live CoverScreen active and responsive.
+        // Every wake of the folded cover starts the screen saver afresh so a shuffled group
+        // or playlist always presents a new random look immediately.
+        if (startedOnce) {
+            app.playback.startOver()
+        } else {
+            app.playback.resume()
+        }
         startedOnce = true
         if (intent.openedByUser()) used() else wake()
-        app.playback.resume()
     }
 
     override fun onStop() {

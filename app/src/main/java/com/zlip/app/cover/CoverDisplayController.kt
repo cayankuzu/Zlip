@@ -295,7 +295,7 @@ class CoverDisplayController(
             // session that merely restarts (the shade can do that) keeps its pause and sound; a cover the user
             // turned off and on again starts with the sound as set, like every other new start.
             val startedOver = sessions.check()
-            if (!startedOver && endedOnRequest) playback.resetSound()
+            if (!startedOver) playback.startOver()
             endedOnRequest = false
             val owner = ComposeHostOwner().also { viewOwner = it }
             val view = owner.composeView(session.context) {
