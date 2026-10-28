@@ -713,6 +713,11 @@ class MainActivity : ComponentActivity() {
         lastInteraction.value = SystemClock.uptimeMillis()
         // Back from the "Appear on top" page (or a reboot): start or stop the always-show service to match.
         CoverGuard.sync(this)
+        // If an update was downloaded and user just granted unknown sources permission, resume install automatically!
+        val state = com.zlip.app.system.AppUpdateManager.state.value
+        if (state is com.zlip.app.system.UpdateState.ReadyToInstall && packageManager.canRequestPackageInstalls()) {
+            com.zlip.app.system.AppUpdateManager.installApk(this, state.apkFile)
+        }
     }
 
     override fun onStop() {
