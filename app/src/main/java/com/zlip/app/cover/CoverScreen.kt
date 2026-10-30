@@ -690,7 +690,7 @@ fun CoverScreen(
         val showsQr = mirroring == null && judged?.showsQr() == true
         val led = LedStyle.of(settings).takeUnless { showsQr }
         // Only show the resting clock when ambient mode is active, so the awake cover screen matches the open phone rear display.
-        val clockShown = ambient && showClock && !showsQr
+        val clockShown = settings.coverClock && !showsQr
         // A mirror takes the content's place: the inner screen, composed by the display hardware (no decoding).
         if (mirroring != null) MirrorSurface(mirroring, Modifier.fillMaxSize()) else Box(
             modifier = Modifier

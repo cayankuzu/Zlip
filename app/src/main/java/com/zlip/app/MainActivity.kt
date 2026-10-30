@@ -43,7 +43,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.zlip.app.cover.CoverStatus
 import com.zlip.app.cover.coverHoverSupported
 import com.zlip.app.cover.mirror.MirrorState
-import com.zlip.app.data.CoverAlwaysOnMode
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.MediaFit
 import com.zlip.app.system.CoverActionReceiver
@@ -174,22 +173,11 @@ class MainActivity : ComponentActivity() {
             // Folded while using Zlip: carry on seamlessly on the closed phone's cover screen.
             val innerDark = displayId == Display.DEFAULT_DISPLAY && transitions.justWentDark(displayId)
             if (innerDark && !app.cover.endedByUser.value) {
-                val mode = app.repository.currentSettings.coverAlwaysOnMode
-                if (mode != CoverAlwaysOnMode.OFF) {
-                    CoverGuard.checkFoldState(this@MainActivity) { isFolded ->
-                        if (mode == CoverAlwaysOnMode.OPEN_ONLY && isFolded) return@checkFoldState
-                        if (CoverGuard.audioMode(this@MainActivity) == android.media.AudioManager.MODE_NORMAL) {
-                            CoverGuard.wakeCoverScreen(this@MainActivity)
-                            CoverGuard.showOnCover(this@MainActivity)
-                        }
-                    }
-                } else {
-                    // Locking an open phone darkens the inner screen too; only a closed hinge means folded. Never
-                    // over a call that is ringing or going on.
-                    CoverGuard.ifFolded(this@MainActivity) {
-                        if (CoverGuard.audioMode(this@MainActivity) == android.media.AudioManager.MODE_NORMAL) {
-                            CoverGuard.showOnCover(this@MainActivity)
-                        }
+                // Locking an open phone darkens the inner screen too; only a closed hinge means folded. Never
+                // over a call that is ringing or going on.
+                CoverGuard.ifFolded(this@MainActivity) {
+                    if (CoverGuard.audioMode(this@MainActivity) == android.media.AudioManager.MODE_NORMAL) {
+                        CoverGuard.showOnCover(this@MainActivity)
                     }
                 }
             }
@@ -377,13 +365,13 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             combine(
                 app.cover.status,
-                app.repository.settings.map { it.autoOffMinutes to it.coverAlwaysOn }.distinctUntilChanged(),
+                app.repository.settings.map { it.autoOffMinutes }.distinctUntilChanged(),
                 // A long video's conversion takes minutes without a touch: the cover stays on until it is done.
                 combine(inPip, importing) { pip, busy -> pip || busy },
                 lastInteraction,
                 lastCoverTouch,
-            ) { status, (minutes, alwaysOn), held, inner, cover ->
-                if (status == CoverStatus.ACTIVE && !held && !alwaysOn && minutes > 0) maxOf(inner, cover) + minutes * 60_000L else null
+            ) { status, minutes, held, inner, cover ->
+                if (status == CoverStatus.ACTIVE && !held && minutes > 0) maxOf(inner, cover) + minutes * 60_000L else null
             }.collectLatest { deadline ->
                 idleCutOff.value = false
                 autoOffCountdown.value = null

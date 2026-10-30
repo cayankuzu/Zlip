@@ -284,11 +284,6 @@
     <string name="stay_on_always">Hep açık</string>
     <string name="settings_nightstand">Şarjdayken hep açık</string>
     <string name="settings_nightstand_desc">Telefon şarj olurken kısık ışıkta saat ve içeriklerin; komodin saati gibi.</string>
-    <string name="settings_cover_always_on">Arka ekranı açık tut (Vitrin modu)</string>
-    <string name="settings_cover_always_on_desc">Nothing Phone stili: Güç tuşundan ekran kapatılsa veya telefon katlansa dahi arka kapak kesintisiz açık kalır.</string>
-    <string name="cover_always_on_off">Standart (Kapalı)</string>
-    <string name="cover_always_on_open_only">Dik iken açık (Katlayınca kapat)</string>
-    <string name="cover_always_on_always">Hep açık (Kesintisiz)</string>
     <string name="settings_auto_show">Katlayınca kendiliğinden aç</string>
     <string name="settings_auto_show_desc">Kapak her uyandığında içeriklerin kilit ekranının önünde açılır, Zlip kapalıyken bile.</string>
     <string name="settings_auto_show_missing">\'Üstte göster\' izni verilene kadar katlıyken kapakta yalnızca widget görünür.</string>

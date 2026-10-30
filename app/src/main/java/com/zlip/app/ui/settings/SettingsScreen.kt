@@ -85,7 +85,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.zlip.app.R
 import com.zlip.app.cover.coverHoverSupported
 import com.zlip.app.data.AdvanceMode
-import com.zlip.app.data.CoverAlwaysOnMode
 import com.zlip.app.data.CoverSettings
 import com.zlip.app.data.PowerMode
 import com.zlip.app.ui.components.AutoAdvanceControls
@@ -240,25 +239,7 @@ fun SettingsScreen(
                     onCheckedChange = { onSettingsChange(settings.copy(coverClock = it)) },
                     icon = Icons.Filled.Schedule,
                 )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.settings_cover_always_on),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                HintText(stringResource(R.string.settings_cover_always_on_desc))
-                Spacer(Modifier.height(8.dp))
-                ChoiceChips(
-                    options = CoverAlwaysOnMode.entries,
-                    selected = settings.coverAlwaysOnMode,
-                    label = { mode ->
-                        when (mode) {
-                            CoverAlwaysOnMode.OFF -> stringResource(R.string.cover_always_on_off)
-                            CoverAlwaysOnMode.OPEN_ONLY -> stringResource(R.string.cover_always_on_open_only)
-                            CoverAlwaysOnMode.ALWAYS -> stringResource(R.string.cover_always_on_always)
-                        }
-                    },
-                    onSelect = { onSettingsChange(settings.copy(coverAlwaysOnMode = it)) },
-                )
+
             }
 
             SectionTitle(R.string.settings_section_controls, modifier = Modifier.padding(top = 8.dp))

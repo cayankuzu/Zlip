@@ -39,7 +39,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.zlip.app.cover.CoverScreen
 import com.zlip.app.data.CoverSettings
-import com.zlip.app.data.CoverAlwaysOnMode
 import com.zlip.app.system.CoverGuard
 import com.zlip.app.ui.theme.ZlipTheme
 import kotlinx.coroutines.delay
@@ -110,24 +109,13 @@ class CoverActivity : ComponentActivity() {
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayChanged(displayId: Int) {
             val wentDark = transitions.justWentDark(displayId)
-            val mode = app.repository.currentSettings.coverAlwaysOnMode
-            // The inner screen lit up: the phone was opened. Step aside so it behaves exactly as usual only in OFF mode.
+            // The inner screen lit up: the phone was opened. Step aside so it behaves exactly as usual.
             if (displayId == Display.DEFAULT_DISPLAY && displays.getDisplay(displayId)?.state == Display.STATE_ON) {
-                if (mode == CoverAlwaysOnMode.OFF) {
-                    leave()
-                    return
-                }
+                leave()
+                return
             }
-            if (wentDark && displayId != Display.DEFAULT_DISPLAY) {
-                if (mode != CoverAlwaysOnMode.OFF) {
-                    CoverGuard.checkFoldState(this@CoverActivity) { isFolded ->
-                        if (mode == CoverAlwaysOnMode.OPEN_ONLY && isFolded) return@checkFoldState
-                        CoverGuard.wakeCoverScreen(this@CoverActivity)
-                        CoverGuard.showOnCover(this@CoverActivity)
-                    }
-                } else if (!innerScreenOn() && inBack && CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true)) {
-                    CoverGuard.showOnCover(this@CoverActivity)
-                }
+            if (wentDark && displayId != Display.DEFAULT_DISPLAY && !innerScreenOn() && inBack && CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true)) {
+                CoverGuard.showOnCover(this@CoverActivity)
             }
         }
 
@@ -224,7 +212,7 @@ class CoverActivity : ComponentActivity() {
                     onClose = ::close,
                     onDismiss = null,
                     ambient = false,
-                    showClock = false,
+                    showClock = true,
                     onUserActivity = ::used,
                 )
             }
@@ -258,12 +246,8 @@ class CoverActivity : ComponentActivity() {
      */
     private suspend fun keepAwake() {
         combine(lastTouch, app.repository.settings, charging, heard, touchedAt) { touch, settings, isCharging, isHeard, touched ->
-            val mode = settings.coverAlwaysOnMode
-            val keepAwakeForever = mode == CoverAlwaysOnMode.ALWAYS
-            val always = keepAwakeForever || settings.stayOnSeconds == CoverSettings.STAY_ON_ALWAYS || (isCharging && settings.alwaysOnWhileCharging)
-            val awakeMs = if (keepAwakeForever) {
-                Long.MAX_VALUE
-            } else if (always) {
+            val always = settings.stayOnSeconds == CoverSettings.STAY_ON_ALWAYS || (isCharging && settings.alwaysOnWhileCharging)
+            val awakeMs = if (always) {
                 maxOf(settings.stayOnSeconds * 1_000L, REST_AFTER_MS)
             } else {
                 settings.stayOnSeconds * 1_000L
@@ -271,7 +255,7 @@ class CoverActivity : ComponentActivity() {
             StayAwake(
                 since = touch,
                 awakeMs = awakeMs,
-                rests = false,
+                rests = always && awakeMs > REST_AFTER_MS,
                 watching = StayLit.watching(isHeard, touched, visibleSince),
                 touchedAt = touched,
             )
@@ -282,14 +266,13 @@ class CoverActivity : ComponentActivity() {
                 return@collectLatest
             }
             keepScreenOn(true)
-            if (awake.awakeMs == Long.MAX_VALUE) {
-                // Permanently hold the screen on: never release FLAG_KEEP_SCREEN_ON
-                return@collectLatest
-            }
-            // A watched clip holds the cover longer, but never without limit: a loop never ends by itself.
             val until = StayLit.deadline(awake.since, awake.awakeMs, awake.watching, awake.touchedAt)
             delay((until - SystemClock.uptimeMillis()).coerceAtLeast(0))
-            keepScreenOn(false)
+            if (awake.rests) {
+                resting.value = true
+            } else {
+                keepScreenOn(false)
+            }
         }
     }
 
@@ -389,13 +372,10 @@ class CoverActivity : ComponentActivity() {
         try {
             window.addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             )
         } catch (_: Throwable) {}
-        window.decorView.keepScreenOn = true
-        val mode = app.repository.currentSettings.coverAlwaysOnMode
-        if (!onCover() || (mode == CoverAlwaysOnMode.OFF && innerScreenOn())) {
+        if (!onCover() || innerScreenOn()) {
             leave()
             return
         }
@@ -441,9 +421,8 @@ class CoverActivity : ComponentActivity() {
             } catch (_: Throwable) {}
         }
         super.onStop()
-        val mode = app.repository.currentSettings.coverAlwaysOnMode
-        // The cover going dark only pauses the screen saver; opening the phone ends it if always-on is OFF.
-        if (mode == CoverAlwaysOnMode.OFF && innerScreenOn()) leave()
+        // The cover going dark only pauses the screen saver; opening the phone ends it.
+        if (innerScreenOn()) leave()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

@@ -36,16 +36,6 @@ enum class MirrorFit {
     FILL,
 }
 
-/** How the cover screen stays lit in showcase (Nothing Phone) mode. */
-enum class CoverAlwaysOnMode {
-    /** Standard sleep timeout applies. */
-    OFF,
-    /** Kept awake only while the phone is open (turns off when folded). */
-    OPEN_ONLY,
-    /** Kept awake permanently, whether open or folded. */
-    ALWAYS,
-}
-
 data class CoverSettings(
     /** Extra rotation applied to cover content: 0, 90, 180 or 270 degrees. */
     val rotation: Int = 0,
@@ -102,13 +92,6 @@ data class CoverSettings(
      */
     val autoShowOnCover: Boolean = true,
     /**
-     * Showcase mode (Nothing Phone style): keeps the cover display awake uninterruptedly.
-     * [CoverAlwaysOnMode.OFF] sleeps normally.
-     * [CoverAlwaysOnMode.OPEN_ONLY] stays awake while the phone is open (turns off when folded).
-     * [CoverAlwaysOnMode.ALWAYS] stays awake continuously, open or folded.
-     */
-    val coverAlwaysOnMode: CoverAlwaysOnMode = CoverAlwaysOnMode.OFF,
-    /**
      * Videos with audio play with sound each time the cover turns on (a fold, an unfold, a cover wake).
      * The cover's sound button, the notification and volume up change it only until the cover starts over.
      */
@@ -133,9 +116,6 @@ data class CoverSettings(
             else -> AdvanceMode.TIMER
         }
 
-    val coverAlwaysOn: Boolean
-        get() = coverAlwaysOnMode != CoverAlwaysOnMode.OFF
-
     internal fun toJson(): JSONObject = JSONObject().apply {
         put("rotation", rotation)
         put("autoStart", autoStart)
@@ -155,8 +135,6 @@ data class CoverSettings(
         put("stayOnSeconds", stayOnSeconds)
         put("alwaysOnWhileCharging", alwaysOnWhileCharging)
         put("autoShowOnCover", autoShowOnCover)
-        put("coverAlwaysOnMode", coverAlwaysOnMode.name)
-        put("coverAlwaysOn", coverAlwaysOn)
         put("startWithSound", startWithSound)
         put("ledMatrix", ledMatrix)
         put("ledDensity", ledDensity)
@@ -220,8 +198,6 @@ data class CoverSettings(
                 stayOnSeconds = if (stayOn in STAY_ON_OPTIONS) stayOn else defaults.stayOnSeconds,
                 alwaysOnWhileCharging = json.optBoolean("alwaysOnWhileCharging", true),
                 autoShowOnCover = json.optBoolean("autoShowOnCover", true),
-                coverAlwaysOnMode = CoverAlwaysOnMode.entries.firstOrNull { it.name == json.optString("coverAlwaysOnMode") }
-                    ?: if (json.optBoolean("coverAlwaysOn", false)) CoverAlwaysOnMode.ALWAYS else defaults.coverAlwaysOnMode,
                 // The old "videoSoundDefault" only seeded new imports; the cover now starts with sound unless set.
                 startWithSound = json.optBoolean("startWithSound", true),
                 ledMatrix = json.optBoolean("ledMatrix", false),

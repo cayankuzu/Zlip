@@ -22,8 +22,8 @@ android {
         // Rear-display presentation needs Android 14+ (One UI 6+).
         minSdk = 34
         targetSdk = 36
-        versionCode = 25
-        versionName = "1.2.4"
+        versionCode = 26
+        versionName = "1.2.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

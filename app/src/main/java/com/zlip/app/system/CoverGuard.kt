@@ -32,7 +32,6 @@ import com.zlip.app.CoverActivity
 import com.zlip.app.MainActivity
 import com.zlip.app.ZlipApp
 import com.zlip.app.R
-import com.zlip.app.data.CoverAlwaysOnMode
 import com.zlip.app.widget.CoverWidgets
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -232,7 +231,7 @@ object CoverGuard {
             }
             return
         }
-        val wanted = (app.repository.currentSettings.autoShowOnCover || app.repository.currentSettings.coverAlwaysOn) && canAppearOnTop(context)
+        val wanted = app.repository.currentSettings.autoShowOnCover && canAppearOnTop(context)
         val service = Intent(context, CoverGuardService::class.java)
         if (wanted) {
             if (CoverGuardService.running) return
@@ -296,26 +295,6 @@ class CoverGuardService : Service() {
     /** Follows the hinge of an open phone whose screen went dark; null while there is nothing to wait for. */
     private var hingeWatch: SensorEventListener? = null
 
-    private val screenOffReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == Intent.ACTION_SCREEN_OFF) {
-                val app = applicationContext as? ZlipApp ?: return
-                val mode = app.repository.currentSettings.coverAlwaysOnMode
-                if (mode == CoverAlwaysOnMode.OFF) return
-                if (CoverGuard.audioMode(this@CoverGuardService) != AudioManager.MODE_NORMAL) return
-                val trigger = {
-                    CoverGuard.checkFoldState(this@CoverGuardService) { isFolded ->
-                        if (mode == CoverAlwaysOnMode.OPEN_ONLY && isFolded) return@checkFoldState
-                        CoverGuard.wakeCoverScreen(this@CoverGuardService)
-                        CoverGuard.showOnCover(this@CoverGuardService)
-                    }
-                }
-                trigger()
-                Handler(Looper.getMainLooper()).postDelayed({ trigger() }, 350L)
-            }
-        }
-    }
-
     private val listener = object : DisplayManager.DisplayListener {
         override fun onDisplayChanged(displayId: Int) {
             val wentDark = transitions.justWentDark(displayId)
@@ -323,26 +302,6 @@ class CoverGuardService : Service() {
             if (displayId == Display.DEFAULT_DISPLAY && !CoverGuard.innerScreenDark(this@CoverGuardService)) stopHingeWatch()
             // Only the moment a screen goes dark counts: the fold, or the cover falling asleep.
             if (!wentDark) return
-            val app = applicationContext as? ZlipApp
-            val mode = app?.repository?.currentSettings?.coverAlwaysOnMode ?: CoverAlwaysOnMode.OFF
-            if (mode == CoverAlwaysOnMode.ALWAYS) {
-                if (CoverGuard.audioMode(this@CoverGuardService) == AudioManager.MODE_NORMAL) {
-                    CoverGuard.wakeCoverScreen(this@CoverGuardService)
-                    CoverGuard.showOnCover(this@CoverGuardService)
-                }
-                return
-            }
-            if (mode == CoverAlwaysOnMode.OPEN_ONLY) {
-                CoverGuard.checkFoldState(this@CoverGuardService) { isFolded ->
-                    if (!isFolded) {
-                        CoverGuard.wakeCoverScreen(this@CoverGuardService)
-                        CoverGuard.showOnCover(this@CoverGuardService)
-                    } else {
-                        arm(folded = true)
-                    }
-                }
-                return
-            }
             // Never on top of an open phone.
             if (!CoverGuard.innerScreenDark(this@CoverGuardService) || !CoverActivity.needsArming) return
             if (displayId == Display.DEFAULT_DISPLAY) {
@@ -375,17 +334,7 @@ class CoverGuardService : Service() {
             override fun onSensorChanged(event: SensorEvent) {
                 if (done) return
                 val folded = event.values.firstOrNull()?.let { it < CoverGuard.FOLDED_MAX_DEGREES } ?: return
-                val app = applicationContext as? ZlipApp
-                val mode = app?.repository?.currentSettings?.coverAlwaysOnMode ?: CoverAlwaysOnMode.OFF
-                if (!folded) {
-                    if (mode != CoverAlwaysOnMode.OFF) {
-                        done = true
-                        stopHingeWatch()
-                        CoverGuard.wakeCoverScreen(this@CoverGuardService)
-                        CoverGuard.showOnCover(this@CoverGuardService)
-                    }
-                    return
-                }
+                if (!folded) return
                 done = true
                 stopHingeWatch()
                 arm(folded)
@@ -423,8 +372,6 @@ class CoverGuardService : Service() {
         running = true
         transitions // capture the current states before the first change arrives
         displays.registerDisplayListener(listener, Handler(Looper.getMainLooper()))
-        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
-        ContextCompat.registerReceiver(this, screenOffReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -444,9 +391,6 @@ class CoverGuardService : Service() {
     override fun onDestroy() {
         if (running) {
             running = false
-            try {
-                unregisterReceiver(screenOffReceiver)
-            } catch (_: Throwable) {}
             displays.unregisterDisplayListener(listener)
             stopHingeWatch()
         }
