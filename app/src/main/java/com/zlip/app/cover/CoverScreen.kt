@@ -578,7 +578,7 @@ fun CoverScreen(
                                 hideControls()
                             } else {
                                 val now = gesture.upTime
-                                if (now - lastFramedTapMs in 0..350) {
+                                if (now - lastFramedTapMs in 0..500) {
                                     controlsShown = true
                                     lastFramedTapMs = 0L
                                 } else {

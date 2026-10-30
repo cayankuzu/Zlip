@@ -259,7 +259,7 @@ class CoverActivity : ComponentActivity() {
     private suspend fun keepAwake() {
         combine(lastTouch, app.repository.settings, charging, heard, touchedAt) { touch, settings, isCharging, isHeard, touched ->
             val mode = settings.coverAlwaysOnMode
-            val keepAwakeForever = mode != CoverAlwaysOnMode.OFF
+            val keepAwakeForever = mode == CoverAlwaysOnMode.ALWAYS
             val always = keepAwakeForever || settings.stayOnSeconds == CoverSettings.STAY_ON_ALWAYS || (isCharging && settings.alwaysOnWhileCharging)
             val awakeMs = if (keepAwakeForever) {
                 Long.MAX_VALUE

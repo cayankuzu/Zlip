@@ -30,10 +30,10 @@ enum class GestureResult {
  * once no finger is left (or [onCancel] if the gesture was cancelled).
  */
 class TouchLock(
-    private val tapMaxDurationMs: Long = 300,
-    private val doubleTapWindowMs: Long = 350,
-    private val tapSlopPx: Float = 40f,
-    private val doubleTapSlopPx: Float = 150f,
+    private val tapMaxDurationMs: Long = 450,
+    private val doubleTapWindowMs: Long = 500,
+    private val tapSlopPx: Float = 70f,
+    private val doubleTapSlopPx: Float = 250f,
     private val swipeMinPx: Float = 80f,
     val idleTimeoutMs: Long = 3_000,
     /**

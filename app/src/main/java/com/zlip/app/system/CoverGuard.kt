@@ -325,12 +325,20 @@ class CoverGuardService : Service() {
             if (!wentDark) return
             val app = applicationContext as? ZlipApp
             val mode = app?.repository?.currentSettings?.coverAlwaysOnMode ?: CoverAlwaysOnMode.OFF
-            if (mode != CoverAlwaysOnMode.OFF) {
+            if (mode == CoverAlwaysOnMode.ALWAYS) {
                 if (CoverGuard.audioMode(this@CoverGuardService) == AudioManager.MODE_NORMAL) {
-                    CoverGuard.checkFoldState(this@CoverGuardService) { isFolded ->
-                        if (mode == CoverAlwaysOnMode.OPEN_ONLY && isFolded) return@checkFoldState
+                    CoverGuard.wakeCoverScreen(this@CoverGuardService)
+                    CoverGuard.showOnCover(this@CoverGuardService)
+                }
+                return
+            }
+            if (mode == CoverAlwaysOnMode.OPEN_ONLY) {
+                CoverGuard.checkFoldState(this@CoverGuardService) { isFolded ->
+                    if (!isFolded) {
                         CoverGuard.wakeCoverScreen(this@CoverGuardService)
                         CoverGuard.showOnCover(this@CoverGuardService)
+                    } else {
+                        arm(folded = true)
                     }
                 }
                 return
@@ -369,21 +377,15 @@ class CoverGuardService : Service() {
                 val folded = event.values.firstOrNull()?.let { it < CoverGuard.FOLDED_MAX_DEGREES } ?: return
                 val app = applicationContext as? ZlipApp
                 val mode = app?.repository?.currentSettings?.coverAlwaysOnMode ?: CoverAlwaysOnMode.OFF
-                if (folded) {
-                    if (mode == CoverAlwaysOnMode.OPEN_ONLY) {
+                if (!folded) {
+                    if (mode != CoverAlwaysOnMode.OFF) {
                         done = true
                         stopHingeWatch()
-                        app?.playback?.requestCloseLiveView()
-                        return
+                        CoverGuard.wakeCoverScreen(this@CoverGuardService)
+                        CoverGuard.showOnCover(this@CoverGuardService)
                     }
-                } else if (mode != CoverAlwaysOnMode.OFF) {
-                    done = true
-                    stopHingeWatch()
-                    CoverGuard.wakeCoverScreen(this@CoverGuardService)
-                    CoverGuard.showOnCover(this@CoverGuardService)
                     return
                 }
-                if (!folded) return
                 done = true
                 stopHingeWatch()
                 arm(folded)
