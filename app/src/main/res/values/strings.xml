@@ -355,4 +355,10 @@
     <string name="media_saved_to_device">Saved to phone gallery</string>
     <string name="media_save_failed">Could not save to gallery</string>
     <string name="settings_storage_info">Library storage: %1$d media files (%2$s) · Kept safe in Zlip even if deleted from your phone gallery.</string>
+    <string name="settings_reels_cover">Instagram Reels Cover Mode</string>
+    <string name="settings_reels_cover_desc">Watch Reels on the cover screen with full aspect ratio, fit/fill switch, and pinch-to-zoom without cropped edges.</string>
+    <string name="settings_reels_fit">Default Reels Fit</string>
+    <string name="reels_title">Instagram Reels</string>
+    <string name="reels_fit_desc">Fit to screen (no crop)</string>
+    <string name="reels_fill_desc">Fill full screen</string>
 </resources>

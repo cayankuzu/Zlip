@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -98,6 +99,8 @@ internal fun CoverControls(
     mediaFit: MediaFit? = null,
     /** Switches it to the other fit, not zoomed and centred (also the way back from any zoom). */
     onSwitchFit: () -> Unit = {},
+    /** Opens the Instagram Reels cover screen viewer. */
+    onOpenReels: (() -> Unit)? = null,
     /** Opens the folded cover's menu; null on the open phone, which has none. */
     onOpenMenu: (() -> Unit)? = null,
     /** The item takes taps itself (a toy): keep the middle free, skip from the edges, no pause. */
@@ -202,6 +205,14 @@ internal fun CoverControls(
                             if (fitted) Icons.Filled.ZoomOutMap else Icons.Filled.FitScreen,
                             stringResource(if (fitted) R.string.media_fit_fill else R.string.media_fit_fit),
                             onSwitchFit,
+                            size = 36,
+                        )
+                    }
+                    if (onOpenReels != null) {
+                        ControlButton(
+                            Icons.Filled.VideoLibrary,
+                            stringResource(R.string.reels_title),
+                            onOpenReels,
                             size = 36,
                         )
                     }
