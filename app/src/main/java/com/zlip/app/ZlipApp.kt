@@ -70,6 +70,7 @@ class ZlipApp : Application() {
         playback.runAutoAdvance(cover.status, mirror.state.map { it == MirrorState.ON })
         mirror.followCover(cover.status)
         notifier = CoverNotifier(this, repository, cover, playback, mirror, appScope)
+        CoverGuard.sync(this)
         CoverGuard.rearmIfStopped(this)
         // Keep cover-screen widgets in step with the playlist (debounced; frames are cached by content).
         appScope.launch {

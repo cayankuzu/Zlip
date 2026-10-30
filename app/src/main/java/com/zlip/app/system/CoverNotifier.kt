@@ -45,11 +45,11 @@ import kotlinx.coroutines.launch
 @OptIn(FlowPreview::class)
 class CoverNotifier(
     private val context: Context,
-    repository: ContentRepository,
-    cover: CoverDisplayController,
-    playback: CoverPlayback,
-    mirror: MirrorController,
-    scope: CoroutineScope,
+    private val repository: ContentRepository,
+    private val cover: CoverDisplayController,
+    private val playback: CoverPlayback,
+    private val mirror: MirrorController,
+    private val scope: CoroutineScope,
 ) {
     private sealed interface Model {
         data object Hidden : Model
@@ -119,8 +119,8 @@ class CoverNotifier(
                     !wanted -> Model.Hidden
                     // Nothing to pause or skip while mirroring; its own notification stops it.
                     mirroring == MirrorState.ON -> Model.Hidden
-                    // The folded live view plays the playlist too, so it gets the same controls.
-                    active || live -> {
+                    // The folded live view or background service plays the playlist too, so it gets the same controls.
+                    active || live || CoverGuardService.running -> {
                         val index = sequence.indexOfFirst { it.id == selected?.id }
                         // Drafts only show on the open-phone cover, never in the live view.
                         val editing = draft != null && !live
@@ -149,7 +149,11 @@ class CoverNotifier(
                 .distinctUntilChanged()
                 .collect { model ->
                 when (model) {
-                    Model.Hidden -> manager.cancel(NOTIFICATION_ID)
+                    Model.Hidden -> {
+                        if (!CoverGuardService.running) {
+                            manager.cancel(NOTIFICATION_ID)
+                        }
+                    }
                     is Model.Playing -> post(playingNotification(model))
                 }
             }
@@ -271,7 +275,33 @@ class CoverNotifier(
 
     private fun action(name: String): PendingIntent = CoverActionReceiver.pendingIntent(context, name)
 
-    private fun createChannel() {
+    fun currentNotification(): android.app.Notification {
+        val selected = repository.selectedItem.value
+        val sequence = repository.sequence.value
+        val playlist = repository.playlist.value
+        val progress = playback.groupProgress.value
+        val soundOn = playback.soundOn.value
+        val itemSkip = playback.itemSkipAvailable.value
+        val paused = playback.paused.value
+        val live = playback.liveViewVisible.value
+        val index = sequence.indexOfFirst { it.id == selected?.id }
+        val inGroup = selected is CoverItem.Group
+        val model = Model.Playing(
+            title = selected?.name.orEmpty(),
+            position = if (index >= 0 && sequence.size > 1) index + 1 to sequence.size else null,
+            wholeLibrary = playlist.isEmpty(),
+            paused = paused,
+            editing = false,
+            live = live,
+            sound = notifiedSound(selected, soundOn),
+            inGroup = inGroup,
+            step = progress?.takeIf { inGroup },
+            itemSkip = inGroup && itemSkip,
+        )
+        return playingNotification(model)
+    }
+
+    fun createChannel() {
         val channel = NotificationChannel(CHANNEL_ID, context.getString(R.string.notif_channel), NotificationManager.IMPORTANCE_LOW).apply {
             description = context.getString(R.string.notif_channel_desc)
             setShowBadge(false)
@@ -282,8 +312,8 @@ class CoverNotifier(
     }
 
     companion object {
-        private const val CHANNEL_ID = "cover_controls"
-        private const val NOTIFICATION_ID = 1
+        const val CHANNEL_ID = "cover_controls"
+        const val NOTIFICATION_ID = 1
         private const val BRAND_COLOR = 0xFF8A9BFF.toInt()
         const val ACTION_TOGGLE = "com.zlip.app.action.TOGGLE"
         const val ACTION_PREVIOUS = "com.zlip.app.action.PREVIOUS"
@@ -362,6 +392,8 @@ class CoverActionReceiver : BroadcastReceiver() {
             CoverNotifier.ACTION_STOP -> {
                 if (app.cover.status.value == CoverStatus.ACTIVE) app.stopCover(hideMiniWindow = true)
                 app.playback.requestCloseLiveView()
+                val service = Intent(context, CoverGuardService::class.java).setAction(CoverGuardService.ACTION_STOP)
+                context.startService(service)
             }
             CoverNotifier.ACTION_STOP_KEEP_WINDOW -> if (app.cover.status.value == CoverStatus.ACTIVE) app.stopCover()
         }

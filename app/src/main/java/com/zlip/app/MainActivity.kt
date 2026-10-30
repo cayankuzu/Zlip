@@ -28,6 +28,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -197,6 +198,9 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         accessibility.removeTouchExplorationStateChangeListener(touchExplorationListener)
         displays.unregisterDisplayListener(foldListener)
+        if (CoverGuard.canAppearOnTop(this) && app.repository.currentSettings.autoShowOnCover) {
+            CoverGuard.showOnCover(applicationContext)
+        }
         super.onDestroy()
     }
 
@@ -228,6 +232,9 @@ class MainActivity : ComponentActivity() {
         // A recreated or restored activity gets its original launch intent again; it was handled already.
         if (savedInstanceState == null) handleIntent(intent, coldStart = true)
         accessibility.addTouchExplorationStateChangeListener(touchExplorationListener)
+        onBackPressedDispatcher.addCallback(this) {
+            moveTaskToBack(true)
+        }
         touchExploration.value = accessibility.isTouchExplorationEnabled
         multiWindow.value = isInMultiWindowMode
         inPip.value = isInPictureInPictureMode
@@ -697,7 +704,9 @@ class MainActivity : ComponentActivity() {
         // "turn off": like any other way of leaving, the next visit starts the cover again.
         if (!isInPictureInPictureMode && !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             app.mirror.stop()
-            app.cover.stop(byUser = false)
+            if (CoverGuard.canAppearOnTop(this) && app.repository.currentSettings.autoShowOnCover) {
+                CoverGuard.showOnCover(this)
+            }
         }
     }
 

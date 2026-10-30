@@ -109,11 +109,7 @@ class CoverActivity : ComponentActivity() {
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayChanged(displayId: Int) {
             val wentDark = transitions.justWentDark(displayId)
-            // The inner screen lit up: the phone was opened. Step aside so it behaves exactly as usual.
-            if (displayId == Display.DEFAULT_DISPLAY && displays.getDisplay(displayId)?.state == Display.STATE_ON) {
-                leave()
-                return
-            }
+            // Do not leave when inner screen is on: cover screen stays on even when phone is open.
             if (wentDark && displayId != Display.DEFAULT_DISPLAY && !innerScreenOn() && inBack && CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true)) {
                 CoverGuard.showOnCover(this@CoverActivity)
             }
@@ -375,7 +371,7 @@ class CoverActivity : ComponentActivity() {
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             )
         } catch (_: Throwable) {}
-        if (!onCover() || innerScreenOn()) {
+        if (!onCover()) {
             leave()
             return
         }
@@ -421,8 +417,7 @@ class CoverActivity : ComponentActivity() {
             } catch (_: Throwable) {}
         }
         super.onStop()
-        // The cover going dark only pauses the screen saver; opening the phone ends it.
-        if (innerScreenOn()) leave()
+        // The cover going dark only pauses the screen saver; opening the phone does not end it.
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

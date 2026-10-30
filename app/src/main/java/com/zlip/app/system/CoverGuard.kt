@@ -360,9 +360,10 @@ class CoverGuardService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createChannel()
+        val app = application as ZlipApp
+        app.notifier.createChannel()
         try {
-            startForeground(NOTIFICATION_ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            startForeground(CoverNotifier.NOTIFICATION_ID, app.notifier.currentNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } catch (e: Throwable) {
             // ForegroundServiceStartNotAllowedException / SecurityException: the next visit to Zlip (or a reboot) starts it again.
             Log.w("ZlipGuard", "Cannot run in the foreground now", e)
@@ -375,9 +376,13 @@ class CoverGuardService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val app = application as ZlipApp
         if (intent?.action == ACTION_STOP) {
             // "Turn off" in the notification: the user no longer wants it, so remember that.
-            (application as ZlipApp).repository.updateSettings { it.copy(autoShowOnCover = false) }
+            app.repository.updateSettings { it.copy(autoShowOnCover = false) }
+            app.stopCover(hideMiniWindow = true)
+            app.playback.requestCloseLiveView()
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
         }
@@ -386,6 +391,14 @@ class CoverGuardService : Service() {
             return START_NOT_STICKY
         }
         return START_STICKY
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        val app = applicationContext as? ZlipApp ?: return
+        if (CoverGuard.canAppearOnTop(app) && app.repository.currentSettings.autoShowOnCover) {
+            CoverGuard.showOnCover(app)
+        }
     }
 
     override fun onDestroy() {
@@ -399,36 +412,7 @@ class CoverGuardService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun notification(): Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setSmallIcon(R.drawable.ic_stat_zlip)
-        .setContentTitle(getString(R.string.guard_notif_title))
-        .setContentText(getString(R.string.guard_notif_text))
-        .setOngoing(true)
-        .setSilent(true)
-        .setShowWhen(false)
-        .setPriority(NotificationCompat.PRIORITY_MIN)
-        .setCategory(NotificationCompat.CATEGORY_SERVICE)
-        .setContentIntent(
-            PendingIntent.getActivity(
-                this,
-                REQUEST_OPEN,
-                Intent(this, MainActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    .putExtra(MainActivity.EXTRA_OPEN_SETTINGS, true),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            ),
-        )
-        .addAction(
-            R.drawable.ic_notif_close,
-            getString(R.string.action_turn_off),
-            PendingIntent.getService(
-                this,
-                REQUEST_STOP,
-                Intent(this, CoverGuardService::class.java).setAction(ACTION_STOP),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            ),
-        )
-        .build()
+    private fun notification(): Notification = (application as ZlipApp).notifier.currentNotification()
 
     private fun createChannel() {
         val channel = NotificationChannel(CHANNEL_ID, getString(R.string.guard_channel), NotificationManager.IMPORTANCE_MIN).apply {
@@ -448,7 +432,7 @@ class CoverGuardService : Service() {
         private const val NOTIFICATION_ID = 2
         private const val REQUEST_OPEN = 10
         private const val REQUEST_STOP = 11
-        private const val ACTION_STOP = "com.zlip.app.action.GUARD_STOP"
+        const val ACTION_STOP = "com.zlip.app.action.GUARD_STOP"
     }
 }
 
