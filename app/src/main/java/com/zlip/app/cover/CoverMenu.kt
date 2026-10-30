@@ -84,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zlip.app.R
 import com.zlip.app.data.ContentRepository
+import com.zlip.app.data.CoverAlwaysOnMode
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
 import com.zlip.app.render.CoverContent
@@ -269,12 +270,21 @@ internal fun CoverMenu(
                         repository.updateSettings { it.copy(autoShowOnCover = on) }
                     },
                 )
-                MenuSwitch(
-                    title = stringResource(R.string.cover_menu_always_on),
-                    checked = settings.coverAlwaysOn,
-                    onCheckedChange = { on ->
+                Spacer(Modifier.height(8.dp))
+                SectionLabel(stringResource(R.string.settings_cover_always_on))
+                ChoiceChips(
+                    options = CoverAlwaysOnMode.entries,
+                    selected = settings.coverAlwaysOnMode,
+                    label = { mode ->
+                        when (mode) {
+                            CoverAlwaysOnMode.OFF -> stringResource(R.string.cover_always_on_off)
+                            CoverAlwaysOnMode.OPEN_ONLY -> stringResource(R.string.cover_always_on_open_only)
+                            CoverAlwaysOnMode.ALWAYS -> stringResource(R.string.cover_always_on_always)
+                        }
+                    },
+                    onSelect = { mode ->
                         onUserActivity()
-                        repository.updateSettings { it.copy(coverAlwaysOn = on) }
+                        repository.updateSettings { it.copy(coverAlwaysOnMode = mode) }
                     },
                 )
                 MenuSwitch(

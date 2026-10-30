@@ -286,9 +286,11 @@
     <string name="stay_on_always">Always on</string>
     <string name="settings_nightstand">Always on while charging</string>
     <string name="settings_nightstand_desc">A dim bedside clock with your content while the phone charges.</string>
-    <string name="settings_cover_always_on">Keep cover screen always on</string>
-    <string name="settings_cover_always_on_desc">Cover screen never sleeps; stays awake like Nothing Phone glyph / rear display even when inner screen locks or folds.</string>
-    <string name="cover_menu_always_on">Always on (Showcase mode)</string>
+    <string name="settings_cover_always_on">Keep rear screen on (Showcase mode)</string>
+    <string name="settings_cover_always_on_desc">Nothing Phone style: Rear cover screen stays awake continuously even if power button is pressed or phone is folded.</string>
+    <string name="cover_always_on_off">Standard (Off)</string>
+    <string name="cover_always_on_open_only">Open only (Off when folded)</string>
+    <string name="cover_always_on_always">Always on (Uninterrupted)</string>
     <string name="settings_auto_show">Open when folded</string>
     <string name="settings_auto_show_desc">Your content opens in front of the lock screen every time the cover wakes, even with Zlip closed.</string>
     <string name="settings_auto_show_missing">Until you allow Appear on top, the folded cover only shows the widget.</string>

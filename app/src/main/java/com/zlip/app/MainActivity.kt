@@ -43,6 +43,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.zlip.app.cover.CoverStatus
 import com.zlip.app.cover.coverHoverSupported
 import com.zlip.app.cover.mirror.MirrorState
+import com.zlip.app.data.CoverAlwaysOnMode
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.MediaFit
 import com.zlip.app.system.CoverActionReceiver
@@ -173,10 +174,14 @@ class MainActivity : ComponentActivity() {
             // Folded while using Zlip: carry on seamlessly on the closed phone's cover screen.
             val innerDark = displayId == Display.DEFAULT_DISPLAY && transitions.justWentDark(displayId)
             if (innerDark && !app.cover.endedByUser.value) {
-                val alwaysOn = app.repository.currentSettings.coverAlwaysOn
-                if (alwaysOn) {
-                    if (CoverGuard.audioMode(this@MainActivity) == android.media.AudioManager.MODE_NORMAL) {
-                        CoverGuard.showOnCover(this@MainActivity)
+                val mode = app.repository.currentSettings.coverAlwaysOnMode
+                if (mode != CoverAlwaysOnMode.OFF) {
+                    CoverGuard.checkFoldState(this@MainActivity) { isFolded ->
+                        if (mode == CoverAlwaysOnMode.OPEN_ONLY && isFolded) return@checkFoldState
+                        if (CoverGuard.audioMode(this@MainActivity) == android.media.AudioManager.MODE_NORMAL) {
+                            CoverGuard.wakeCoverScreen(this@MainActivity)
+                            CoverGuard.showOnCover(this@MainActivity)
+                        }
                     }
                 } else {
                     // Locking an open phone darkens the inner screen too; only a closed hinge means folded. Never

@@ -39,6 +39,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.zlip.app.cover.CoverScreen
 import com.zlip.app.data.CoverSettings
+import com.zlip.app.data.CoverAlwaysOnMode
 import com.zlip.app.system.CoverGuard
 import com.zlip.app.ui.theme.ZlipTheme
 import kotlinx.coroutines.delay
@@ -114,11 +115,15 @@ class CoverActivity : ComponentActivity() {
                 leave()
                 return
             }
-            // When the cover screen goes dark while folded (or when always-on is enabled), bring CoverActivity back in front of the lock screen
-            // so the next power-button wake always shows the live CoverScreen.
-            if (wentDark && displayId != Display.DEFAULT_DISPLAY && !innerScreenOn() && inBack) {
-                val alwaysOn = app.repository.currentSettings.coverAlwaysOn
-                if (CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true, alwaysOn = alwaysOn)) {
+            if (wentDark && displayId != Display.DEFAULT_DISPLAY && !innerScreenOn()) {
+                val mode = app.repository.currentSettings.coverAlwaysOnMode
+                if (mode != CoverAlwaysOnMode.OFF) {
+                    CoverGuard.checkFoldState(this@CoverActivity) { isFolded ->
+                        if (mode == CoverAlwaysOnMode.OPEN_ONLY && isFolded) return@checkFoldState
+                        CoverGuard.wakeCoverScreen(this@CoverActivity)
+                        CoverGuard.showOnCover(this@CoverActivity)
+                    }
+                } else if (inBack && CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true)) {
                     CoverGuard.showOnCover(this@CoverActivity)
                 }
             }
@@ -144,13 +149,17 @@ class CoverActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             try {
                 setShowWhenLocked(true)
+                setTurnScreenOn(true)
             } catch (e: Throwable) {
                 Log.w("CoverActivity", "Error setting showWhenLocked", e)
             }
         }
         @Suppress("DEPRECATION")
         try {
-            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
         } catch (e: Throwable) {
             Log.w("CoverActivity", "Error adding window flags", e)
         }
@@ -245,8 +254,10 @@ class CoverActivity : ComponentActivity() {
      */
     private suspend fun keepAwake() {
         combine(lastTouch, app.repository.settings, charging, heard, touchedAt) { touch, settings, isCharging, isHeard, touched ->
-            val always = settings.coverAlwaysOn || settings.stayOnSeconds == CoverSettings.STAY_ON_ALWAYS || (isCharging && settings.alwaysOnWhileCharging)
-            val awakeMs = if (settings.coverAlwaysOn) {
+            val mode = settings.coverAlwaysOnMode
+            val keepAwakeForever = mode != CoverAlwaysOnMode.OFF
+            val always = keepAwakeForever || settings.stayOnSeconds == CoverSettings.STAY_ON_ALWAYS || (isCharging && settings.alwaysOnWhileCharging)
+            val awakeMs = if (keepAwakeForever) {
                 Long.MAX_VALUE
             } else if (always) {
                 maxOf(settings.stayOnSeconds * 1_000L, REST_AFTER_MS)
@@ -296,11 +307,15 @@ class CoverActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             try {
                 setShowWhenLocked(true)
+                setTurnScreenOn(true)
             } catch (_: Throwable) {}
         }
         @Suppress("DEPRECATION")
         try {
-            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
         } catch (_: Throwable) {}
         // A widget tap is the user asking for it; the always-show service re-arming a dark cover is not.
         if (intent.openedByUser()) {
@@ -360,11 +375,15 @@ class CoverActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             try {
                 setShowWhenLocked(true)
+                setTurnScreenOn(true)
             } catch (_: Throwable) {}
         }
         @Suppress("DEPRECATION")
         try {
-            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
         } catch (_: Throwable) {}
         if (!onCover() || innerScreenOn()) {
             leave()
