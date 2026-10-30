@@ -7,6 +7,7 @@ enum class GestureResult {
     IGNORED,
     ACTIVATED,
     TAP,
+    DOUBLE_TAP,
 
     /**
      * A clean single tap (short, still, one finger) on a locked cover: the first half of the unlocking double tap, or
@@ -49,6 +50,10 @@ class TouchLock(
     private var pendingTapUpMs = NO_TAP
     private var pendingTapX = 0f
     private var pendingTapY = 0f
+
+    private var pendingActiveTapUpMs = NO_TAP
+    private var pendingActiveTapX = 0f
+    private var pendingActiveTapY = 0f
 
     fun onDown(timeMs: Long) {
         fingerDown = true
@@ -97,8 +102,21 @@ class TouchLock(
         }
 
         lastInteractionMs = upMs
+        if (isTap) {
+            val isSecondTap = pendingActiveTapUpMs != NO_TAP &&
+                downMs - pendingActiveTapUpMs in 0..doubleTapWindowMs &&
+                hypot(downX - pendingActiveTapX, downY - pendingActiveTapY) <= doubleTapSlopPx
+            if (isSecondTap) {
+                pendingActiveTapUpMs = NO_TAP
+                return GestureResult.DOUBLE_TAP
+            }
+            pendingActiveTapUpMs = upMs
+            pendingActiveTapX = upX
+            pendingActiveTapY = upY
+            return GestureResult.TAP
+        }
+        pendingActiveTapUpMs = NO_TAP
         return when {
-            isTap -> GestureResult.TAP
             abs(dx) >= swipeMinPx && abs(dx) > abs(dy) ->
                 if (dx < 0) GestureResult.SWIPE_NEXT else GestureResult.SWIPE_PREVIOUS
             abs(dy) >= swipeMinPx && abs(dy) > abs(dx) ->
@@ -133,6 +151,7 @@ class TouchLock(
     fun lock() {
         isActive = false
         pendingTapUpMs = NO_TAP
+        pendingActiveTapUpMs = NO_TAP
     }
 
     /**
@@ -142,6 +161,7 @@ class TouchLock(
     fun unlock(nowMs: Long) {
         isActive = true
         pendingTapUpMs = NO_TAP
+        pendingActiveTapUpMs = NO_TAP
         lastInteractionMs = nowMs
     }
 

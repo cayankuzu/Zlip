@@ -175,6 +175,7 @@ fun CoverScreen(
     val lock = remember { TouchLock(autoLock = lockTouches, idleTimeoutMs = 4_000) }
     var unlocked by remember { mutableStateOf(false) }
     var controlsShown by remember { mutableStateOf(false) }
+    var lastFramedTapMs by remember { mutableLongStateOf(0L) }
     val menuAllowed = true
     var menuShown by remember { mutableStateOf(false) }
     var lastTouch by remember { mutableLongStateOf(0L) }
@@ -569,9 +570,21 @@ fun CoverScreen(
                         // Zoomed in by a pinch in this showing: the fingers move the picture around, and it stays the
                         // item on screen. A zoom saved earlier only frames it; swipes stay swipes until a new pinch.
                         val gesture = frameMedia(down, lock, pinching = false, framing, glideScope, moveMedia)
-                        // A tap on the picture: the open phone is done with the controls (pause is the button's job).
+                        // A tap on the picture: single tap hides if visible; double tap toggles/shows controls.
                         if (gesture.tapped) {
-                            if (lockTouches) hideControls() else controlsShown = !controlsShown
+                            if (lockTouches) {
+                                hideControls()
+                            } else if (controlsShown) {
+                                hideControls()
+                            } else {
+                                val now = gesture.upTime
+                                if (now - lastFramedTapMs in 0..350) {
+                                    controlsShown = true
+                                    lastFramedTapMs = 0L
+                                } else {
+                                    lastFramedTapMs = now
+                                }
+                            }
                         }
                         lastTouch = gesture.upTime
                         return@awaitEachGesture
@@ -631,11 +644,18 @@ fun CoverScreen(
                                 lockedTapAt = 0L
                                 unlocked = true
                             }
-                            // Empty space means "done with the controls" on both covers; pause is the middle button.
-                            GestureResult.TAP -> when {
+                            GestureResult.DOUBLE_TAP -> when {
                                 shownMirror != null -> shownMirror.toggleView()
                                 lockTouches -> hideControls()
                                 else -> controlsShown = !controlsShown
+                            }
+                            // Empty space means "done with the controls" on both covers; pause is the middle button.
+                            // Single tap closes controls if visible; only double tap opens them.
+                            GestureResult.TAP -> when {
+                                shownMirror != null -> shownMirror.toggleView()
+                                lockTouches -> hideControls()
+                                controlsShown -> hideControls()
+                                else -> Unit
                             }
                             GestureResult.LOCKED_TAP -> lockedTapAt = last.uptimeMillis
                             // CoverPlayback ignores these while an editor streams a draft. A mirror steers itself

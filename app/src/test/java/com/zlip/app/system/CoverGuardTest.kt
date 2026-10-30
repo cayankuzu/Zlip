@@ -30,7 +30,8 @@ class CoverGuardTest {
     }
 
     @Test
-    fun neverOnAnOpenPhone() {
-        assertFalse(CoverGuard.shouldArm(AudioManager.MODE_NORMAL, needsArming = true, folded = false))
+    fun neverOnAnOpenPhoneUnlessAlwaysOn() {
+        assertFalse(CoverGuard.shouldArm(AudioManager.MODE_NORMAL, needsArming = true, folded = false, alwaysOn = false))
+        assertTrue(CoverGuard.shouldArm(AudioManager.MODE_NORMAL, needsArming = true, folded = false, alwaysOn = true))
     }
 }

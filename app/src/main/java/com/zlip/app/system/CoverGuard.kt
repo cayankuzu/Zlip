@@ -78,10 +78,10 @@ object CoverGuard {
     /**
      * Whether the screen saver may be put on the cover: only while no call rings or goes on ([audioMode] is
      * [AudioManager.MODE_NORMAL]; the cover's call screen must stay on top), only when it is not there
-     * already ([needsArming]), and only on a [folded] phone. Pure, so it is unit-tested.
+     * already ([needsArming]), and on a [folded] phone (or when [alwaysOn] is enabled). Pure, so it is unit-tested.
      */
-    fun shouldArm(audioMode: Int, needsArming: Boolean, folded: Boolean): Boolean =
-        audioMode == AudioManager.MODE_NORMAL && needsArming && folded
+    fun shouldArm(audioMode: Int, needsArming: Boolean, folded: Boolean, alwaysOn: Boolean = false): Boolean =
+        audioMode == AudioManager.MODE_NORMAL && needsArming && (folded || alwaysOn)
 
     /** The phone's audio mode: ringing, in a call or in a voice chat, or normal. Needs no permission. */
     fun audioMode(context: Context): Int = context.getSystemService(AudioManager::class.java).mode
@@ -166,7 +166,7 @@ object CoverGuard {
             }
             return
         }
-        val wanted = app.repository.currentSettings.autoShowOnCover && canAppearOnTop(context)
+        val wanted = (app.repository.currentSettings.autoShowOnCover || app.repository.currentSettings.coverAlwaysOn) && canAppearOnTop(context)
         val service = Intent(context, CoverGuardService::class.java)
         if (wanted) {
             if (CoverGuardService.running) return
@@ -239,6 +239,12 @@ class CoverGuardService : Service() {
             if (!wentDark) return
             // Never on top of an open phone.
             if (!CoverGuard.innerScreenDark(this@CoverGuardService) || !CoverActivity.needsArming) return
+            val app = applicationContext as? ZlipApp
+            val alwaysOn = app?.repository?.currentSettings?.coverAlwaysOn == true
+            if (alwaysOn) {
+                arm(folded = true, alwaysOn = true)
+                return
+            }
             if (displayId == Display.DEFAULT_DISPLAY) {
                 // Folded just now, or (an open phone that locked) maybe later: the hinge tells either way.
                 watchHinge()
@@ -252,8 +258,8 @@ class CoverGuardService : Service() {
         override fun onDisplayRemoved(displayId: Int) = Unit
     }
 
-    private fun arm(folded: Boolean) {
-        if (CoverGuard.shouldArm(CoverGuard.audioMode(this), CoverActivity.needsArming, folded)) CoverGuard.showOnCover(this)
+    private fun arm(folded: Boolean, alwaysOn: Boolean = false) {
+        if (CoverGuard.shouldArm(CoverGuard.audioMode(this), CoverActivity.needsArming, folded, alwaysOn)) CoverGuard.showOnCover(this)
     }
 
     /** Arms as soon as the hinge closes; the sensor reports its angle when registered, then each change. */

@@ -28,6 +28,7 @@ class CoverSettingsTest {
             mirrorFit = MirrorFit.FIT,
             widgetTipDismissed = true,
             playlistTipDismissed = true,
+            coverAlwaysOn = true,
         )
         assertEquals(changed, roundTrip(changed))
     }

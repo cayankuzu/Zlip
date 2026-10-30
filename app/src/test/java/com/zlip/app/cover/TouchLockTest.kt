@@ -120,8 +120,23 @@ class TouchLockTest {
         lock.tap(1_000)
         lock.tap(1_200)
         assertEquals(GestureResult.TAP, lock.tap(2_000))
+        assertEquals(GestureResult.DOUBLE_TAP, lock.tap(2_200))
         assertEquals(GestureResult.SWIPE_NEXT, lock.swipe(2_500, dx = -200f))
         assertEquals(GestureResult.SWIPE_PREVIOUS, lock.swipe(3_000, dx = 200f))
+    }
+
+    @Test
+    fun doubleTapWhileActiveReportsDoubleTap() {
+        val lock = TouchLock(autoLock = false)
+        assertEquals(GestureResult.TAP, lock.tap(1_000))
+        assertEquals(GestureResult.DOUBLE_TAP, lock.tap(1_200))
+    }
+
+    @Test
+    fun distantSecondTapWhileActiveReportsSingleTap() {
+        val lock = TouchLock(autoLock = false)
+        assertEquals(GestureResult.TAP, lock.tap(1_000, x = 50f, y = 50f))
+        assertEquals(GestureResult.TAP, lock.tap(1_150, x = 600f, y = 600f))
     }
 
     @Test

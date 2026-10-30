@@ -92,6 +92,12 @@ data class CoverSettings(
      */
     val autoShowOnCover: Boolean = true,
     /**
+     * Keep cover screen permanently active (Always-On / Nothing Phone style).
+     * The cover display remains awake even when the main screen is locked or turned off,
+     * whether the phone is open or folded.
+     */
+    val coverAlwaysOn: Boolean = false,
+    /**
      * Videos with audio play with sound each time the cover turns on (a fold, an unfold, a cover wake).
      * The cover's sound button, the notification and volume up change it only until the cover starts over.
      */
@@ -135,6 +141,7 @@ data class CoverSettings(
         put("stayOnSeconds", stayOnSeconds)
         put("alwaysOnWhileCharging", alwaysOnWhileCharging)
         put("autoShowOnCover", autoShowOnCover)
+        put("coverAlwaysOn", coverAlwaysOn)
         put("startWithSound", startWithSound)
         put("ledMatrix", ledMatrix)
         put("ledDensity", ledDensity)
@@ -198,6 +205,7 @@ data class CoverSettings(
                 stayOnSeconds = if (stayOn in STAY_ON_OPTIONS) stayOn else defaults.stayOnSeconds,
                 alwaysOnWhileCharging = json.optBoolean("alwaysOnWhileCharging", true),
                 autoShowOnCover = json.optBoolean("autoShowOnCover", true),
+                coverAlwaysOn = json.optBoolean("coverAlwaysOn", false),
                 // The old "videoSoundDefault" only seeded new imports; the cover now starts with sound unless set.
                 startWithSound = json.optBoolean("startWithSound", true),
                 ledMatrix = json.optBoolean("ledMatrix", false),

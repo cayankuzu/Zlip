@@ -114,10 +114,11 @@ class CoverActivity : ComponentActivity() {
                 leave()
                 return
             }
-            // When the cover screen goes dark while folded, bring CoverActivity back in front of the lock screen
+            // When the cover screen goes dark while folded (or when always-on is enabled), bring CoverActivity back in front of the lock screen
             // so the next power-button wake always shows the live CoverScreen.
             if (wentDark && displayId != Display.DEFAULT_DISPLAY && !innerScreenOn() && inBack) {
-                if (CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true)) {
+                val alwaysOn = app.repository.currentSettings.coverAlwaysOn
+                if (CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true, alwaysOn = alwaysOn)) {
                     CoverGuard.showOnCover(this@CoverActivity)
                 }
             }
@@ -244,9 +245,14 @@ class CoverActivity : ComponentActivity() {
      */
     private suspend fun keepAwake() {
         combine(lastTouch, app.repository.settings, charging, heard, touchedAt) { touch, settings, isCharging, isHeard, touched ->
-            val always = settings.stayOnSeconds == CoverSettings.STAY_ON_ALWAYS || (isCharging && settings.alwaysOnWhileCharging)
-            // "Cover default" and "always" count as a minute here.
-            val awakeMs = if (always) maxOf(settings.stayOnSeconds * 1_000L, REST_AFTER_MS) else settings.stayOnSeconds * 1_000L
+            val always = settings.coverAlwaysOn || settings.stayOnSeconds == CoverSettings.STAY_ON_ALWAYS || (isCharging && settings.alwaysOnWhileCharging)
+            val awakeMs = if (settings.coverAlwaysOn) {
+                Long.MAX_VALUE
+            } else if (always) {
+                maxOf(settings.stayOnSeconds * 1_000L, REST_AFTER_MS)
+            } else {
+                settings.stayOnSeconds * 1_000L
+            }
             StayAwake(
                 since = touch,
                 awakeMs = awakeMs,
@@ -261,6 +267,10 @@ class CoverActivity : ComponentActivity() {
                 return@collectLatest
             }
             keepScreenOn(true)
+            if (awake.awakeMs == Long.MAX_VALUE) {
+                // Permanently hold the screen on: never release FLAG_KEEP_SCREEN_ON
+                return@collectLatest
+            }
             // A watched clip holds the cover longer, but never without limit: a loop never ends by itself.
             val until = StayLit.deadline(awake.since, awake.awakeMs, awake.watching, awake.touchedAt)
             delay((until - SystemClock.uptimeMillis()).coerceAtLeast(0))

@@ -270,6 +270,14 @@ internal fun CoverMenu(
                     },
                 )
                 MenuSwitch(
+                    title = stringResource(R.string.cover_menu_always_on),
+                    checked = settings.coverAlwaysOn,
+                    onCheckedChange = { on ->
+                        onUserActivity()
+                        repository.updateSettings { it.copy(coverAlwaysOn = on) }
+                    },
+                )
+                MenuSwitch(
                     title = stringResource(R.string.cover_menu_led),
                     checked = settings.ledMatrix,
                     onCheckedChange = { on ->

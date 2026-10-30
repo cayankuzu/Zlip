@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -237,6 +238,13 @@ fun SettingsScreen(
                     checked = settings.coverClock,
                     onCheckedChange = { onSettingsChange(settings.copy(coverClock = it)) },
                     icon = Icons.Filled.Schedule,
+                )
+                SwitchRow(
+                    title = stringResource(R.string.settings_cover_always_on),
+                    description = stringResource(R.string.settings_cover_always_on_desc),
+                    checked = settings.coverAlwaysOn,
+                    onCheckedChange = { onSettingsChange(settings.copy(coverAlwaysOn = it)) },
+                    icon = Icons.Filled.Visibility,
                 )
             }
 
