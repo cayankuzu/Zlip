@@ -6,6 +6,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.AtomicFile
@@ -839,14 +840,37 @@ object MediaStorage {
     fun file(context: Context, fileName: String): File = File(dir(context), fileName)
 
     /**
-     * Width / height of [media]'s picture as stored (a video's from its poster frame), or 0 when it cannot be read.
-     * Reads only the file's header, so it is cheap, but still file access: call it off the main thread.
+     * Width / height of [media]'s picture as stored (a video's from its poster frame, falling back to the video
+     * file itself), or 0 when it cannot be read. Reads only the header/metadata, so it is cheap, but still file
+     * access: call it off the main thread.
      */
     fun aspect(context: Context, media: CoverItem.Media): Float {
-        val name = (if (media.kind == MediaKind.VIDEO) media.posterFileName else media.fileName) ?: return 0f
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        runCatching { BitmapFactory.decodeFile(file(context, name).path, bounds) }
-        return if (bounds.outWidth > 0 && bounds.outHeight > 0) bounds.outWidth.toFloat() / bounds.outHeight else 0f
+        val name = if (media.kind == MediaKind.VIDEO) media.posterFileName else media.fileName
+        if (name != null) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            runCatching { BitmapFactory.decodeFile(file(context, name).path, bounds) }
+            if (bounds.outWidth > 0 && bounds.outHeight > 0) return bounds.outWidth.toFloat() / bounds.outHeight
+        }
+        if (media.kind == MediaKind.VIDEO) {
+            runCatching {
+                val f = file(context, media.fileName)
+                if (f.exists()) {
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(f.path)
+                        val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toFloatOrNull() ?: 0f
+                        val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toFloatOrNull() ?: 0f
+                        val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+                        if (width > 0f && height > 0f) {
+                            return if (rotation == 90 || rotation == 270) height / width else width / height
+                        }
+                    } finally {
+                        retriever.release()
+                    }
+                }
+            }
+        }
+        return 0f
     }
 
     /** Returns (mediaCount, totalBytes) of Zlip's internal media directory (`files/media/`). */

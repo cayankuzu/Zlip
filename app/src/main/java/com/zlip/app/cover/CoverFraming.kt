@@ -175,7 +175,7 @@ internal class CoverFraming(private val repository: ContentRepository) {
     /** Switches [media] to the other fit, from scratch (not zoomed, centred), and saves it now. */
     fun switchFit(media: CoverItem.Media) {
         val switched = framingOf(media).fitSwitched()
-        edit = null
+        show(media, switched)
         repository.setMediaFraming(media.id, switched)
     }
 

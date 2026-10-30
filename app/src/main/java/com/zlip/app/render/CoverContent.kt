@@ -1,5 +1,6 @@
 package com.zlip.app.render
 
+import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.graphics.drawable.Animatable2
 import android.graphics.drawable.AnimatedImageDrawable
@@ -621,7 +622,17 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
             prepare()
         }
     }
-    var aspect by remember { mutableFloatStateOf(0f) }
+    var aspect by remember(item.fileName) {
+        val initial = runCatching {
+            val poster = item.posterFileName
+            if (poster != null) {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(MediaStorage.file(context, poster).path, bounds)
+                if (bounds.outWidth > 0 && bounds.outHeight > 0) bounds.outWidth.toFloat() / bounds.outHeight else 0f
+            } else 0f
+        }.getOrDefault(0f)
+        mutableFloatStateOf(initial)
+    }
     var failed by remember { mutableStateOf(false) }
     // A play-once clip holding its last frame: it plays nothing, so it must not keep the user's music paused.
     var atEnd by remember { mutableStateOf(false) }
@@ -837,14 +848,16 @@ private fun VideoPlayer(item: CoverItem.Media, modifier: Modifier, playing: Bool
         // over it; only the view moves, so a new framing never touches the player.
         val placement = if (aspect > 0f) item.placementIn(aspect, constraints.maxWidth, constraints.maxHeight) else null
         val videoModifier = Modifier.fillMaxSize().placedAt(placement)
-        // Keyed so that switching between overlay and texture (e.g. the user rotates the cover) builds the
-        // right kind of view and detaches the old one from the player.
-        key(overlay) {
+        val needsClipping = item.framing.fit == MediaFit.FILL || item.framing.zoom > MediaFocus.MIN_ZOOM
+        val useOverlay = overlay && !needsClipping
+        // Keyed so that switching between overlay and texture (e.g. the user switches fit/zoom or rotates the cover)
+        // builds the right kind of view and detaches the old one from the player.
+        key(useOverlay) {
             AndroidView(
                 factory = { ctx ->
                     // SurfaceView is composited by the display hardware (cheapest), but cannot be clipped or
-                    // rotated, so previews and rotated covers use TextureView.
-                    if (overlay) {
+                    // rotated, so previews, cropped/FILL, zoomed and rotated covers use TextureView.
+                    if (useOverlay) {
                         SurfaceView(ctx).also { player.setVideoSurfaceView(it) }
                     } else {
                         TextureView(ctx).also { player.setVideoTextureView(it) }
