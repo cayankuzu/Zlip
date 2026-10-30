@@ -154,7 +154,7 @@ class CoverNotifier(
                             manager.cancel(NOTIFICATION_ID)
                         }
                     }
-                    is Model.Playing -> post(playingNotification(model))
+                    is Model.Playing -> post(model)
                 }
             }
         }
@@ -218,7 +218,8 @@ class CoverNotifier(
             // Not twice: a nameless item already has "cover on" as its title.
             model.title.isNotBlank() -> setSubText(context.getString(R.string.notif_title))
         }
-        setOngoing(true)
+        val ongoing = !model.paused
+        setOngoing(ongoing)
         // Android 14+ lets the user swipe even ongoing notifications away.
         setDeleteIntent(action(ACTION_PLAYING_DISMISSED))
         val buttons = notificationActions(group = model.inGroup, otherItems = model.itemSkip, sound = model.sound != null, editing = model.editing)
@@ -256,9 +257,14 @@ class CoverNotifier(
         setStyle(MediaStyle().setShowActionsInCompactView(*buttons.compact.toIntArray()))
     }.build()
 
-    private fun post(notification: android.app.Notification) {
+    private fun post(model: Model.Playing) {
         if (!canPost()) return
         try {
+            val notification = playingNotification(model)
+            val service = CoverGuardService.instance
+            if (service != null && CoverGuardService.running) {
+                service.updateForeground(model.paused, notification)
+            }
             manager.notify(NOTIFICATION_ID, notification)
         } catch (e: SecurityException) {
             // Permission revoked between the check and the call; nothing to show.
@@ -383,7 +389,13 @@ class CoverActionReceiver : BroadcastReceiver() {
             CoverNotifier.ACTION_PREVIOUS -> app.playback.previous()
             CoverNotifier.ACTION_NEXT -> app.playback.next()
             CoverNotifier.ACTION_NEXT_ITEM -> app.playback.nextItem()
-            CoverNotifier.ACTION_PLAYING_DISMISSED -> app.notifier.dismissPlaying()
+            CoverNotifier.ACTION_PLAYING_DISMISSED -> {
+                // Swiped away while paused (like YouTube Music / Spotify): turn off cover and stop service!
+                app.stopCover(hideMiniWindow = true)
+                app.playback.requestCloseLiveView()
+                val service = Intent(context, CoverGuardService::class.java).setAction(CoverGuardService.ACTION_STOP)
+                context.startService(service)
+            }
             CoverNotifier.ACTION_MIRROR_STOP -> app.mirror.stop()
             CoverNotifier.ACTION_MIRROR_VIEW -> app.mirror.toggleView()
             CoverNotifier.ACTION_MEDIA_FIT -> app.playback.switchShownMediaFit()

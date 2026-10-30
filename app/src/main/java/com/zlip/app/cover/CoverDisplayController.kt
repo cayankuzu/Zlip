@@ -16,6 +16,8 @@ import androidx.window.area.WindowAreaInfo
 import androidx.window.area.WindowAreaPresentationSessionCallback
 import androidx.window.area.WindowAreaSessionPresenter
 import androidx.window.core.ExperimentalWindowApi
+import com.zlip.app.ZlipApp
+import com.zlip.app.system.CoverGuard
 import com.zlip.app.cover.mirror.MirrorController
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverSettings
@@ -335,6 +337,12 @@ class CoverDisplayController(
             if (t != null) {
                 Log.w(TAG, "Cover session ended with an error", t)
                 _lastError.value = CoverError.SESSION_FAILED
+            }
+            if (wasStarted && !closeRequested && !_endedByUser.value) {
+                val app = repository.context as? ZlipApp
+                if (app != null && CoverGuard.canAppearOnTop(app) && app.repository.currentSettings.autoShowOnCover) {
+                    CoverGuard.showOnCover(app)
+                }
             }
             // Leaving Zlip legitimately ends the session (cancel_when_requester_not_on_top); only a
             // failure while we stayed on top counts against auto-start.

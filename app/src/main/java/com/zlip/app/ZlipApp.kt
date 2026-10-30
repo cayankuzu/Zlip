@@ -120,6 +120,7 @@ class ZlipApp : Application() {
     fun stopCover(hideMiniWindow: Boolean = false) {
         mirror.stop()
         cover.stop(byUser = true)
+        playback.requestCloseLiveView()
         if (hideMiniWindow) _hideMiniWindow.tryEmit(Unit)
     }
 }

@@ -371,6 +371,7 @@ class CoverGuardService : Service() {
             return
         }
         running = true
+        instance = this
         transitions // capture the current states before the first change arrives
         displays.registerDisplayListener(listener, Handler(Looper.getMainLooper()))
     }
@@ -402,6 +403,7 @@ class CoverGuardService : Service() {
     }
 
     override fun onDestroy() {
+        if (instance === this) instance = null
         if (running) {
             running = false
             displays.unregisterDisplayListener(listener)
@@ -422,7 +424,27 @@ class CoverGuardService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
+    fun updateForeground(paused: Boolean, notification: Notification) {
+        if (paused) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_DETACH)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(false)
+            }
+        } else {
+            try {
+                startForeground(CoverNotifier.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } catch (e: Throwable) {
+                Log.w("ZlipGuard", "Cannot return to foreground", e)
+            }
+        }
+    }
+
     companion object {
+        @Volatile
+        var instance: CoverGuardService? = null
+            private set
         /** False until the service runs in the foreground, and when Android refused that (it then quits). */
         @Volatile
         var running = false

@@ -75,6 +75,7 @@ class ContentRepository(context: Context, private val scope: CoroutineScope) {
     )
 
     private val appContext = context.applicationContext
+    val context: Context get() = appContext
     private val store = AtomicFile(File(appContext.filesDir, STORE_FILE))
     private val writeMutex = Mutex()
     private val state = MutableStateFlow(State())

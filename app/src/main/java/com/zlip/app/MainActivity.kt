@@ -460,7 +460,7 @@ class MainActivity : ComponentActivity() {
                     inPip = inPip.asStateFlow(),
                     autoOffCountdown = autoOffCountdown.asStateFlow(),
                     // Where the small window is not possible, Back leaves as it always did.
-                    onEnterHover = { if (!enterHover()) moveTaskToBack(false) },
+                    onEnterHover = { moveTaskToBack(true) },
                     onMirrorChange = { on -> if (on) startMirror() else app.mirror.stop() },
                     onEditorDirtyChange = { editorDirty.value = it },
                 )
@@ -565,7 +565,9 @@ class MainActivity : ComponentActivity() {
             // Done: the request must not linger and fire again after a later "off".
             startRequested.value = false
             // Unsaved edits stay full size, where leaving asks about them (see buildHoverParams).
-            if (app.repository.currentSettings.keepCoverInOtherApps && !editorDirty.value) enterHover()
+            if (app.repository.currentSettings.keepCoverInOtherApps && !editorDirty.value) {
+                moveTaskToBack(true)
+            }
         }
     }
 

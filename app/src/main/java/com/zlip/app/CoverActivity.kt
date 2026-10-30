@@ -241,17 +241,17 @@ class CoverActivity : ComponentActivity() {
      * this look counts as being watched, up to a limit ([StayLit]).
      */
     private suspend fun keepAwake() {
-        combine(lastTouch, app.repository.settings, charging, heard, touchedAt) { touch, settings, isCharging, isHeard, touched ->
-            val always = settings.stayOnSeconds == CoverSettings.STAY_ON_ALWAYS || (isCharging && settings.alwaysOnWhileCharging)
-            val awakeMs = if (always) {
-                maxOf(settings.stayOnSeconds * 1_000L, REST_AFTER_MS)
+        combine(lastTouch, combine(app.repository.settings, app.playback.paused, ::Pair), charging, heard, touchedAt) { touch, (settings, isPaused), isCharging, isHeard, touched ->
+            val keepAwakeForever = !isPaused || settings.stayOnSeconds == CoverSettings.STAY_ON_ALWAYS || (isCharging && settings.alwaysOnWhileCharging)
+            val awakeMs = if (keepAwakeForever) {
+                Long.MAX_VALUE
             } else {
                 settings.stayOnSeconds * 1_000L
             }
             StayAwake(
                 since = touch,
                 awakeMs = awakeMs,
-                rests = always && awakeMs > REST_AFTER_MS,
+                rests = false,
                 watching = StayLit.watching(isHeard, touched, visibleSince),
                 touchedAt = touched,
             )
@@ -262,6 +262,9 @@ class CoverActivity : ComponentActivity() {
                 return@collectLatest
             }
             keepScreenOn(true)
+            if (awake.awakeMs == Long.MAX_VALUE) {
+                return@collectLatest
+            }
             val until = StayLit.deadline(awake.since, awake.awakeMs, awake.watching, awake.touchedAt)
             delay((until - SystemClock.uptimeMillis()).coerceAtLeast(0))
             if (awake.rests) {
