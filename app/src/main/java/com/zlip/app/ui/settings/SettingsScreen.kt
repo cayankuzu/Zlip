@@ -48,7 +48,6 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -162,15 +161,6 @@ fun SettingsScreen(
                     icon = Icons.Filled.Grain,
                 )
                 if (settings.ledMatrix) LedStyleChoices(settings, onSettingsChange)
-                Spacer(Modifier.height(16.dp))
-
-                SwitchRow(
-                    title = stringResource(R.string.settings_reels_cover),
-                    description = stringResource(R.string.settings_reels_cover_desc),
-                    checked = settings.reelsCoverEnabled,
-                    onCheckedChange = { onSettingsChange(settings.copy(reelsCoverEnabled = it)) },
-                    icon = Icons.Filled.VideoLibrary,
-                )
                 Spacer(Modifier.height(16.dp))
 
                 AutoAdvanceControls(settings, onSettingsChange)

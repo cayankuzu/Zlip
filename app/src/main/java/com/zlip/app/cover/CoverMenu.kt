@@ -277,14 +277,6 @@ internal fun CoverMenu(
                         repository.updateSettings { it.copy(ledMatrix = on) }
                     },
                 )
-                MenuSwitch(
-                    title = stringResource(R.string.settings_reels_cover),
-                    checked = settings.reelsCoverEnabled,
-                    onCheckedChange = { on ->
-                        onUserActivity()
-                        repository.updateSettings { it.copy(reelsCoverEnabled = on) }
-                    },
-                )
             }
         }
     }

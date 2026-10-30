@@ -107,10 +107,6 @@ data class CoverSettings(
     val widgetTipDismissed: Boolean = false,
     /** The user closed Home's "make a playlist" tip; it stays away for good. */
     val playlistTipDismissed: Boolean = false,
-    /** Enable Instagram Reels viewer on the folded cover screen. */
-    val reelsCoverEnabled: Boolean = true,
-    /** Default fit mode for Reels on the cover screen: FIT (no crop) or FILL (full screen). */
-    val reelsDefaultFit: MediaFit = MediaFit.FIT,
 ) {
     /** The auto-advance settings as one value (see [AdvanceMode]). */
     val advanceMode: AdvanceMode
@@ -146,8 +142,6 @@ data class CoverSettings(
         put("onboardingDone", onboardingDone)
         put("widgetTipDismissed", widgetTipDismissed)
         put("playlistTipDismissed", playlistTipDismissed)
-        put("reelsCoverEnabled", reelsCoverEnabled)
-        put("reelsDefaultFit", reelsDefaultFit.name)
     }
 
     companion object {
@@ -212,8 +206,6 @@ data class CoverSettings(
                 onboardingDone = json.optBoolean("onboardingDone", false),
                 widgetTipDismissed = json.optBoolean("widgetTipDismissed", false),
                 playlistTipDismissed = json.optBoolean("playlistTipDismissed", false),
-                reelsCoverEnabled = json.optBoolean("reelsCoverEnabled", true),
-                reelsDefaultFit = MediaFit.entries.firstOrNull { it.name == json.optString("reelsDefaultFit") } ?: defaults.reelsDefaultFit,
             )
         }
     }

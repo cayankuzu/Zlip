@@ -41,7 +41,6 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.structuralEqualityPolicy
@@ -73,7 +72,6 @@ import com.zlip.app.cover.mirror.MirrorGestureHint
 import com.zlip.app.cover.mirror.MirrorState
 import com.zlip.app.cover.mirror.MirrorSurface
 import com.zlip.app.cover.mirror.steerMirror
-import com.zlip.app.cover.reels.CoverReelsScreen
 import com.zlip.app.data.ContentRepository
 import com.zlip.app.data.CoverItem
 import com.zlip.app.data.CoverSettings
@@ -179,7 +177,6 @@ fun CoverScreen(
     var controlsShown by remember { mutableStateOf(false) }
     val menuAllowed = true
     var menuShown by remember { mutableStateOf(false) }
-    var reelsOpen by rememberSaveable { mutableStateOf(false) }
     var lastTouch by remember { mutableLongStateOf(0L) }
     val controlsVisible = if (lockTouches) unlocked else controlsShown && !menuShown
     val currentOnDismiss by rememberUpdatedState(onDismiss ?: onClose)
@@ -923,15 +920,6 @@ fun CoverScreen(
                         currentOnUserActivity()
                         switchFit()
                     },
-                    onOpenReels = if (settings.reelsCoverEnabled) {
-                        {
-                            lastTouch = SystemClock.uptimeMillis()
-                            currentOnUserActivity()
-                            reelsOpen = true
-                        }
-                    } else {
-                        null
-                    },
                     onOpenMenu = if (menuAllowed) {
                         {
                             currentOnUserActivity()
@@ -974,13 +962,6 @@ fun CoverScreen(
                     brightnessLocked = showsQr,
                 )
             }
-        }
-
-        if (reelsOpen) {
-            CoverReelsScreen(
-                settings = settings,
-                onClose = { reelsOpen = false },
-            )
         }
     }
 }
