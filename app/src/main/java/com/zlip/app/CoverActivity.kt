@@ -110,20 +110,22 @@ class CoverActivity : ComponentActivity() {
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayChanged(displayId: Int) {
             val wentDark = transitions.justWentDark(displayId)
-            // The inner screen lit up: the phone was opened. Step aside so it behaves exactly as usual.
+            val mode = app.repository.currentSettings.coverAlwaysOnMode
+            // The inner screen lit up: the phone was opened. Step aside so it behaves exactly as usual only in OFF mode.
             if (displayId == Display.DEFAULT_DISPLAY && displays.getDisplay(displayId)?.state == Display.STATE_ON) {
-                leave()
-                return
+                if (mode == CoverAlwaysOnMode.OFF) {
+                    leave()
+                    return
+                }
             }
-            if (wentDark && displayId != Display.DEFAULT_DISPLAY && !innerScreenOn()) {
-                val mode = app.repository.currentSettings.coverAlwaysOnMode
+            if (wentDark && displayId != Display.DEFAULT_DISPLAY) {
                 if (mode != CoverAlwaysOnMode.OFF) {
                     CoverGuard.checkFoldState(this@CoverActivity) { isFolded ->
                         if (mode == CoverAlwaysOnMode.OPEN_ONLY && isFolded) return@checkFoldState
                         CoverGuard.wakeCoverScreen(this@CoverActivity)
                         CoverGuard.showOnCover(this@CoverActivity)
                     }
-                } else if (inBack && CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true)) {
+                } else if (!innerScreenOn() && inBack && CoverGuard.shouldArm(CoverGuard.audioMode(this@CoverActivity), needsArming = true, folded = true)) {
                     CoverGuard.showOnCover(this@CoverActivity)
                 }
             }
@@ -158,11 +160,13 @@ class CoverActivity : ComponentActivity() {
         try {
             window.addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             )
         } catch (e: Throwable) {
             Log.w("CoverActivity", "Error adding window flags", e)
         }
+        window.decorView.keepScreenOn = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 window.attributes.layoutInDisplayCutoutMode =
@@ -307,6 +311,7 @@ class CoverActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             try {
                 setShowWhenLocked(true)
+                setTurnScreenOn(false)
                 setTurnScreenOn(true)
             } catch (_: Throwable) {}
         }
@@ -314,9 +319,11 @@ class CoverActivity : ComponentActivity() {
         try {
             window.addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             )
         } catch (_: Throwable) {}
+        window.decorView.keepScreenOn = true
         // A widget tap is the user asking for it; the always-show service re-arming a dark cover is not.
         if (intent.openedByUser()) {
             used()
@@ -382,10 +389,13 @@ class CoverActivity : ComponentActivity() {
         try {
             window.addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             )
         } catch (_: Throwable) {}
-        if (!onCover() || innerScreenOn()) {
+        window.decorView.keepScreenOn = true
+        val mode = app.repository.currentSettings.coverAlwaysOnMode
+        if (!onCover() || (mode == CoverAlwaysOnMode.OFF && innerScreenOn())) {
             leave()
             return
         }
@@ -431,8 +441,9 @@ class CoverActivity : ComponentActivity() {
             } catch (_: Throwable) {}
         }
         super.onStop()
-        // The cover going dark only pauses the screen saver; opening the phone ends it.
-        if (innerScreenOn()) leave()
+        val mode = app.repository.currentSettings.coverAlwaysOnMode
+        // The cover going dark only pauses the screen saver; opening the phone ends it if always-on is OFF.
+        if (mode == CoverAlwaysOnMode.OFF && innerScreenOn()) leave()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

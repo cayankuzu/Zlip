@@ -130,6 +130,9 @@ object CoverGuard {
         }, 300L)
     }
 
+    @Volatile
+    private var lastKnownHingeAngle: Float? = null
+
     fun checkFoldState(context: Context, callback: (isFolded: Boolean) -> Unit) {
         val sensors = context.getSystemService(SensorManager::class.java)
         val hinge = sensors?.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE) ?: run {
@@ -143,8 +146,9 @@ object CoverGuard {
                 if (done) return
                 done = true
                 sensors.unregisterListener(this)
-                val folded = event.values.firstOrNull()?.let { it < FOLDED_MAX_DEGREES } ?: false
-                callback(folded)
+                val angle = event.values.firstOrNull() ?: 180f
+                lastKnownHingeAngle = angle
+                callback(angle < FOLDED_MAX_DEGREES)
             }
             override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) = Unit
         }
@@ -153,24 +157,36 @@ object CoverGuard {
             if (!listener.done) {
                 listener.done = true
                 sensors.unregisterListener(listener)
-                callback(hasCoverDisplay(context) && innerScreenDark(context))
+                val lastAngle = lastKnownHingeAngle
+                if (lastAngle != null) {
+                    callback(lastAngle < FOLDED_MAX_DEGREES)
+                } else {
+                    callback(hasCoverDisplay(context) && innerScreenDark(context))
+                }
             }
         }, 200L)
     }
 
     private var wakeLock: PowerManager.WakeLock? = null
+    private var cpuWakeLock: PowerManager.WakeLock? = null
 
     @Synchronized
     fun wakeCoverScreen(context: Context) {
         val pm = context.getSystemService(PowerManager::class.java) ?: return
-        if (wakeLock == null) {
-            @Suppress("DEPRECATION")
-            wakeLock = pm.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
-                "zlip:cover_wake",
-            ).apply { setReferenceCounted(false) }
-        }
         try {
+            if (cpuWakeLock == null) {
+                cpuWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "zlip:cpu_wake")
+                    .apply { setReferenceCounted(false) }
+            }
+            cpuWakeLock?.acquire(5_000L)
+
+            if (wakeLock == null) {
+                @Suppress("DEPRECATION")
+                wakeLock = pm.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                    "zlip:cover_wake",
+                ).apply { setReferenceCounted(false) }
+            }
             wakeLock?.acquire(3_000L)
         } catch (e: Throwable) {
             Log.w(TAG, "Could not acquire wake lock", e)
@@ -287,11 +303,15 @@ class CoverGuardService : Service() {
                 val mode = app.repository.currentSettings.coverAlwaysOnMode
                 if (mode == CoverAlwaysOnMode.OFF) return
                 if (CoverGuard.audioMode(this@CoverGuardService) != AudioManager.MODE_NORMAL) return
-                CoverGuard.checkFoldState(this@CoverGuardService) { isFolded ->
-                    if (mode == CoverAlwaysOnMode.OPEN_ONLY && isFolded) return@checkFoldState
-                    CoverGuard.wakeCoverScreen(this@CoverGuardService)
-                    CoverGuard.showOnCover(this@CoverGuardService)
+                val trigger = {
+                    CoverGuard.checkFoldState(this@CoverGuardService) { isFolded ->
+                        if (mode == CoverAlwaysOnMode.OPEN_ONLY && isFolded) return@checkFoldState
+                        CoverGuard.wakeCoverScreen(this@CoverGuardService)
+                        CoverGuard.showOnCover(this@CoverGuardService)
+                    }
                 }
+                trigger()
+                Handler(Looper.getMainLooper()).postDelayed({ trigger() }, 350L)
             }
         }
     }
